@@ -1,0 +1,7 @@
+﻿services:
+  newscollector:
+    image: newscollector
+    build:
+      context: .
+      dockerfile: tools/NewsCollector/Dockerfile
+
