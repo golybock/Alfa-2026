@@ -5,3 +5,15 @@
       context: .
       dockerfile: tools/NewsCollector/Dockerfile
 
+  alfanews.api:
+    image: alfanews.api
+    build:
+      context: .
+      dockerfile: backend/AlfaNews.Api/Dockerfile
+
+  alfanews.worker:
+    image: alfanews.worker
+    build:
+      context: .
+      dockerfile: backend/AlfaNews.Worker/Dockerfile
+
