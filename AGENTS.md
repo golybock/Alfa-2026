@@ -111,7 +111,6 @@ THIRD_PARTY_NOTICES.md
 
 **Зависимости**
 - Новый NuGet- или npm-пакет добавляется только с согласия Артёма и сразу записывается в `THIRD_PARTY_NOTICES.md`.
-- Lock-файлы (`package-lock.json`, `packages.lock.json`) обязательны и коммитятся.
 
 ## Как работать AI-ассистенту в этом репо
 
