@@ -28,7 +28,11 @@ services:
   tei:
     image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.9
     restart: unless-stopped
-    command: [--model-id, intfloat/multilingual-e5-base, --port, "80", --dtype, float32]
+    entrypoint: [/bin/sh, /etc/tei/start-int8.sh]
+    command: [--model-id, /data/e5-base-int8-d128750597153bb5987e10b1c3493a34e5a4502a, --served-model-name, intfloat/multilingual-e5-base, --port, "80", --dtype, float32]
+    configs:
+      - source: tei-int8-startup
+        target: /etc/tei/start-int8.sh
     volumes:
       - embeddings-cache:/data
     healthcheck:
@@ -125,6 +129,30 @@ services:
       retries: 10
 
 configs:
+  tei-int8-startup:
+    content: |
+      set -eu
+      revision=d128750597153bb5987e10b1c3493a34e5a4502a
+      model_dir=/data/e5-base-int8-$${revision}
+      base_url=https://huggingface.co/intfloat/multilingual-e5-base/resolve/$${revision}
+      mkdir -p "$${model_dir}/1_Pooling"
+
+      download() {
+        source_path=$$1
+        target_path=$$2
+        if [ ! -s "$$target_path" ]; then
+          curl --fail --location --silent --show-error --retry 3 --connect-timeout 10 --max-time 900 "$$base_url/$$source_path" -o "$$target_path.part"
+          mv "$$target_path.part" "$$target_path"
+        fi
+      }
+
+      for file in config.json tokenizer.json tokenizer_config.json sentence_bert_config.json 1_Pooling/config.json; do
+        download "$$file" "$$model_dir/$$file"
+      done
+      download onnx/model_qint8_avx512_vnni.onnx "$$model_dir/model.onnx"
+      printf '%s  %s\n' 2523551878658b305550d8759443822dbfda9ed9c8012ef2c354ba2c5b9de503 "$$model_dir/model.onnx" | sha256sum -c -
+      exec text-embeddings-router "$$@"
+
   nginx-config:
     content: |
       server {
