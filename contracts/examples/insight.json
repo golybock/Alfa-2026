@@ -1,0 +1,197 @@
+{
+  "id": "00000000-0000-4000-8000-000000000002",
+  "event_id": "00000000-0000-4000-8000-000000000001",
+  "company_id": "U_DEMO_A",
+  "role": "cfo",
+  "as_of": "2026-10-21T12:00:00+03:00",
+  "headline": "Фикстура: проверить условия финансирования перед пересмотром бюджета",
+  "relevance": {
+    "score": 0.24,
+    "rank": 1,
+    "reasons": [
+      {
+        "code": "product_loan",
+        "text": "В профиле отмечен кредитный продукт; размер долга неизвестен.",
+        "claim_ids": [
+          "C2"
+        ],
+        "evidence_refs": [
+          "E2"
+        ]
+      }
+    ],
+    "contributions": [
+      {
+        "code": "product",
+        "value": 1,
+        "weight": 0.2,
+        "contribution": 0.2,
+        "known": true,
+        "evidence_refs": [
+          "E2"
+        ]
+      }
+    ]
+  },
+  "what_happened": [
+    "C1"
+  ],
+  "why_it_matters": [
+    "C3"
+  ],
+  "consequences": [
+    {
+      "type": "risk",
+      "claim_ids": [
+        "C4"
+      ]
+    }
+  ],
+  "actions": [
+    "C5"
+  ],
+  "bank_view": {
+    "status": "found",
+    "claim_ids": [
+      "C6"
+    ]
+  },
+  "claims": [
+    {
+      "id": "C1",
+      "text": "В тестовой публикации ставка составляет 14%.",
+      "origin": "source_fact",
+      "refs": [
+        "E1"
+      ],
+      "verification_status": "code_passed",
+      "confidence": null
+    },
+    {
+      "id": "C2",
+      "text": "В тестовом профиле отмечен кредитный продукт.",
+      "origin": "source_fact",
+      "refs": [
+        "E2"
+      ],
+      "verification_status": "code_passed",
+      "confidence": null
+    },
+    {
+      "id": "C3",
+      "text": "Ставочный фактор относится к планированию финансирования компании с кредитным продуктом.",
+      "origin": "ai_inference",
+      "refs": [
+        "E1",
+        "E2"
+      ],
+      "verification_status": "code_passed",
+      "confidence": "medium"
+    },
+    {
+      "id": "C4",
+      "text": "Если договор привязан к этому показателю, его условия существенны для сценария расходов.",
+      "origin": "ai_hypothesis",
+      "refs": [
+        "E1",
+        "E2"
+      ],
+      "verification_status": "code_passed",
+      "confidence": "medium"
+    },
+    {
+      "id": "C5",
+      "text": "Перед обновлением бюджета проверить тип ставки в договоре.",
+      "origin": "ai_inference",
+      "refs": [
+        "E1",
+        "E2"
+      ],
+      "verification_status": "code_passed",
+      "confidence": "medium"
+    },
+    {
+      "id": "C6",
+      "text": "В тестовом обзоре условия финансирования названы значимыми для бюджетного сценария.",
+      "origin": "bank_analytics",
+      "refs": [
+        "E3"
+      ],
+      "verification_status": "code_passed",
+      "confidence": "medium"
+    }
+  ],
+  "evidence": {
+    "E1": {
+      "type": "news",
+      "source": "Синтетический источник для fixtures",
+      "url": "https://example.invalid/news/fixture-rate",
+      "quote": "В тестовой публикации ставка составляет 14%.",
+      "date": "2026-10-21",
+      "document_id": null,
+      "page": null,
+      "chunk_id": null,
+      "key": null,
+      "value": null,
+      "dataset": null,
+      "review_status": null,
+      "approximate": false,
+      "chart_id": null,
+      "page_image_url": null
+    },
+    "E2": {
+      "type": "company_feature",
+      "source": "Синтетические данные компании",
+      "url": null,
+      "quote": null,
+      "date": null,
+      "document_id": null,
+      "page": null,
+      "chunk_id": null,
+      "key": "CL_PRODUCT_LOA_MARK",
+      "value": 1,
+      "dataset": "fixture-v1",
+      "review_status": null,
+      "approximate": false,
+      "chart_id": null,
+      "page_image_url": null
+    },
+    "E3": {
+      "type": "bank_research",
+      "source": "Синтетический обзор для fixtures",
+      "url": null,
+      "quote": "В тестовом обзоре условия финансирования названы значимыми для бюджетного сценария.",
+      "date": "2026-10-20",
+      "document_id": "00000000-0000-4000-8000-000000000005",
+      "page": 1,
+      "chunk_id": "00000000-0000-4000-8000-000000000006",
+      "key": null,
+      "value": null,
+      "dataset": null,
+      "review_status": "not_reviewed",
+      "approximate": false,
+      "chart_id": null,
+      "page_image_url": "/api/research/00000000-0000-4000-8000-000000000005/pages/1"
+    }
+  },
+  "limitations": [
+    "Только синтетический пример структуры, не реальная новость/позиция банка.",
+    "Размер долга и тип кредитной ставки неизвестны.",
+    "Распознанный текст обзора не проверен вручную."
+  ],
+  "suggested_questions": [
+    "Почему событие относится к нашей компании?",
+    "Что нужно проверить в договоре?",
+    "Каких данных не хватает?"
+  ],
+  "trace_id": "00000000-0000-4000-8000-000000000004",
+  "verification": {
+    "code_status": "passed",
+    "critic": {
+      "status": "skipped_budget",
+      "request_count": 0,
+      "reason": "Синтетический пример пропуска по бюджету"
+    },
+    "repair_count": 0
+  }
+}

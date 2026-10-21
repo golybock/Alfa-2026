@@ -1,0 +1,168 @@
+{
+  "id": "00000000-0000-4000-8000-000000000012",
+  "event_id": "00000000-0000-4000-8000-000000000001",
+  "company_id": "U_DEMO_B",
+  "role": "cfo",
+  "as_of": "2026-10-21T12:00:00+03:00",
+  "headline": "Фикстура: уточнить условия размещения ликвидности",
+  "relevance": {
+    "score": 0.19,
+    "rank": 1,
+    "reasons": [
+      {
+        "code": "product_deposit",
+        "text": "В синтетическом профиле отмечен депозит; сроки неизвестны.",
+        "claim_ids": [
+          "C2"
+        ],
+        "evidence_refs": [
+          "E2"
+        ]
+      }
+    ],
+    "contributions": [
+      {
+        "code": "product",
+        "value": 1,
+        "weight": 0.2,
+        "contribution": 0.2,
+        "known": true,
+        "evidence_refs": [
+          "E2"
+        ]
+      }
+    ]
+  },
+  "what_happened": [
+    "C1"
+  ],
+  "why_it_matters": [
+    "C3"
+  ],
+  "consequences": [
+    {
+      "type": "risk",
+      "claim_ids": [
+        "C4"
+      ]
+    }
+  ],
+  "actions": [
+    "C5"
+  ],
+  "bank_view": {
+    "status": "not_found",
+    "claim_ids": []
+  },
+  "claims": [
+    {
+      "id": "C1",
+      "text": "В тестовой публикации ставка составляет 14%.",
+      "origin": "source_fact",
+      "refs": [
+        "E1"
+      ],
+      "verification_status": "code_passed",
+      "confidence": null
+    },
+    {
+      "id": "C2",
+      "text": "В тестовом профиле отмечен депозитный продукт.",
+      "origin": "source_fact",
+      "refs": [
+        "E2"
+      ],
+      "verification_status": "code_passed",
+      "confidence": null
+    },
+    {
+      "id": "C3",
+      "text": "Ставочный фактор относится к условиям размещения ликвидности компании с депозитом.",
+      "origin": "ai_inference",
+      "refs": [
+        "E1",
+        "E2"
+      ],
+      "verification_status": "code_passed",
+      "confidence": "medium"
+    },
+    {
+      "id": "C4",
+      "text": "Если депозит предстоит пролонгировать, нужно проверить новые условия.",
+      "origin": "ai_hypothesis",
+      "refs": [
+        "E1",
+        "E2"
+      ],
+      "verification_status": "code_passed",
+      "confidence": "medium"
+    },
+    {
+      "id": "C5",
+      "text": "Уточнить дату пролонгации и условия депозита перед планированием ликвидности.",
+      "origin": "ai_inference",
+      "refs": [
+        "E1",
+        "E2"
+      ],
+      "verification_status": "code_passed",
+      "confidence": "medium"
+    }
+  ],
+  "evidence": {
+    "E1": {
+      "type": "news",
+      "source": "Синтетический источник для fixtures",
+      "url": "https://example.invalid/news/fixture-rate",
+      "quote": "В тестовой публикации ставка составляет 14%.",
+      "date": "2026-10-21",
+      "document_id": null,
+      "page": null,
+      "chunk_id": null,
+      "key": null,
+      "value": null,
+      "dataset": null,
+      "review_status": null,
+      "approximate": false,
+      "chart_id": null,
+      "page_image_url": null
+    },
+    "E2": {
+      "type": "company_feature",
+      "source": "Синтетические данные компании",
+      "url": null,
+      "quote": null,
+      "date": null,
+      "document_id": null,
+      "page": null,
+      "chunk_id": null,
+      "key": "CL_PRODUCT_DEP_MARK",
+      "value": 1,
+      "dataset": "fixture-v1",
+      "review_status": null,
+      "approximate": false,
+      "chart_id": null,
+      "page_image_url": null
+    }
+  },
+  "limitations": [
+    "Синтетическая фикстура.",
+    "Срок депозита и условия пролонгации неизвестны.",
+    "Позиция банка не найдена."
+  ],
+  "suggested_questions": [
+    "Почему событие относится к нашей компании?",
+    "Что нужно проверить в договоре?",
+    "Каких данных не хватает?"
+  ],
+  "trace_id": "00000000-0000-4000-8000-000000000004",
+  "verification": {
+    "code_status": "passed",
+    "critic": {
+      "status": "skipped_budget",
+      "request_count": 0,
+      "reason": "Синтетический пример пропуска по бюджету"
+    },
+    "repair_count": 0
+  }
+}

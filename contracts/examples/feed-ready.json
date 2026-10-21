@@ -1,0 +1,86 @@
+{
+  "company_id": "U_DEMO_A",
+  "as_of": "2026-10-21T12:00:00+03:00",
+  "news_period_from": "2026-10-15T00:00:00+03:00",
+  "news_period_to": "2026-10-21T12:00:00+03:00",
+  "last_updated_at": "2026-10-21T12:00:00+03:00",
+  "collection_started_at": "2026-10-21T12:00:00+03:00",
+  "refresh_status": "idle",
+  "items": [
+    {
+      "event_id": "00000000-0000-4000-8000-000000000001",
+      "headline": "Фикстура: ставка в тестовой публикации",
+      "summary": "В тестовой публикации ставка составляет 14%.",
+      "source": {
+        "name": "Синтетический источник для fixtures",
+        "url": "https://example.invalid/news/fixture-rate",
+        "published_at": "2026-10-21T12:00:00+03:00"
+      },
+      "relevance": {
+        "score": 0.24,
+        "rank": 1,
+        "reasons": [
+          {
+            "code": "product_loan",
+            "text": "В профиле отмечен кредитный продукт; размер долга неизвестен.",
+            "claim_ids": [],
+            "evidence_refs": [
+              "E2"
+            ]
+          }
+        ],
+        "contributions": [
+          {
+            "code": "product",
+            "value": 1,
+            "weight": 0.2,
+            "contribution": 0.2,
+            "known": true,
+            "evidence_refs": [
+              "E2"
+            ]
+          }
+        ]
+      },
+      "evidence": {
+        "E1": {
+          "type": "news",
+          "source": "Синтетический источник для fixtures",
+          "url": "https://example.invalid/news/fixture-rate",
+          "quote": "В тестовой публикации ставка составляет 14%.",
+          "date": "2026-10-21",
+          "document_id": null,
+          "page": null,
+          "chunk_id": null,
+          "key": null,
+          "value": null,
+          "dataset": null,
+          "review_status": null,
+          "approximate": false,
+          "chart_id": null,
+          "page_image_url": null
+        },
+        "E2": {
+          "type": "company_feature",
+          "source": "Синтетические данные компании",
+          "url": null,
+          "quote": null,
+          "date": null,
+          "document_id": null,
+          "page": null,
+          "chunk_id": null,
+          "key": "CL_PRODUCT_LOA_MARK",
+          "value": 1,
+          "dataset": "fixture-v1",
+          "review_status": null,
+          "approximate": false,
+          "chart_id": null,
+          "page_image_url": null
+        }
+      },
+      "analysis_status": "ready",
+      "insight_id": "00000000-0000-4000-8000-000000000002",
+      "job_id": null
+    }
+  ]
+}

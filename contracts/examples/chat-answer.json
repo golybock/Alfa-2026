@@ -1,0 +1,43 @@
+{
+  "id": "00000000-0000-4000-8000-000000000008",
+  "insight_id": "00000000-0000-4000-8000-000000000002",
+  "status": "answer",
+  "claims": [
+    {
+      "id": "C1",
+      "text": "Тип ставки договора нужно проверить, из профиля он неизвестен.",
+      "origin": "ai_inference",
+      "refs": [
+        "E2"
+      ],
+      "verification_status": "code_passed",
+      "confidence": "medium"
+    }
+  ],
+  "evidence": {
+    "E2": {
+      "type": "company_feature",
+      "source": "Синтетические данные компании",
+      "url": null,
+      "quote": null,
+      "date": null,
+      "document_id": null,
+      "page": null,
+      "chunk_id": null,
+      "key": "CL_PRODUCT_LOA_MARK",
+      "value": 1,
+      "dataset": "fixture-v1",
+      "review_status": null,
+      "approximate": false,
+      "chart_id": null,
+      "page_image_url": null
+    }
+  },
+  "refusal_reason": null,
+  "suggested_questions": [
+    "Почему событие относится к нашей компании?",
+    "Что нужно проверить в договоре?",
+    "Каких данных не хватает?"
+  ],
+  "questions_remaining": 9
+}
