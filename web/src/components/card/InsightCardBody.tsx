@@ -1,0 +1,126 @@
+import { formatDate } from "../../lib/dates";
+import { criticStatusLabels, reviewStatusLabels } from "../../lib/labels";
+import type { ClaimDto, EvidenceDto, EvidenceType, InsightDto } from "../../lib/types/api";
+import Icon from "../ui/Icon";
+import KindBadge from "../ui/KindBadge";
+import RankBadge from "../ui/RankBadge";
+import SourceLinkRow from "../ui/SourceLinkRow";
+import CardBlock from "./CardBlock";
+import ClaimList from "./ClaimList";
+
+type EvidenceEntry = { id: string; item: EvidenceDto };
+
+function evidenceOf(
+  claimIds: ReadonlyArray<string>,
+  claims: ReadonlyMap<string, ClaimDto>,
+  evidence: Readonly<Record<string, EvidenceDto>>,
+  type: EvidenceType,
+): EvidenceEntry[] {
+  const refs = new Set(claimIds.flatMap((id) => claims.get(id)?.refs ?? []));
+  return [...refs]
+    .map((id) => ({ id, item: evidence[id] }))
+    .filter((entry): entry is EvidenceEntry => entry.item !== undefined && entry.item.type === type);
+}
+
+type InsightCardBodyProps = { insight: InsightDto };
+
+export default function InsightCardBody({ insight }: InsightCardBodyProps) {
+  const claims = new Map(insight.claims.map((claim) => [claim.id, claim]));
+  const news = evidenceOf(insight.what_happened, claims, insight.evidence, "news");
+  const bankSources = evidenceOf(insight.bank_view.claim_ids, claims, insight.evidence, "bank_research");
+  const bankFound = insight.bank_view.status === "found";
+  const blocks = ["what", "why", "consequences", ...(insight.actions.length > 0 ? ["actions"] : []), "bank", "shown"];
+  const numberOf = (block: string) => blocks.indexOf(block) + 1;
+
+  return (
+    <div className="mt-4 flex flex-col gap-4">
+      <div className="grid grid-cols-[1fr_340px] items-start gap-4">
+        <div className="flex flex-col gap-4">
+          <CardBlock number={numberOf("what")} title="Что произошло">
+            <ClaimList ids={insight.what_happened} claims={claims} evidence={insight.evidence} />
+            {news.map(({ id, item }) =>
+              item.url ? <SourceLinkRow key={id} title={`${id} · ${item.source}`} url={item.url} /> : null,
+            )}
+          </CardBlock>
+          <CardBlock number={numberOf("why")} title="Почему это важно именно вам">
+            <ClaimList ids={insight.why_it_matters} claims={claims} evidence={insight.evidence} />
+          </CardBlock>
+          <CardBlock number={numberOf("consequences")} title="Какие последствия возможны">
+            {insight.consequences.length === 0 ? (
+              <p className="text-sm text-zinc-500">Последствия не выделены: недостаточно оснований.</p>
+            ) : (
+              <ul className="flex flex-col gap-4">
+                {insight.consequences.map((consequence) => (
+                  <li key={`${consequence.type}-${consequence.claim_ids.join("-")}`} className="flex flex-col gap-2">
+                    <KindBadge kind={consequence.type} />
+                    <ClaimList ids={consequence.claim_ids} claims={claims} evidence={insight.evidence} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardBlock>
+        </div>
+        <div className="flex flex-col gap-4">
+          {insight.actions.length > 0 ? (
+            <CardBlock number={numberOf("actions")} title="Что стоит проверить">
+              <ClaimList ids={insight.actions} claims={claims} evidence={insight.evidence} />
+              <button type="button" className="mt-4 h-10 rounded-xl bg-zinc-100 px-4 text-sm font-medium hover:bg-zinc-200">
+                Связаться с менеджером
+              </button>
+            </CardBlock>
+          ) : null}
+          <CardBlock number={numberOf("bank")} title="Как это оценивает банк">
+            {bankFound ? (
+              <div className="rounded-xl bg-red-50 p-4">
+                <ClaimList ids={insight.bank_view.claim_ids} claims={claims} evidence={insight.evidence} />
+                {bankSources.map(({ id, item }) => (
+                  <div key={id} className="mt-3 text-xs text-zinc-500">
+                    <p>
+                      {id} · {item.source}
+                      {item.date ? ` · ${formatDate(item.date)}` : ""}
+                      {item.page ? ` · стр. ${item.page}` : ""}
+                    </p>
+                    {item.review_status ? <p>{reviewStatusLabels[item.review_status]}</p> : null}
+                    {item.page_image_url ? <SourceLinkRow title="Открыть страницу материала" url={item.page_image_url} /> : null}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="rounded-xl bg-zinc-100 p-4 text-sm text-zinc-600">
+                Подходящая позиция Альфа-Банка по этому событию не найдена.
+              </p>
+            )}
+          </CardBlock>
+          <CardBlock number={numberOf("shown")} title="Почему показано">
+            <RankBadge rank={insight.relevance.rank} />
+            <ul className="mt-3 flex flex-col gap-2 text-sm">
+              {insight.relevance.reasons.map((reason) => (
+                <li key={reason.code}>{reason.text}</li>
+              ))}
+            </ul>
+            <p className="mt-3 flex items-start gap-2 text-xs text-zinc-500">
+              <Icon name="info" className="h-4 w-4 shrink-0" />
+              {insight.verification.code_status === "passed" ? "Проверки кодом пройдены. " : "Проверки кодом не пройдены. "}
+              {criticStatusLabels[insight.verification.critic.status]}
+              {insight.verification.critic.reason ? ` (${insight.verification.critic.reason})` : ""}
+            </p>
+          </CardBlock>
+          {insight.limitations.length > 0 ? (
+            <section className="rounded-2xl bg-zinc-100 p-5">
+              <h2 className="text-sm font-semibold">Чего мы о вас не знаем</h2>
+              <ul className="mt-2 flex list-disc flex-col gap-1 pl-4 text-xs leading-5 text-zinc-600">
+                {insight.limitations.map((limitation) => (
+                  <li key={limitation}>{limitation}</li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+        </div>
+      </div>
+      <footer className="flex flex-col gap-1 text-xs text-zinc-500">
+        <p>Информация не является индивидуальной инвестиционной рекомендацией.</p>
+        {bankFound ? null : <p>Вывод сделан моделью по внешним источникам и не является позицией Альфа-Банка.</p>}
+      </footer>
+    </div>
+  );
+}

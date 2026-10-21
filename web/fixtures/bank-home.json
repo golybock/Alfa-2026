@@ -1,0 +1,31 @@
+{
+  "aiPlaceholder": "Как копить баллы",
+  "quickActions": [
+    { "title": "Пополнить счёт", "icon": "plus" },
+    { "title": "Создать платёж", "icon": "document" },
+    { "title": "Между счетами", "icon": "swap" },
+    { "title": "Выставить счёт", "icon": "document" },
+    { "title": "Импорт платежей", "icon": "upload" }
+  ],
+  "paymentTabs": [
+    { "title": "Оплатить", "count": 0 },
+    { "title": "Подписать", "count": 1 },
+    { "title": "Отправить", "count": 0 },
+    { "title": "Доработать", "count": 0 }
+  ],
+  "account": {
+    "title": "Расчётный счёт",
+    "balance": "308,00 ₽",
+    "number": "4080 2810 •••• 6291",
+    "offerBadge": "Накопительный счёт до 8,8%",
+    "offerAmount": "+ 22 000 ₽",
+    "offerText": "Разместите 1,5 млн ₽ на 2 месяца",
+    "cardName": "Business One",
+    "cardNumber": "••0770"
+  },
+  "promos": [
+    { "title": "Интернет-эквайринг", "text": "Подключите для вашего бизнеса", "tone": "bg-lime-200" },
+    { "title": "1 месяц бесплатно", "text": "Проверьте риски бизнеса по 115 ФЗ", "tone": "bg-cyan-200" },
+    { "title": "Подписка Премиум+", "text": "Новый уровень комфорта бизнес-карты", "tone": "bg-violet-300" }
+  ]
+}

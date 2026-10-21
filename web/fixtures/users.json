@@ -2,17 +2,17 @@
   {
     "login": "demo-ceo",
     "password": "demo",
-    "companyId": "demo-company-1",
-    "companyName": "Демо-компания 1",
-    "displayName": "Демо-пользователь 1",
-    "role": "Генеральный директор"
+    "companyId": "U_DEMO_A",
+    "companyName": "Синтетическая компания A",
+    "displayName": "Иванов Иван Иванович",
+    "role": "ceo"
   },
   {
     "login": "demo-cfo",
     "password": "demo",
-    "companyId": "demo-company-2",
-    "companyName": "Демо-компания 2",
-    "displayName": "Демо-пользователь 2",
-    "role": "Финансовый директор"
+    "companyId": "U_DEMO_A",
+    "companyName": "Синтетическая компания A",
+    "displayName": "Иванов Иван Иванович",
+    "role": "cfo"
   }
 ]

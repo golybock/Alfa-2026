@@ -1,16 +1,12 @@
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import users from "../../../fixtures/users.json";
 import type { MockUserRecord, SessionUser } from "../types/auth";
+import { requireMocks } from "./mode";
 
 export const SESSION_COOKIE = "session";
 
-const mockUsers: MockUserRecord[] = users;
-
-function requireMocks() {
-  if (process.env.NEXT_PUBLIC_USE_MOCKS !== "true") {
-    throw new Error("Авторизация через API ещё не подключена: включите NEXT_PUBLIC_USE_MOCKS=true");
-  }
-}
+const mockUsers = users as MockUserRecord[];
 
 function toSessionUser(record: MockUserRecord): SessionUser {
   return {
@@ -29,9 +25,17 @@ export function authenticate(login: string, password: string): SessionUser | nul
 }
 
 export async function getCurrentUser(): Promise<SessionUser | null> {
-  requireMocks();
   const store = await cookies();
+  requireMocks();
   const login = store.get(SESSION_COOKIE)?.value;
   const record = mockUsers.find((user) => user.login === login);
   return record ? toSessionUser(record) : null;
+}
+
+export async function requireCurrentUser(): Promise<SessionUser> {
+  const user = await getCurrentUser();
+  if (!user) {
+    redirect("/login");
+  }
+  return user;
 }

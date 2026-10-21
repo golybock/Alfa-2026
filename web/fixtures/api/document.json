@@ -1,0 +1,76 @@
+{
+  "id": "00000000-0000-4000-8000-000000000005",
+  "title": "Синтетический PDF для fixtures",
+  "published_on": "2026-10-20",
+  "page_count": 1,
+  "version": "fixture-v1",
+  "ocr_status": "ready",
+  "review_status": "not_reviewed",
+  "pages": [
+    {
+      "page_no": 1,
+      "ocr_status": "ready",
+      "review_status": "not_reviewed",
+      "page_image_url": "/api/research/00000000-0000-4000-8000-000000000005/pages/1",
+      "chunks": [
+        {
+          "id": "00000000-0000-4000-8000-000000000006",
+          "kind": "bank_view",
+          "text": "В тестовом обзоре условия финансирования названы значимыми для бюджетного сценария.",
+          "review_status": "not_reviewed",
+          "tables": [
+            {
+              "title": "Синтетическая таблица",
+              "columns": [
+                "период",
+                "значение"
+              ],
+              "rows": [
+                [
+                  "2025",
+                  "8–9%"
+                ]
+              ]
+            }
+          ],
+          "charts": [
+            {
+              "chart": {
+                "local_id": "chart1",
+                "title": "Синтетический график для формы сверки",
+                "description": "Пример структуры, не число из банковского PDF.",
+                "x_axis": "Период",
+                "y_axis": "Значение",
+                "unit": "%",
+                "period": "2025",
+                "legend": [
+                  "пример"
+                ],
+                "points": [
+                  {
+                    "series": "пример",
+                    "period": "2025",
+                    "value": null,
+                    "low": 8,
+                    "high": 9,
+                    "unit": "%",
+                    "approximate": true,
+                    "reading_method": "axis_estimate"
+                  }
+                ],
+                "region": [
+                  0.1,
+                  0.2,
+                  0.7,
+                  0.4
+                ]
+              },
+              "review_status": "not_reviewed"
+            }
+          ]
+        }
+      ],
+      "error": null
+    }
+  ]
+}

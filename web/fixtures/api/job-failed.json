@@ -1,0 +1,12 @@
+{
+  "id": "00000000-0000-4000-8000-000000000003",
+  "status": "failed",
+  "stage": "draft",
+  "result_type": null,
+  "result_id": null,
+  "error": {
+    "code": "processing_failed",
+    "message": "Синтетический пример ошибки.",
+    "request_id": "00000000-0000-4000-8000-000000000003"
+  }
+}

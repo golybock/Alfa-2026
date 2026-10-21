@@ -1,19 +1,19 @@
-import { redirect } from "next/navigation";
-import LoginForm from "../../components/LoginForm";
-import { getCurrentUser } from "../../lib/api/auth";
+import { Suspense } from "react";
+import BankBackdrop from "../../components/bank/BankBackdrop";
+import LoggedInRedirect from "../../components/auth/LoggedInRedirect";
+import LoginForm from "../../components/auth/LoginForm";
+import ModalFrame from "../../components/ui/ModalFrame";
 
-export default async function LoginPage() {
-  const user = await getCurrentUser();
-  if (user) {
-    redirect("/");
-  }
-
+export default function LoginPage() {
   return (
-    <main className="flex flex-1 items-center justify-center bg-zinc-50 px-4 py-16">
-      <section className="w-full max-w-sm rounded-2xl bg-white p-8 text-zinc-900 shadow-sm">
-        <h1 className="mb-6 text-2xl font-semibold">Вход в Альфа-Бизнес</h1>
+    <>
+      <BankBackdrop />
+      <ModalFrame title="Авторизация" step={1}>
         <LoginForm />
-      </section>
-    </main>
+      </ModalFrame>
+      <Suspense fallback={null}>
+        <LoggedInRedirect />
+      </Suspense>
+    </>
   );
 }

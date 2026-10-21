@@ -6,9 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "contracts:sync": "node -e \"const fs=require('fs');fs.copyFileSync('../contracts/api.ts','src/lib/types/api.ts');fs.rmSync('fixtures/api',{recursive:true,force:true});fs.cpSync('../contracts/examples','fixtures/api',{recursive:true,filter:(p)=>!p.endsWith('.md')})\""
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.104.5",
     "next": "16.4.2",
     "react": "19.3.0",
     "react-dom": "19.3.0"

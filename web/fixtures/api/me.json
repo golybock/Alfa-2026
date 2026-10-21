@@ -1,0 +1,23 @@
+{
+  "user_id": "00000000-0000-4000-8000-000000000007",
+  "display_name": "Тестовый пользователь",
+  "is_operator": true,
+  "companies": [
+    {
+      "company_id": "U_DEMO_A",
+      "name": "Синтетическая компания A",
+      "roles": [
+        "ceo",
+        "cfo"
+      ]
+    },
+    {
+      "company_id": "U_DEMO_B",
+      "name": "Синтетическая компания B",
+      "roles": [
+        "ceo",
+        "cfo"
+      ]
+    }
+  ]
+}
