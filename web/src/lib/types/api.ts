@@ -1,5 +1,3 @@
-// Generated from Domain.cs / Api.cs / Processing.cs by contracts/generate.py.
-// API JSON uses snake_case. Internal profiles, jobs and LLM payloads are excluded.
 export type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
 
 export interface AcceptedResponse {
@@ -114,7 +112,7 @@ export interface ConsequenceDto {
   readonly claim_ids: ReadonlyArray<string>;
 }
 
-export type ConsequenceType = "risk" | "opportunity";
+export type ConsequenceType = "risk" | "opportunity" | "neutral";
 
 export type CriticStatus = "passed" | "issues_found" | "skipped_disabled" | "skipped_budget" | "skipped_error";
 
