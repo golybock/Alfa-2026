@@ -1,0 +1,7 @@
+[
+  {"id":"cbr_events","name":"Банк России: новости, интервью, выступления","feed_url":"https://www.cbr.ru/rss/eventrss","kind":"official","allowed_hosts":["www.cbr.ru","cbr.ru"],"enabled":false,"poll_seconds":120,"reliability":1.0,"validation_status":"pending"},
+  {"id":"cbr_press","name":"Банк России: пресс-релизы","feed_url":"https://www.cbr.ru/rss/RssPress","kind":"official","allowed_hosts":["www.cbr.ru","cbr.ru"],"enabled":false,"poll_seconds":120,"reliability":1.0,"validation_status":"pending"},
+  {"id":"cbr_new","name":"Банк России: новое на сайте","feed_url":"https://www.cbr.ru/rss/RssNews","kind":"official","allowed_hosts":["www.cbr.ru","cbr.ru"],"enabled":false,"poll_seconds":120,"reliability":1.0,"validation_status":"pending"},
+  {"id":"rbc","name":"РБК: новости","feed_url":"https://rssexport.rbc.ru/rbcnews/news/30/full.rss","kind":"media","allowed_hosts":["rssexport.rbc.ru","www.rbc.ru","rbc.ru"],"enabled":false,"poll_seconds":120,"reliability":0.9,"validation_status":"pending"},
+  {"id":"kommersant","name":"Коммерсантъ: лента новостей","feed_url":"https://www.kommersant.ru/rss/news.xml","kind":"media","allowed_hosts":["www.kommersant.ru","kommersant.ru"],"enabled":false,"poll_seconds":120,"reliability":0.9,"validation_status":"pending"}
+]
