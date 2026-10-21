@@ -1,0 +1,10 @@
+namespace AlfaNews.Contracts.Domain;
+
+public sealed record FeatureContribution(
+	string Code,
+	decimal Value,
+	decimal Weight,
+	decimal Contribution,
+	bool Known,
+	IReadOnlyList<string> EvidenceRefs
+);
