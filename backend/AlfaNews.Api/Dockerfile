@@ -11,6 +11,7 @@ ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 COPY ["backend/AlfaNews.Api/AlfaNews.Api.csproj", "backend/AlfaNews.Api/"]
 COPY ["backend/AlfaNews.Core/AlfaNews.Core.csproj", "backend/AlfaNews.Core/"]
+COPY ["backend/AlfaNews.Contracts/AlfaNews.Contracts.csproj", "backend/AlfaNews.Contracts/"]
 RUN dotnet restore "backend/AlfaNews.Api/AlfaNews.Api.csproj"
 COPY backend/ backend/
 COPY .dockerignore .dockerignore

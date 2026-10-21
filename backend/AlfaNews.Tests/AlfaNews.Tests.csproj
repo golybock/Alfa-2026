@@ -22,4 +22,8 @@
       <ProjectReference Include="..\AlfaNews.Core\AlfaNews.Core.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+        <None Include="..\..\contracts\examples\*.json" Link="Examples\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    </ItemGroup>
+
 </Project>
