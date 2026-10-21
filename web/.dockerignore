@@ -1,8 +1,12 @@
-node_modules
-.next
 .env
 .env.*
 !.env.example
-npm-debug.log
-Dockerfile
-.dockerignore
+.next
+node_modules
+coverage
+out
+build
+*.log
+*.tsbuildinfo
+Dockerfile*
+.git
