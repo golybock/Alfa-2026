@@ -1,0 +1,363 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DocumentResponse",
+  "$ref": "#/$defs/DocumentResponse",
+  "$defs": {
+    "ChartDraft": {
+      "type": "object",
+      "properties": {
+        "local_id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "x_axis": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "y_axis": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "period": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "legend": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "points": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ChartPointDraft"
+          }
+        },
+        "region": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        }
+      },
+      "required": [
+        "local_id",
+        "title",
+        "description",
+        "x_axis",
+        "y_axis",
+        "unit",
+        "period",
+        "legend",
+        "points",
+        "region"
+      ],
+      "additionalProperties": false
+    },
+    "ChartPointDraft": {
+      "type": "object",
+      "properties": {
+        "series": {
+          "type": "string"
+        },
+        "period": {
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "low": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "high": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "unit": {
+          "type": "string"
+        },
+        "approximate": {
+          "type": "boolean"
+        },
+        "reading_method": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "series",
+        "period",
+        "value",
+        "low",
+        "high",
+        "unit",
+        "approximate",
+        "reading_method"
+      ],
+      "additionalProperties": false
+    },
+    "DocumentPageDto": {
+      "type": "object",
+      "properties": {
+        "page_no": {
+          "type": "integer"
+        },
+        "ocr_status": {
+          "$ref": "#/$defs/OcrStatus"
+        },
+        "review_status": {
+          "$ref": "#/$defs/ReviewStatus"
+        },
+        "page_image_url": {
+          "type": "string"
+        },
+        "chunks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ReviewableChunkDto"
+          }
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "page_no",
+        "ocr_status",
+        "review_status",
+        "page_image_url",
+        "chunks",
+        "error"
+      ],
+      "additionalProperties": false
+    },
+    "DocumentResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "published_on": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "page_count": {
+          "type": "integer"
+        },
+        "version": {
+          "type": "string"
+        },
+        "ocr_status": {
+          "$ref": "#/$defs/OcrStatus"
+        },
+        "review_status": {
+          "$ref": "#/$defs/ReviewStatus"
+        },
+        "pages": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DocumentPageDto"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "published_on",
+        "page_count",
+        "version",
+        "ocr_status",
+        "review_status",
+        "pages"
+      ],
+      "additionalProperties": false
+    },
+    "OcrStatus": {
+      "type": "string",
+      "enum": [
+        "queued",
+        "processing",
+        "ready",
+        "partial",
+        "failed"
+      ]
+    },
+    "ResearchBlockKind": {
+      "type": "string",
+      "enum": [
+        "fact",
+        "bank_view",
+        "forecast",
+        "disclaimer"
+      ]
+    },
+    "ReviewStatus": {
+      "type": "string",
+      "enum": [
+        "not_reviewed",
+        "partially_reviewed",
+        "reviewed"
+      ]
+    },
+    "ReviewableChartDto": {
+      "type": "object",
+      "properties": {
+        "chart": {
+          "$ref": "#/$defs/ChartDraft"
+        },
+        "review_status": {
+          "$ref": "#/$defs/ReviewStatus"
+        }
+      },
+      "required": [
+        "chart",
+        "review_status"
+      ],
+      "additionalProperties": false
+    },
+    "ReviewableChunkDto": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/ResearchBlockKind"
+        },
+        "text": {
+          "type": "string"
+        },
+        "review_status": {
+          "$ref": "#/$defs/ReviewStatus"
+        },
+        "tables": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TableDraft"
+          }
+        },
+        "charts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ReviewableChartDto"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "text",
+        "review_status",
+        "tables",
+        "charts"
+      ],
+      "additionalProperties": false
+    },
+    "TableDraft": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "columns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "required": [
+        "title",
+        "columns",
+        "rows"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

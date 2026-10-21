@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CriticResult",
+  "$ref": "#/$defs/CriticResult",
+  "$defs": {
+    "CriticIssue": {
+      "type": "object",
+      "properties": {
+        "claim_id": {
+          "type": "string"
+        },
+        "code": {
+          "type": "string"
+        },
+        "explanation": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "claim_id",
+        "code",
+        "explanation"
+      ],
+      "additionalProperties": false
+    },
+    "CriticResult": {
+      "type": "object",
+      "properties": {
+        "issues": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CriticIssue"
+          }
+        }
+      },
+      "required": [
+        "issues"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

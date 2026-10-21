@@ -1,0 +1,294 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PdfPageExtraction",
+  "$ref": "#/$defs/PdfPageExtraction",
+  "$defs": {
+    "ChartDraft": {
+      "type": "object",
+      "properties": {
+        "local_id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "x_axis": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "y_axis": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "period": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "legend": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "points": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ChartPointDraft"
+          }
+        },
+        "region": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        }
+      },
+      "required": [
+        "local_id",
+        "title",
+        "description",
+        "x_axis",
+        "y_axis",
+        "unit",
+        "period",
+        "legend",
+        "points",
+        "region"
+      ],
+      "additionalProperties": false
+    },
+    "ChartPointDraft": {
+      "type": "object",
+      "properties": {
+        "series": {
+          "type": "string"
+        },
+        "period": {
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "low": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "high": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "unit": {
+          "type": "string"
+        },
+        "approximate": {
+          "type": "boolean"
+        },
+        "reading_method": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "series",
+        "period",
+        "value",
+        "low",
+        "high",
+        "unit",
+        "approximate",
+        "reading_method"
+      ],
+      "additionalProperties": false
+    },
+    "NewsTags": {
+      "type": "object",
+      "properties": {
+        "factors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "okved2": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "countries": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "regions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "commodities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "factors",
+        "okved2",
+        "countries",
+        "regions",
+        "commodities"
+      ],
+      "additionalProperties": false
+    },
+    "PdfPageExtraction": {
+      "type": "object",
+      "properties": {
+        "blocks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ResearchBlockDraft"
+          }
+        }
+      },
+      "required": [
+        "blocks"
+      ],
+      "additionalProperties": false
+    },
+    "ResearchBlockDraft": {
+      "type": "object",
+      "properties": {
+        "local_id": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/ResearchBlockKind"
+        },
+        "text": {
+          "type": "string"
+        },
+        "tables": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TableDraft"
+          }
+        },
+        "charts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ChartDraft"
+          }
+        },
+        "tags": {
+          "$ref": "#/$defs/NewsTags"
+        }
+      },
+      "required": [
+        "local_id",
+        "kind",
+        "text",
+        "tables",
+        "charts",
+        "tags"
+      ],
+      "additionalProperties": false
+    },
+    "ResearchBlockKind": {
+      "type": "string",
+      "enum": [
+        "fact",
+        "bank_view",
+        "forecast",
+        "disclaimer"
+      ]
+    },
+    "TableDraft": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "columns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "required": [
+        "title",
+        "columns",
+        "rows"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

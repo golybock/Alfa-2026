@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ChatDraft",
+  "$ref": "#/$defs/ChatDraft",
+  "$defs": {
+    "ChatDraft": {
+      "type": "object",
+      "properties": {
+        "claims": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DraftClaim"
+          }
+        },
+        "suggested_questions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "claims",
+        "suggested_questions"
+      ],
+      "additionalProperties": false
+    },
+    "Confidence": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    "DraftClaim": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "origin": {
+          "$ref": "#/$defs/Origin"
+        },
+        "refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Confidence"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "text",
+        "origin",
+        "refs",
+        "confidence"
+      ],
+      "additionalProperties": false
+    },
+    "Origin": {
+      "type": "string",
+      "enum": [
+        "source_fact",
+        "bank_analytics",
+        "ai_inference",
+        "ai_hypothesis"
+      ]
+    }
+  }
+}

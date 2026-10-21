@@ -1,0 +1,306 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ChatAnswerDto",
+  "$ref": "#/$defs/ChatAnswerDto",
+  "$defs": {
+    "ChatAnswerDto": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "insight_id": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/ChatAnswerStatus"
+        },
+        "claims": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ClaimDto"
+          }
+        },
+        "evidence": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/EvidenceDto"
+          }
+        },
+        "refusal_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "suggested_questions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "questions_remaining": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "insight_id",
+        "status",
+        "claims",
+        "evidence",
+        "refusal_reason",
+        "suggested_questions",
+        "questions_remaining"
+      ],
+      "additionalProperties": false
+    },
+    "ChatAnswerStatus": {
+      "type": "string",
+      "enum": [
+        "answer",
+        "refusal"
+      ]
+    },
+    "ClaimDto": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "origin": {
+          "$ref": "#/$defs/Origin"
+        },
+        "refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "verification_status": {
+          "$ref": "#/$defs/ClaimVerification"
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Confidence"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "text",
+        "origin",
+        "refs",
+        "verification_status",
+        "confidence"
+      ],
+      "additionalProperties": false
+    },
+    "ClaimVerification": {
+      "type": "string",
+      "enum": [
+        "code_passed",
+        "critic_passed",
+        "not_confirmed"
+      ]
+    },
+    "Confidence": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    "EvidenceDto": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/EvidenceType"
+        },
+        "source": {
+          "type": "string"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "quote": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "date": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "document_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "page": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "chunk_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "value": {
+          "anyOf": [
+            {},
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "dataset": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "review_status": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReviewStatus"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "approximate": {
+          "type": "boolean"
+        },
+        "chart_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "page_image_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "type",
+        "source",
+        "url",
+        "quote",
+        "date",
+        "document_id",
+        "page",
+        "chunk_id",
+        "key",
+        "value",
+        "dataset",
+        "review_status",
+        "approximate",
+        "chart_id",
+        "page_image_url"
+      ],
+      "additionalProperties": false
+    },
+    "EvidenceType": {
+      "type": "string",
+      "enum": [
+        "news",
+        "bank_research",
+        "company_feature",
+        "payment_aggregate",
+        "group_feature"
+      ]
+    },
+    "Origin": {
+      "type": "string",
+      "enum": [
+        "source_fact",
+        "bank_analytics",
+        "ai_inference",
+        "ai_hypothesis"
+      ]
+    },
+    "ReviewStatus": {
+      "type": "string",
+      "enum": [
+        "not_reviewed",
+        "partially_reviewed",
+        "reviewed"
+      ]
+    }
+  }
+}

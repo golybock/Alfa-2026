@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "NewsExtraction",
+  "$ref": "#/$defs/NewsExtraction",
+  "$defs": {
+    "ExtractedFact": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "quote": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text",
+        "quote"
+      ],
+      "additionalProperties": false
+    },
+    "NewsExtraction": {
+      "type": "object",
+      "properties": {
+        "headline": {
+          "type": "string"
+        },
+        "event_date": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "facts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ExtractedFact"
+          }
+        },
+        "participants": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tags": {
+          "$ref": "#/$defs/NewsTags"
+        }
+      },
+      "required": [
+        "headline",
+        "event_date",
+        "facts",
+        "participants",
+        "tags"
+      ],
+      "additionalProperties": false
+    },
+    "NewsTags": {
+      "type": "object",
+      "properties": {
+        "factors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "okved2": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "countries": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "regions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "commodities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "factors",
+        "okved2",
+        "countries",
+        "regions",
+        "commodities"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

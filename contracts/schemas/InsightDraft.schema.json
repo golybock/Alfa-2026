@@ -1,0 +1,305 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "InsightDraft",
+  "$ref": "#/$defs/InsightDraft",
+  "$defs": {
+    "BankViewDto": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "$ref": "#/$defs/BankViewStatus"
+        },
+        "claim_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "status",
+        "claim_ids"
+      ],
+      "additionalProperties": false
+    },
+    "BankViewStatus": {
+      "type": "string",
+      "enum": [
+        "found",
+        "not_found"
+      ]
+    },
+    "Confidence": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    "ConsequenceDto": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/ConsequenceType"
+        },
+        "claim_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "type",
+        "claim_ids"
+      ],
+      "additionalProperties": false
+    },
+    "ConsequenceType": {
+      "type": "string",
+      "enum": [
+        "risk",
+        "opportunity"
+      ]
+    },
+    "DraftClaim": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "origin": {
+          "$ref": "#/$defs/Origin"
+        },
+        "refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Confidence"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "text",
+        "origin",
+        "refs",
+        "confidence"
+      ],
+      "additionalProperties": false
+    },
+    "ForecastDto": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "$ref": "#/$defs/ForecastStatus"
+        },
+        "metric": {
+          "type": "string"
+        },
+        "unit": {
+          "type": "string"
+        },
+        "low": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "high": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "formula": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "inputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ForecastInputDto"
+          }
+        },
+        "assumptions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "missing_data": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "origin": {
+          "$ref": "#/$defs/Origin"
+        }
+      },
+      "required": [
+        "status",
+        "metric",
+        "unit",
+        "low",
+        "high",
+        "formula",
+        "inputs",
+        "assumptions",
+        "missing_data",
+        "origin"
+      ],
+      "additionalProperties": false
+    },
+    "ForecastInputDto": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "type": "number"
+        },
+        "unit": {
+          "type": "string"
+        },
+        "assumed": {
+          "type": "boolean"
+        },
+        "refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "name",
+        "value",
+        "unit",
+        "assumed",
+        "refs"
+      ],
+      "additionalProperties": false
+    },
+    "ForecastStatus": {
+      "type": "string",
+      "enum": [
+        "estimated",
+        "insufficient_data"
+      ]
+    },
+    "InsightDraft": {
+      "type": "object",
+      "properties": {
+        "headline": {
+          "type": "string"
+        },
+        "what_happened": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "why_it_matters": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "consequences": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ConsequenceDto"
+          }
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "bank_view": {
+          "$ref": "#/$defs/BankViewDto"
+        },
+        "claims": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DraftClaim"
+          }
+        },
+        "limitations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "suggested_questions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "forecast": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ForecastDto"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "headline",
+        "what_happened",
+        "why_it_matters",
+        "consequences",
+        "actions",
+        "bank_view",
+        "claims",
+        "limitations",
+        "suggested_questions"
+      ],
+      "additionalProperties": false
+    },
+    "Origin": {
+      "type": "string",
+      "enum": [
+        "source_fact",
+        "bank_analytics",
+        "ai_inference",
+        "ai_hypothesis"
+      ]
+    }
+  }
+}

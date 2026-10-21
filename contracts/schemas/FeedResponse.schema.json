@@ -1,0 +1,433 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "FeedResponse",
+  "$ref": "#/$defs/FeedResponse",
+  "$defs": {
+    "AnalysisStatus": {
+      "type": "string",
+      "enum": [
+        "queued",
+        "processing",
+        "ready",
+        "failed"
+      ]
+    },
+    "EvidenceDto": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/EvidenceType"
+        },
+        "source": {
+          "type": "string"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "quote": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "date": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "document_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "page": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "chunk_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "value": {
+          "anyOf": [
+            {},
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "dataset": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "review_status": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReviewStatus"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "approximate": {
+          "type": "boolean"
+        },
+        "chart_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "page_image_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "type",
+        "source",
+        "url",
+        "quote",
+        "date",
+        "document_id",
+        "page",
+        "chunk_id",
+        "key",
+        "value",
+        "dataset",
+        "review_status",
+        "approximate",
+        "chart_id",
+        "page_image_url"
+      ],
+      "additionalProperties": false
+    },
+    "EvidenceType": {
+      "type": "string",
+      "enum": [
+        "news",
+        "bank_research",
+        "company_feature",
+        "payment_aggregate",
+        "group_feature"
+      ]
+    },
+    "FeatureContribution": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "value": {
+          "type": "number"
+        },
+        "weight": {
+          "type": "number"
+        },
+        "contribution": {
+          "type": "number"
+        },
+        "known": {
+          "type": "boolean"
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "code",
+        "value",
+        "weight",
+        "contribution",
+        "known",
+        "evidence_refs"
+      ],
+      "additionalProperties": false
+    },
+    "FeedItemDto": {
+      "type": "object",
+      "properties": {
+        "event_id": {
+          "type": "string"
+        },
+        "headline": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/SourceSummaryDto"
+        },
+        "relevance": {
+          "$ref": "#/$defs/RelevanceDto"
+        },
+        "evidence": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/EvidenceDto"
+          }
+        },
+        "analysis_status": {
+          "$ref": "#/$defs/AnalysisStatus"
+        },
+        "insight_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "job_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "event_id",
+        "headline",
+        "summary",
+        "source",
+        "relevance",
+        "evidence",
+        "analysis_status",
+        "insight_id",
+        "job_id"
+      ],
+      "additionalProperties": false
+    },
+    "FeedResponse": {
+      "type": "object",
+      "properties": {
+        "company_id": {
+          "type": "string"
+        },
+        "as_of": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "news_period_from": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "news_period_to": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "last_updated_at": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "collection_started_at": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "refresh_status": {
+          "$ref": "#/$defs/RefreshStatus"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FeedItemDto"
+          }
+        }
+      },
+      "required": [
+        "company_id",
+        "as_of",
+        "news_period_from",
+        "news_period_to",
+        "last_updated_at",
+        "collection_started_at",
+        "refresh_status",
+        "items"
+      ],
+      "additionalProperties": false
+    },
+    "RefreshStatus": {
+      "type": "string",
+      "enum": [
+        "idle",
+        "queued",
+        "processing",
+        "failed"
+      ]
+    },
+    "RelevanceDto": {
+      "type": "object",
+      "properties": {
+        "score": {
+          "type": "number"
+        },
+        "rank": {
+          "type": "integer"
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RelevanceReasonDto"
+          }
+        },
+        "contributions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FeatureContribution"
+          }
+        }
+      },
+      "required": [
+        "score",
+        "rank",
+        "reasons",
+        "contributions"
+      ],
+      "additionalProperties": false
+    },
+    "RelevanceReasonDto": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "claim_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "code",
+        "text",
+        "claim_ids",
+        "evidence_refs"
+      ],
+      "additionalProperties": false
+    },
+    "ReviewStatus": {
+      "type": "string",
+      "enum": [
+        "not_reviewed",
+        "partially_reviewed",
+        "reviewed"
+      ]
+    },
+    "SourceSummaryDto": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "published_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "name",
+        "url",
+        "published_at"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

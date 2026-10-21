@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ScopeGateResult",
+  "$ref": "#/$defs/ScopeGateResult",
+  "$defs": {
+    "ScopeGateResult": {
+      "type": "object",
+      "properties": {
+        "label": {
+          "$ref": "#/$defs/ScopeLabel"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "label",
+        "reason"
+      ],
+      "additionalProperties": false
+    },
+    "ScopeLabel": {
+      "type": "string",
+      "enum": [
+        "in_scope",
+        "out_of_scope",
+        "injection"
+      ]
+    }
+  }
+}

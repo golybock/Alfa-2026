@@ -1,0 +1,273 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PageReviewRequest",
+  "$ref": "#/$defs/PageReviewRequest",
+  "$defs": {
+    "ChartDraft": {
+      "type": "object",
+      "properties": {
+        "local_id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "x_axis": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "y_axis": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "period": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "legend": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "points": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ChartPointDraft"
+          }
+        },
+        "region": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        }
+      },
+      "required": [
+        "local_id",
+        "title",
+        "description",
+        "x_axis",
+        "y_axis",
+        "unit",
+        "period",
+        "legend",
+        "points",
+        "region"
+      ],
+      "additionalProperties": false
+    },
+    "ChartPointDraft": {
+      "type": "object",
+      "properties": {
+        "series": {
+          "type": "string"
+        },
+        "period": {
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "low": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "high": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "unit": {
+          "type": "string"
+        },
+        "approximate": {
+          "type": "boolean"
+        },
+        "reading_method": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "series",
+        "period",
+        "value",
+        "low",
+        "high",
+        "unit",
+        "approximate",
+        "reading_method"
+      ],
+      "additionalProperties": false
+    },
+    "ChartReviewRequest": {
+      "type": "object",
+      "properties": {
+        "corrected_chart": {
+          "$ref": "#/$defs/ChartDraft"
+        },
+        "review_status": {
+          "$ref": "#/$defs/ReviewStatus"
+        }
+      },
+      "required": [
+        "corrected_chart",
+        "review_status"
+      ],
+      "additionalProperties": false
+    },
+    "ChunkReviewRequest": {
+      "type": "object",
+      "properties": {
+        "chunk_id": {
+          "type": "string"
+        },
+        "corrected_text": {
+          "type": "string"
+        },
+        "review_status": {
+          "$ref": "#/$defs/ReviewStatus"
+        },
+        "corrected_tables": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TableDraft"
+          }
+        },
+        "charts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ChartReviewRequest"
+          }
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "chunk_id",
+        "corrected_text",
+        "review_status",
+        "corrected_tables",
+        "charts",
+        "note"
+      ],
+      "additionalProperties": false
+    },
+    "PageReviewRequest": {
+      "type": "object",
+      "properties": {
+        "chunks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ChunkReviewRequest"
+          }
+        }
+      },
+      "required": [
+        "chunks"
+      ],
+      "additionalProperties": false
+    },
+    "ReviewStatus": {
+      "type": "string",
+      "enum": [
+        "not_reviewed",
+        "partially_reviewed",
+        "reviewed"
+      ]
+    },
+    "TableDraft": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "columns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "required": [
+        "title",
+        "columns",
+        "rows"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
