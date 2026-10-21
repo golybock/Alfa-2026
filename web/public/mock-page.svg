@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="595" height="842" viewBox="0 0 595 842">
+  <rect width="595" height="842" fill="#f4f4f5"/>
+  <rect x="24" y="24" width="547" height="794" fill="none" stroke="#a1a1aa" stroke-width="2" stroke-dasharray="10 8"/>
+  <text x="297.5" y="410" font-family="Arial, sans-serif" font-size="22" fill="#52525b" text-anchor="middle">Mock-режим</text>
+  <text x="297.5" y="444" font-family="Arial, sans-serif" font-size="16" fill="#71717a" text-anchor="middle">Изображение страницы PDF доступно только с backend</text>
+</svg>

@@ -1,0 +1,13 @@
+{
+  "items": [
+    {
+      "id": "00000000-0000-4000-8000-000000000005",
+      "title": "Синтетический PDF для fixtures",
+      "published_on": "2026-10-20",
+      "page_count": 1,
+      "version": "fixture-v1",
+      "ocr_status": "ready",
+      "review_status": "not_reviewed"
+    }
+  ]
+}

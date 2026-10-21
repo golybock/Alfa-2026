@@ -28,7 +28,7 @@ export async function loginAction(_state: LoginState, formData: FormData): Promi
     path: "/",
     maxAge: SESSION_MAX_AGE_SECONDS,
   });
-  redirect("/");
+  redirect("/select");
 }
 
 export async function logoutAction() {

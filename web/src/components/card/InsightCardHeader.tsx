@@ -1,0 +1,94 @@
+"use client";
+
+import Link from "next/link";
+import { useState } from "react";
+import { formatDateTime } from "../../lib/dates";
+import { roleLabels } from "../../lib/labels";
+import { ANALYTICS_HREF } from "../../lib/navigation";
+import type { InsightDto } from "../../lib/types/api";
+import type { IconName } from "../../lib/types/icon";
+import Drawer from "../ui/Drawer";
+import Icon from "../ui/Icon";
+import RankBadge from "../ui/RankBadge";
+import ChatPanel from "./ChatPanel";
+import WhyPanel from "./WhyPanel";
+
+type Panel = "why" | "chat" | null;
+
+const feedbackActions: { title: string; icon: IconName }[] = [
+  { title: "Интересно", icon: "thumbUp" },
+  { title: "Не интересно", icon: "thumbDown" },
+  { title: "Скрыть", icon: "eyeOff" },
+];
+
+type InsightCardHeaderProps = { insight: InsightDto };
+
+export default function InsightCardHeader({ insight }: InsightCardHeaderProps) {
+  const [panel, setPanel] = useState<Panel>(null);
+  const close = () => setPanel(null);
+
+  return (
+    <header className="rounded-2xl bg-white p-5">
+      <div className="flex items-start justify-between gap-6">
+        <div>
+          <div className="flex items-center gap-2">
+            <Link href={ANALYTICS_HREF} className="flex items-center gap-1 text-xs text-zinc-600 hover:text-zinc-900">
+              <Icon name="chevronLeft" className="h-3.5 w-3.5" />
+              Все сигналы
+            </Link>
+            <RankBadge rank={insight.relevance.rank} />
+          </div>
+          <h1 className="mt-3 text-2xl font-semibold">{insight.headline}</h1>
+          <p className="mt-2 text-sm text-zinc-500">
+            Анализ на <time dateTime={insight.as_of}>{formatDateTime(insight.as_of)}</time> · акцент для роли «
+            {roleLabels[insight.role]}»
+          </p>
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-3">
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setPanel("why")}
+              className="h-10 rounded-xl bg-zinc-100 px-5 text-sm font-medium hover:bg-zinc-200"
+            >
+              Почему я это вижу
+            </button>
+            <button
+              type="button"
+              onClick={() => setPanel("chat")}
+              className="h-10 rounded-xl bg-zinc-900 px-5 text-sm font-medium text-white hover:bg-zinc-800"
+            >
+              Чат по сигналу
+            </button>
+          </div>
+          <div className="flex gap-2">
+            {feedbackActions.map((action) => (
+              <button
+                key={action.title}
+                type="button"
+                className="flex h-8 items-center gap-1.5 rounded-lg border border-zinc-200 px-3 text-xs hover:bg-zinc-50"
+              >
+                <Icon name={action.icon} className="h-3.5 w-3.5" />
+                {action.title}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+      {panel === "why" ? (
+        <Drawer
+          title="Почему я это вижу"
+          subtitle="Причины отбора, вклад признаков и доказательства. Порядок ленты не зависит от роли."
+          onClose={close}
+        >
+          <WhyPanel insight={insight} />
+        </Drawer>
+      ) : null}
+      {panel === "chat" ? (
+        <Drawer title="Чат по сигналу" subtitle="Отвечаю только по этому сигналу и данным вашей компании" onClose={close}>
+          <ChatPanel insight={insight} />
+        </Drawer>
+      ) : null}
+    </header>
+  );
+}
