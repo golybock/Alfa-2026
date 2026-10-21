@@ -1,3 +1,4 @@
+import Link from "next/link";
 import Icon from "../ui/Icon";
 
 type FeedHeaderProps = { subtitle: string; refreshing: boolean; onRefresh: () => void };
@@ -10,13 +11,13 @@ export default function FeedHeader({ subtitle, refreshing, onRefresh }: FeedHead
         <p className="mt-1 text-sm text-zinc-500">{subtitle}</p>
       </div>
       <div className="flex items-center gap-3">
-        <button
-          type="button"
+        <Link
+          href="/select"
           className="flex h-9 items-center gap-2 rounded-lg border border-dashed border-blue-600 px-3 text-xs text-blue-700"
         >
           Демо: посмотреть глазами другого клиента
           <Icon name="chevronDown" className="h-4 w-4" />
-        </button>
+        </Link>
         <button
           type="button"
           onClick={onRefresh}

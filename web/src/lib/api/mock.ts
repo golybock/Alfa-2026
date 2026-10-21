@@ -15,6 +15,7 @@ import jobDoneJson from "../../../fixtures/api/job-done.json";
 import jobFailedJson from "../../../fixtures/api/job-failed.json";
 import jobQueuedJson from "../../../fixtures/api/job-queued.json";
 import meJson from "../../../fixtures/api/me.json";
+import usersJson from "../../../fixtures/users.json";
 import type {
   AcceptedResponse,
   ChatAnswerDto,
@@ -32,10 +33,14 @@ import { ApiRequestError } from "./client";
 
 export type MockScenario = "pending" | "empty" | "no-bank" | "refusal" | "failed";
 
+type MockCredentials = { login: string; password: string };
+
 const MOCK_PAGE_IMAGE = "/mock-page.svg";
 const QUESTION_LIMIT = 10;
+const SESSION_STORAGE_KEY = "alfa.mock-session";
 
 const me = meJson as MeResponse;
+const credentials: MockCredentials[] = usersJson;
 const jobQueued = jobQueuedJson as JobResponse;
 const feeds: Record<string, FeedResponse> = {
   U_DEMO_A: feedReadyJson as FeedResponse,
@@ -58,7 +63,34 @@ function mockError(status: number, code: string, message: string): ApiRequestErr
   return new ApiRequestError(status, { code, message, request_id: "mock" });
 }
 
+function hasSession(): boolean {
+  try {
+    return window.localStorage.getItem(SESSION_STORAGE_KEY) === "active";
+  } catch {
+    return false;
+  }
+}
+
+function setSession(active: boolean) {
+  try {
+    if (active) {
+      window.localStorage.setItem(SESSION_STORAGE_KEY, "active");
+    } else {
+      window.localStorage.removeItem(SESSION_STORAGE_KEY);
+    }
+  } catch {
+    return;
+  }
+}
+
+function requireSession() {
+  if (!hasSession()) {
+    throw mockError(401, "unauthorized", "Сессия истекла, войдите снова");
+  }
+}
+
 function requireCompany(companyId: string) {
+  requireSession();
   if (!me.companies.some((company) => company.company_id === companyId)) {
     throw mockError(403, "forbidden_company", "Нет доступа к этой компании");
   }
@@ -89,6 +121,7 @@ function findInsight(companyId: string, eventId: string, role: string): InsightD
 }
 
 function findInsightById(insightId: string): InsightDto {
+  requireSession();
   const insight = [...insights, insightNoBank].find((candidate) => candidate.id === insightId);
   if (!insight) {
     throw mockError(404, "not_found", "Карточка не найдена");
@@ -118,11 +151,23 @@ function answerFor(insightId: string, asked: number): ChatAnswerDto {
 }
 
 export const mockApi: Api = {
-  login: async () => me,
+  login: async (request) => {
+    const valid = credentials.some((user) => user.login === request.login && user.password === request.password);
+    if (!valid) {
+      throw mockError(401, "unauthorized", "Неверный логин или пароль");
+    }
+    setSession(true);
+    return me;
+  },
   logout: async () => {
+    requireSession();
+    setSession(false);
     chatHistory.clear();
   },
-  me: async () => me,
+  me: async () => {
+    requireSession();
+    return me;
+  },
   getFeed: async (companyId) => {
     requireCompany(companyId);
     return feedFor(companyId);
@@ -154,8 +199,14 @@ export const mockApi: Api = {
     }
     return evidence;
   },
-  getJob: async () => (currentScenario() === "failed" ? jobFailedJson : jobDoneJson) as JobResponse,
-  getChatHistory: async (insightId) => ({ items: chatHistory.get(insightId) ?? [] }),
+  getJob: async () => {
+    requireSession();
+    return (currentScenario() === "failed" ? jobFailedJson : jobDoneJson) as JobResponse;
+  },
+  getChatHistory: async (insightId) => {
+    findInsightById(insightId);
+    return { items: chatHistory.get(insightId) ?? [] };
+  },
   askQuestion: async (insightId, request) => {
     findInsightById(insightId);
     const history = chatHistory.get(insightId) ?? [];
@@ -175,8 +226,12 @@ export const mockApi: Api = {
   sendFeedback: async (insightId) => {
     findInsightById(insightId);
   },
-  listDocuments: async () => documentsListJson as DocumentListResponse,
+  listDocuments: async () => {
+    requireSession();
+    return documentsListJson as DocumentListResponse;
+  },
   getDocument: async (documentId) => {
+    requireSession();
     const document = documentJson as DocumentResponse;
     if (document.id !== documentId) {
       throw mockError(404, "not_found", "Документ не найден");

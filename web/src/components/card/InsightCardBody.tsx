@@ -87,7 +87,7 @@ export default function InsightCardBody({ insight }: InsightCardBodyProps) {
               </div>
             ) : (
               <p className="rounded-xl bg-zinc-100 p-4 text-sm text-zinc-600">
-                Подходящая позиция Альфа-Банка по этому событию не найдена.
+                Позиции банка по этой теме нет.
               </p>
             )}
           </CardBlock>

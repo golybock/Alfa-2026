@@ -1,10 +1,18 @@
-import { redirect } from "next/navigation";
-import { getCurrentUser } from "../../lib/api/auth";
+"use client";
 
-export default async function LoggedInRedirect() {
-  const user = await getCurrentUser();
-  if (user) {
-    redirect("/");
-  }
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useMe } from "../../lib/hooks/session";
+
+export default function LoggedInRedirect() {
+  const router = useRouter();
+  const me = useMe();
+
+  useEffect(() => {
+    if (me.isSuccess) {
+      router.replace("/");
+    }
+  }, [me.isSuccess, router]);
+
   return null;
 }
