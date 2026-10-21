@@ -117,7 +117,8 @@
       "type": "string",
       "enum": [
         "risk",
-        "opportunity"
+        "opportunity",
+        "neutral"
       ]
     },
     "CriticStatus": {
