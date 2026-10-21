@@ -1,6 +1,6 @@
 # HTTP-контракт MVP
 
-DTO: [Api.cs](Api.cs), [api.ts](api.ts); общие поля карточки в [Domain.cs](Domain.cs). Пути ниже нормативные для задач Дани. Здесь пока нет работающих endpoints.
+DTO: [Api](../backend/AlfaNews.Contracts/Api), [api.ts](api.ts); общие поля карточки в [Domain](../backend/AlfaNews.Contracts/Domain). Пути ниже нормативные для задач Дани. Здесь пока нет работающих endpoints.
 
 Все пути начинаются `/api`. Авторизация — cookie HttpOnly; production cookie Secure/SameSite=Lax, same-origin reverse proxy сайта/API. Изменяющие запросы проверяют Origin/CSRF; API не принимает произвольный cross-origin credentialed вызов. Один общий middleware/сервис доступа пишет Артём/проверяет в A02, Даня применяет его во всех своих endpoints. Пользователь имеет доступ только к CLIENT-компаниям из MeResponse, операторские действия требуют IsOperator. Секреты и raw ORM entities наружу не отдаём.
 

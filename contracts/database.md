@@ -19,7 +19,7 @@
 | insight | Версия полной карточки; body_json = InsightDto только при ready |
 | chat_message | Один вопрос и его ChatAnswerDto; история строго user × insight |
 | feedback | Последняя оценка пользователя для company × event; hide влияет на его выдачу |
-| background_job | Kind + типизированный payload из Processing.cs; одна последовательная очередь |
+| background_job | Kind + типизированный payload из backend/AlfaNews.Contracts/Processing; одна последовательная очередь |
 | agent_run / agent_step | Прогоны всех LLM-операций и понятный журнал шагов, не скрытые рассуждения |
 | llm_usage / llm_cache | Фактический расход и кэш валидированных ответов |
 
