@@ -1,4 +1,4 @@
-"""Build TS/JSON Schema mirrors of the simple records in this directory.
+"""Build TS/JSON Schema mirrors of the records in AlfaNews.Contracts.
 
 This supports only the declaration style used here, not arbitrary C# syntax.
 Run: python contracts/generate.py. No network or third-party packages required.
@@ -8,7 +8,10 @@ import json
 import re
 
 ROOT = Path(__file__).resolve().parent
-source = '\n'.join((ROOT / f).read_text(encoding='utf-8') for f in ('Domain.cs', 'Api.cs', 'Processing.cs'))
+MODELS = ROOT.parent / 'backend' / 'AlfaNews.Contracts'
+source = '\n'.join(path.read_text(encoding='utf-8')
+                   for section in ('Domain', 'Api', 'Processing')
+                   for path in sorted((MODELS / section).glob('*.cs')))
 
 
 def snake(name):
@@ -81,12 +84,11 @@ def reachable(name):
     return {key:definitions[key] for key in sorted(seen)}
 
 
-public_roots = set(re.findall(r'public sealed record (\w+)', (ROOT / 'Api.cs').read_text(encoding='utf-8')))
+api_source = '\n'.join(path.read_text(encoding='utf-8') for path in sorted((MODELS / 'Api').glob('*.cs')))
+public_roots = set(re.findall(r'public sealed record (\w+)', api_source))
 public_roots.add('InsightDto')
 public_types = set().union(*(reachable(name) for name in public_roots))
-lines = ['// Generated from Domain.cs / Api.cs / Processing.cs by contracts/generate.py.',
-         '// API JSON uses snake_case. Internal profiles, jobs and LLM payloads are excluded.',
-         'export type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };', '']
+lines = ['export type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };', '']
 for name in sorted(public_types):
     if name in enums:
         lines += ['export type ' + name + ' = ' + ' | '.join(json.dumps(v) for v in enums[name]) + ';', '']

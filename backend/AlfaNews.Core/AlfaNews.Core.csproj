@@ -6,4 +6,8 @@
         <Nullable>enable</Nullable>
     </PropertyGroup>
 
+    <ItemGroup>
+        <ProjectReference Include="..\AlfaNews.Contracts\AlfaNews.Contracts.csproj" />
+    </ItemGroup>
+
 </Project>
