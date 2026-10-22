@@ -26,10 +26,10 @@ public sealed class AuthServiceTests(PostgresFixture fixture) : IClassFixture<Po
         var auth = new AuthService(db, TimeProvider.System);
 
         var wrong = await Assert.ThrowsAsync<AccessException>(() =>
-            auth.LoginAsync(new LoginRequest(login, "wrong"), TimeSpan.FromHours(1), CancellationToken.None));
+            auth.LoginAsync(new LoginRequest(login, "wrong"), TimeSpan.FromHours(1), null, CancellationToken.None));
         Assert.Equal(401, wrong.StatusCode);
 
-        var result = await auth.LoginAsync(new LoginRequest(login, "correct-password"), TimeSpan.FromHours(1), CancellationToken.None);
+        var result = await auth.LoginAsync(new LoginRequest(login, "correct-password"), TimeSpan.FromHours(1), null, CancellationToken.None);
         var company = Assert.Single(result.Me.Companies);
         Assert.Equal("test_company_a", company.CompanyId);
         Assert.Equal([Role.Cfo], company.Roles);
@@ -43,5 +43,38 @@ public sealed class AuthServiceTests(PostgresFixture fixture) : IClassFixture<Po
         Assert.NotNull(context);
         await auth.LogoutAsync(context, CancellationToken.None);
         Assert.Null(await sessions.ResolveAsync(result.Token, CancellationToken.None));
+    }
+
+    [PostgresFact]
+    public async Task DemoPasswordOpensAnyClientCompanyForBothRolesWhenEnabled()
+    {
+        await using var db = fixture.CreateDb();
+        var auth = new AuthService(db, TimeProvider.System);
+        var lifetime = TimeSpan.FromHours(1);
+
+        var disabled = await Assert.ThrowsAsync<AccessException>(() =>
+            auth.LoginAsync(new LoginRequest("test_company_b", "demo-secret"), lifetime, null, CancellationToken.None));
+        Assert.Equal(401, disabled.StatusCode);
+
+        var result = await auth.LoginAsync(new LoginRequest("test_company_b", "demo-secret"), lifetime, "demo-secret", CancellationToken.None);
+        var company = Assert.Single(result.Me.Companies);
+        Assert.Equal("test_company_b", company.CompanyId);
+        Assert.Equal([Role.Ceo, Role.Cfo], company.Roles);
+        Assert.False(result.Me.IsOperator);
+
+        var again = await auth.LoginAsync(new LoginRequest(" test_company_b ", "demo-secret"), lifetime, "demo-secret", CancellationToken.None);
+        Assert.Equal(result.Me.UserId, again.Me.UserId);
+
+        foreach (var request in new[]
+                 {
+                     new LoginRequest("test_company_b", "wrong"),
+                     new LoginRequest("no_such_company", "demo-secret"),
+                     new LoginRequest("synthetic_operator", "demo-secret")
+                 })
+        {
+            var denied = await Assert.ThrowsAsync<AccessException>(() =>
+                auth.LoginAsync(request, lifetime, "demo-secret", CancellationToken.None));
+            Assert.Equal(401, denied.StatusCode);
+        }
     }
 }

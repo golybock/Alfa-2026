@@ -64,6 +64,7 @@ services:
             <<: *backend-env
             ASPNETCORE_ENVIRONMENT: Development
             ASPNETCORE_URLS: http://+:8080
+            Auth__DemoPassword: ${DEMO_LOGIN_PASSWORD:-}
         volumes:
             - research-files:/var/lib/alfanews/research
             - ./data:/input:ro

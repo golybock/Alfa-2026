@@ -13,7 +13,8 @@ public static class AuthEndpoints
             IConfiguration configuration, CancellationToken cancellationToken) =>
         {
             var hours = configuration.GetValue("Auth:SessionHours", 12);
-            var result = await auth.LoginAsync(request, TimeSpan.FromHours(hours), cancellationToken);
+            var result = await auth.LoginAsync(request, TimeSpan.FromHours(hours), configuration["Auth:DemoPassword"],
+                cancellationToken);
             http.Response.Cookies.Append(SessionAuthenticationHandler.CookieName, result.Token, CookieOptions(http, result.ExpiresAt));
             return Results.Ok(result.Me);
         });

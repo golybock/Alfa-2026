@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using System.Text;
 using AlfaNews.Contracts.Api;
 using AlfaNews.Contracts.Domain;
 using AlfaNews.Core.Data;
@@ -15,16 +16,21 @@ public sealed class AuthService(AlfaNewsDbContext db, TimeProvider timeProvider)
 
     public static string HashPassword(string password) => BCrypt.Net.BCrypt.HashPassword(password);
 
-    public async Task<LoginResult> LoginAsync(LoginRequest request, TimeSpan lifetime, CancellationToken cancellationToken)
+    public async Task<LoginResult> LoginAsync(LoginRequest request, TimeSpan lifetime, string? demoPassword,
+        CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Login) || string.IsNullOrEmpty(request.Password)
             || request.Login.Length > 128 || request.Password.Length > 256)
             throw new AccessException(400, "invalid_input", "Укажите логин и пароль.");
 
-        var user = await db.AppUserRows.SingleOrDefaultAsync(row => row.Login == request.Login, cancellationToken);
-        var passwordValid = BCrypt.Net.BCrypt.Verify(request.Password, user?.PasswordHash ?? DummyHash);
-        if (user is null || !user.Active || !passwordValid)
-            throw new AccessException(401, "unauthorized", "Неверный логин или пароль.");
+        var user = await FindDemoCompanyUserAsync(request, demoPassword, cancellationToken);
+        if (user is null)
+        {
+            user = await db.AppUserRows.SingleOrDefaultAsync(row => row.Login == request.Login, cancellationToken);
+            var passwordValid = PasswordMatches(request.Password, user?.PasswordHash ?? DummyHash);
+            if (user is null || !user.Active || !passwordValid)
+                throw new AccessException(401, "unauthorized", "Неверный логин или пароль.");
+        }
 
         var now = timeProvider.GetUtcNow();
         var token = Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(32));
@@ -39,6 +45,51 @@ public sealed class AuthService(AlfaNewsDbContext db, TimeProvider timeProvider)
         });
         await db.SaveChangesAsync(cancellationToken);
         return new LoginResult(token, expiresAt, await ReadMeAsync(user, cancellationToken));
+    }
+
+    private static bool PasswordMatches(string password, string hash)
+    {
+        try
+        {
+            return BCrypt.Net.BCrypt.Verify(password, hash);
+        }
+        catch (BCrypt.Net.SaltParseException)
+        {
+            return false;
+        }
+    }
+
+    private async Task<AppUserEntity?> FindDemoCompanyUserAsync(LoginRequest request, string? demoPassword,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(demoPassword) || !CryptographicOperations.FixedTimeEquals(
+                SHA256.HashData(Encoding.UTF8.GetBytes(request.Password)), SHA256.HashData(Encoding.UTF8.GetBytes(demoPassword))))
+            return null;
+        var companyId = request.Login.Trim();
+        if (!await db.CompanyRows.AsNoTracking().AnyAsync(row => row.Id == companyId && row.ClType == "CLIENT", cancellationToken))
+            return null;
+
+        var login = $"demo:{companyId}";
+        var user = await db.AppUserRows.SingleOrDefaultAsync(row => row.Login == login, cancellationToken);
+        if (user is null)
+        {
+            user = new AppUserEntity
+            {
+                Id = Guid.NewGuid(),
+                Login = login,
+                PasswordHash = HashPassword(Convert.ToHexString(RandomNumberGenerator.GetBytes(32))),
+                DisplayName = $"Демо-доступ · {companyId}"
+            };
+            db.AppUserRows.Add(user);
+        }
+        if (!user.Active)
+            return null;
+        var roles = await db.UserCompanyAccessRows.Where(row => row.UserId == user.Id && row.CompanyId == companyId)
+            .Select(row => row.Role).ToListAsync(cancellationToken);
+        foreach (var role in new[] { "ceo", "cfo" }.Except(roles))
+            db.UserCompanyAccessRows.Add(new UserCompanyAccessEntity { UserId = user.Id, CompanyId = companyId, Role = role });
+        await db.SaveChangesAsync(cancellationToken);
+        return user;
     }
 
     public async Task<MeResponse> MeAsync(UserContext context, CancellationToken cancellationToken)
@@ -58,9 +109,9 @@ public sealed class AuthService(AlfaNewsDbContext db, TimeProvider timeProvider)
     private async Task<MeResponse> ReadMeAsync(AppUserEntity user, CancellationToken cancellationToken)
     {
         var rows = await (from access in db.UserCompanyAccessRows.AsNoTracking()
-            join company in db.CompanyRows.AsNoTracking() on access.CompanyId equals company.Id
-            where access.UserId == user.Id && company.ClType == "CLIENT"
-            select new { company.Id, company.MainOkvedName, access.Role }).ToListAsync(cancellationToken);
+                          join company in db.CompanyRows.AsNoTracking() on access.CompanyId equals company.Id
+                          where access.UserId == user.Id && company.ClType == "CLIENT"
+                          select new { company.Id, company.MainOkvedName, access.Role }).ToListAsync(cancellationToken);
         var companies = rows.GroupBy(row => new { row.Id, row.MainOkvedName })
             .OrderBy(group => group.Key.Id, StringComparer.Ordinal)
             .Select(group => new CompanyAccessDto(

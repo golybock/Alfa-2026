@@ -1,6 +1,7 @@
 using AlfaNews.Worker;
 using AlfaNews.Core.Data;
 using AlfaNews.Core.Importing;
+using AlfaNews.Core.Ingest;
 using AlfaNews.Contracts.Processing;
 using AlfaNews.Core.Profiles;
 using AlfaNews.Core.Processing;
@@ -25,6 +26,10 @@ builder.Services.AddSingleton<JobDispatcher>();
 builder.Services.AddScoped<IJobHandler, ImportCsvJobHandler>();
 builder.Services.AddScoped<IJobHandler, RebuildProfilesJobHandler>();
 builder.Services.AddScoped<IJobHandler, ConsoleMessageJobHandler>();
+builder.Services.AddScoped<IJobHandler, CollectNewsJobHandler>();
+builder.Services.AddSingleton(_ => new SafeFetcher(builder.Configuration.GetValue<bool>("Ingest:AllowPrivateAddresses")));
+builder.Services.AddScoped<SourceCatalogLoader>();
+builder.Services.AddScoped<CollectNewsService>();
 builder.Services.AddScoped<JobSchedule>();
 builder.Services.AddHostedService<Worker>();
 builder.Services.AddHostedService<JobScheduler>();

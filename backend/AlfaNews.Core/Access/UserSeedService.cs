@@ -29,8 +29,8 @@ public sealed class UserSeedService(AlfaNewsDbContext db)
         await db.UserCompanyAccessRows.Where(access => access.UserId == user.Id || access.UserId == operatorUser.Id)
             .ExecuteDeleteAsync(cancellationToken);
         db.UserCompanyAccessRows.AddRange(from companyId in options.CompanyIds
-            from role in Roles
-            select new UserCompanyAccessEntity { UserId = user.Id, CompanyId = companyId, Role = role });
+                                          from role in Roles
+                                          select new UserCompanyAccessEntity { UserId = user.Id, CompanyId = companyId, Role = role });
         await db.SaveChangesAsync(cancellationToken);
     }
 
