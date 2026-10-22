@@ -1,17 +1,39 @@
+using AlfaNews.Core.Processing;
+
 namespace AlfaNews.Worker;
 
-public class Worker(ILogger<Worker> logger) : BackgroundService
+public class Worker(IServiceScopeFactory scopes, JobDispatcher dispatcher, ILogger<Worker> logger) : BackgroundService
 {
-	protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-	{
-		while (!stoppingToken.IsCancellationRequested)
-		{
-			if (logger.IsEnabled(LogLevel.Information))
-			{
-				logger.LogInformation("Worker running at: {time}", DateTimeOffset.Now);
-			}
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        await using (var scope = scopes.CreateAsyncScope())
+        {
+            var recovered = await scope.ServiceProvider.GetRequiredService<JobQueue>().RecoverAsync(stoppingToken);
+            logger.LogInformation("Возвращено в очередь незавершённых заданий: {Count}.", recovered);
+        }
 
-			await Task.Delay(1000, stoppingToken);
-		}
-	}
+        await using (var scope = scopes.CreateAsyncScope())
+            await scope.ServiceProvider.GetRequiredService<CsvImportService>().ImportOnStartupAsync(stoppingToken);
+
+        await using (var scope = scopes.CreateAsyncScope())
+            await scope.ServiceProvider.GetRequiredService<ProfileBuildService>().BuildOnStartupAsync(stoppingToken);
+
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            try
+            {
+                if (!await dispatcher.DispatchNextAsync(stoppingToken))
+                    await Task.Delay(TimeSpan.FromSeconds(1), stoppingToken);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                return;
+            }
+            catch (Exception exception)
+            {
+                logger.LogError("Ошибка доступа к очереди: {ErrorType}.", exception.GetType().Name);
+                await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
+            }
+        }
+    }
 }

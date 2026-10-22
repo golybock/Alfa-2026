@@ -1,4 +1,4 @@
-"""Build TS/JSON Schema mirrors of the simple records in this directory.
+"""Build TS/JSON Schema mirrors of the records in AlfaNews.Contracts.
 
 This supports only the declaration style used here, not arbitrary C# syntax.
 Run: python contracts/generate.py. No network or third-party packages required.
@@ -8,7 +8,10 @@ import json
 import re
 
 ROOT = Path(__file__).resolve().parent
-source = '\n'.join((ROOT / f).read_text(encoding='utf-8') for f in ('Domain.cs', 'Api.cs', 'Processing.cs'))
+MODELS = ROOT.parent / 'backend' / 'AlfaNews.Contracts'
+source = '\n'.join(path.read_text(encoding='utf-8')
+                   for section in ('Domain', 'Api', 'Processing')
+                   for path in sorted((MODELS / section).glob('*.cs')))
 
 
 def snake(name):
@@ -81,12 +84,11 @@ def reachable(name):
     return {key:definitions[key] for key in sorted(seen)}
 
 
-public_roots = set(re.findall(r'public sealed record (\w+)', (ROOT / 'Api.cs').read_text(encoding='utf-8')))
+api_source = '\n'.join(path.read_text(encoding='utf-8') for path in sorted((MODELS / 'Api').glob('*.cs')))
+public_roots = set(re.findall(r'public sealed record (\w+)', api_source))
 public_roots.add('InsightDto')
 public_types = set().union(*(reachable(name) for name in public_roots))
-lines = ['// Generated from Domain.cs / Api.cs / Processing.cs by contracts/generate.py.',
-         '// API JSON uses snake_case. Internal profiles, jobs and LLM payloads are excluded.',
-         'export type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };', '']
+lines = ['export type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };', '']
 for name in sorted(public_types):
     if name in enums:
         lines += ['export type ' + name + ' = ' + ' | '.join(json.dumps(v) for v in enums[name]) + ';', '']
@@ -96,13 +98,13 @@ for name in sorted(public_types):
             if optional: typ = typ.removesuffix('?')
             lines.append('  readonly ' + prop + ('?' if optional else '') + ': ' + ts_type(typ) + ';')
         lines += ['}', '']
-(ROOT / 'api.ts').write_text('\n'.join(lines), encoding='utf-8')
+(ROOT / 'api.ts').write_text('\n'.join(lines).rstrip('\n'), encoding='utf-8')
 
 schema_roots = ['NewsExtraction','PdfPageExtraction','AgentPlan','InsightDraft','CriticResult','ChatDraft','ScopeGateResult',
-                'FeedResponse','InsightDto','ChatAnswerDto','JobResponse','DocumentResponse','PageReviewRequest']
+                'FeedResponse','InsightDto','ChatAnswerDto','JobResponse','DocumentResponse','PageReviewRequest','UserActivityRequest']
 (ROOT / 'schemas').mkdir(exist_ok=True)
 for name in schema_roots:
     doc = {'$schema':'https://json-schema.org/draft/2020-12/schema', 'title':name,
            '$ref':'#/$defs/' + name, '$defs':reachable(name)}
-    (ROOT / 'schemas' / (name + '.schema.json')).write_text(json.dumps(doc, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    (ROOT / 'schemas' / (name + '.schema.json')).write_text(json.dumps(doc, ensure_ascii=False, indent=2), encoding='utf-8')
 print(f'Generated api.ts ({len(public_types)} types) and {len(schema_roots)} JSON schemas.')

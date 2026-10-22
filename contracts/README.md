@@ -6,11 +6,11 @@
 | --- | --- |
 | [database.sql](database.sql) | Целевые таблицы PostgreSQL, все поля, ключи и начальные индексы; основа первой миграции A02 |
 | [database.md](database.md) | Смысл JSONB, nullable-полей, ограничений и версий; соответствие таблиц классам |
-| [Domain.cs](Domain.cs) | Профиль, признаки ранжирования, claims/evidence, полная карточка, общий словарь статусов |
-| [Api.cs](Api.cs) | C# DTO запросов/ответов HTTP |
+| [Domain](../backend/AlfaNews.Contracts/Domain) | Профиль, признаки ранжирования, claims/evidence, полная карточка, общий словарь статусов |
+| [Api](../backend/AlfaNews.Contracts/Api) | C# DTO запросов/ответов HTTP |
 | [api.ts](api.ts) | Те же публичные DTO для TypeScript; внутренние промпты, ключи и профили сюда не входят |
 | [http.md](http.md) | Пути, методы, права, HTTP-коды, опрос и ошибки |
-| [Processing.cs](Processing.cs) | Разбор новости/PDF, задания Worker, вызовы инструментов и учёт LLM |
+| [Processing](../backend/AlfaNews.Contracts/Processing) | Разбор новости/PDF, задания Worker, вызовы инструментов и учёт LLM |
 | [inputs.md](inputs.md) | Реальные имена CSV/PDF, mapping полей, форматы источников, индекса, ручной сверки и eval |
 | [schemas](schemas) | JSON Schema Draft 2020-12 для LLM-выходов и основных API-объектов |
 | [generate.py](generate.py) | Пересборка api.ts и schemas из простых C# records; без сети и зависимостей |
@@ -27,7 +27,9 @@
 - API принимает только входные DTO. role и company_id проверяет сервер, origin/review/critic/budget из пользовательского текста не принимаются. Закрытые внутренние поля не сериализуются через ORM-сущность напрямую.
 - JSON Schema Draft 2020-12 уже подготовлены в schemas/ с запретом лишних полей. Адаптацию к поддерживаемому подмножеству шлюза проверяем в A01/A06. Между поставщиком LLM и API есть кодовые проверки: ответ модели не становится готовой карточкой напрямую.
 
-Пересборка зеркал: `python contracts/generate.py`. Генератор поддерживает только используемый здесь простой синтаксис records/enum; после расширения C#-синтаксиса его нужно обновить, а не считать полноценным компилятором. Желаемые operator/manual DTO находятся в конце Api.cs, endpoints отделены в http.md.
+Пересборка зеркал: `python contracts/generate.py`. Генератор читает C# records/enum из `backend/AlfaNews.Contracts/{Domain,Api,Processing}`; каждый тип находится в отдельном файле. После расширения C#-синтаксиса генератор нужно обновить, а не считать полноценным компилятором. Желаемые operator/manual DTO находятся в Api, endpoints отделены в http.md.
+
+Проект подключён к корневому `Alfa-2026.slnx`. `ContractJson.Configure` задаёт настройки JSON для API и внутренних потребителей; тесты `ContractJsonTests` проверяют все примеры и строгий приём полей. `ConsequenceType.Neutral` сериализуется как `neutral`: подтверждённое следствие без установленного направления риска или возможности; отсутствие данных передаётся пустым `consequences`, а не `neutral`.
 
 ## Минимальная карта классов
 

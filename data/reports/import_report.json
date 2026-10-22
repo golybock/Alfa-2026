@@ -1,0 +1,32 @@
+{
+  "dataset_version": "hackathon-2026-v1",
+  "company_sha256": "29a309468eab6f883a7993d67c5bdc0b262c383c57a55012bc8d14f5c8f1117f",
+  "payment_sha256": "53f8b3729977182def8f73dfa651f59cdd186cc88ada693ceefdbbefdf3bb8dc",
+  "companies": {
+    "read": 85525,
+    "accepted": 10226,
+    "accepted_source_rows": 10226,
+    "merged_rows": 0,
+    "excluded": {
+      "conflicting_id": 12,
+      "group_revenue_below_threshold": 31742,
+      "not_client": 43545
+    },
+    "quality": {
+      "revenue_placeholder": 80
+    }
+  },
+  "payments": {
+    "read": 1380585,
+    "accepted": 239413,
+    "accepted_source_rows": 239413,
+    "merged_rows": 0,
+    "excluded": {
+      "no_known_participant": 1113766,
+      "self_transfer": 27406
+    },
+    "quality": {
+      "pairs_with_missing_profile": 220306
+    }
+  }
+}

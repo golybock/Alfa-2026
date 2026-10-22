@@ -60,7 +60,8 @@
       "type": "string",
       "enum": [
         "risk",
-        "opportunity"
+        "opportunity",
+        "neutral"
       ]
     },
     "DraftClaim": {

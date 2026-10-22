@@ -4,6 +4,7 @@
   </Folder>
   <Project Path="backend/AlfaNews.Api/AlfaNews.Api.csproj" />
   <Project Path="backend/AlfaNews.Core/AlfaNews.Core.csproj" />
+  <Project Path="backend/AlfaNews.Contracts/AlfaNews.Contracts.csproj" />
   <Project Path="backend/AlfaNews.Tests/AlfaNews.Tests.csproj" />
   <Project Path="backend/AlfaNews.Worker/AlfaNews.Worker.csproj" />
   <Project Path="tools/NewsCollector/NewsCollector.csproj" />

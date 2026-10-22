@@ -20,6 +20,13 @@
 
     <ItemGroup>
       <ProjectReference Include="..\AlfaNews.Core\AlfaNews.Core.csproj" />
+      <ProjectReference Include="..\AlfaNews.Api\AlfaNews.Api.csproj" />
+      <ProjectReference Include="..\AlfaNews.Worker\AlfaNews.Worker.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Include="..\..\contracts\examples\*.json" Link="Examples\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+        <None Include="..\..\contracts\database.sql" Link="database.sql" CopyToOutputDirectory="PreserveNewest" />
     </ItemGroup>
 
 </Project>
