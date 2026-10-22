@@ -4,36 +4,47 @@ namespace AlfaNews.Worker;
 
 public sealed class JobScheduler(IServiceScopeFactory scopes, IConfiguration configuration, ILogger<JobScheduler> logger) : BackgroundService
 {
+    private static readonly TimeSpan TickInterval = TimeSpan.FromSeconds(30);
+    private const int FeedRefreshEveryTicks = 4;
+
     private async Task LoadSourceCatalogAsync(CancellationToken cancellationToken)
     {
-        var path = configuration["Sources:CatalogPath"] ?? Path.Combine(configuration["Data:InputPath"] ?? "data", "sources.json");
-        if (!File.Exists(path))
+        var inputPath = configuration["Data:InputPath"] ?? "data";
+        foreach (var file in new[] { "sources.json", "sources-specialized.json" })
         {
-            logger.LogWarning("Каталог источников не найден: {Path}.", path);
-            return;
-        }
-        try
-        {
-            await using var scope = scopes.CreateAsyncScope();
-            var count = await scope.ServiceProvider.GetRequiredService<SourceCatalogLoader>().LoadAsync(path, cancellationToken);
-            logger.LogInformation("Каталог источников загружен: {Count} записей.", count);
-        }
-        catch (Exception exception) when (exception is not OperationCanceledException)
-        {
-            logger.LogError("Не удалось загрузить каталог источников: {ErrorType}.", exception.GetType().Name);
+            var path = file == "sources.json" ? configuration["Sources:CatalogPath"] ?? Path.Combine(inputPath, file) : Path.Combine(inputPath, file);
+            if (!File.Exists(path))
+            {
+                logger.LogWarning("Каталог источников не найден: {Path}.", path);
+                continue;
+            }
+            try
+            {
+                await using var scope = scopes.CreateAsyncScope();
+                var count = await scope.ServiceProvider.GetRequiredService<SourceCatalogLoader>().LoadAsync(path, cancellationToken);
+                logger.LogInformation("Каталог источников {File} загружен: {Count} записей.", file, count);
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                logger.LogError("Не удалось загрузить каталог источников {File}: {ErrorType}.", file, exception.GetType().Name);
+            }
         }
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         await LoadSourceCatalogAsync(stoppingToken);
-        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(120));
+        using var timer = new PeriodicTimer(TickInterval);
+        var tick = 0;
         do
         {
             try
             {
                 await using var scope = scopes.CreateAsyncScope();
-                await scope.ServiceProvider.GetRequiredService<JobSchedule>().EnqueueAsync(stoppingToken);
+                var schedule = scope.ServiceProvider.GetRequiredService<JobSchedule>();
+                await schedule.EnqueueCollectionAsync(stoppingToken);
+                if (tick++ % FeedRefreshEveryTicks == 0)
+                    await schedule.EnqueueFeedRefreshAsync(stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
