@@ -2,6 +2,7 @@ using System.Text;
 using AlfaNews.Contracts.Processing;
 using AlfaNews.Core.Data;
 using AlfaNews.Core.Importing;
+using AlfaNews.Core.Profiles;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Pgvector.EntityFrameworkCore;
@@ -233,6 +234,31 @@ public sealed class CsvImportDatabaseTests(PostgresFixture fixture) : IClassFixt
         Assert.False(await db.PaymentRows.AnyAsync(row => row.Payer == "csv_orphan_a"));
         Assert.True(await db.PaymentRows.AnyAsync(row => row.Payer == "csv_orphan_upgrade" && row.PayAmt == 10));
         Assert.True((await importer.ImportAsync(package.Job, package.ReportPath, true, CancellationToken.None)).Skipped);
+    }
+
+    [PostgresFact]
+    public async Task ReimportCanRemoveCompanyWithRebuildableProfile()
+    {
+        using var package = new TestPackage();
+        await package.WriteAsync([Company("csv_profile_removed", revenue: "15000000000", groupId: "csv_profile_group")],
+            ["csv_profile_external;csv_profile_removed;5;1"]);
+        await using var db = fixture.CreateDb();
+        var importer = new CsvImporter(db);
+        await importer.ImportAsync(package.Job, package.ReportPath, false, CancellationToken.None);
+        var profileReportPath = Path.Combine(Path.GetDirectoryName(package.ReportPath)!, "profile_candidates.json");
+        await new ProfileBuilder(db).BuildAsync(new RebuildProfilesJob(package.Job.DatasetVersion), profileReportPath, false, CancellationToken.None);
+        Assert.True(await db.CompanyProfileRows.AnyAsync(row => row.CompanyId == "csv_profile_removed"));
+        await package.WriteAsync([Company("csv_profile_removed", revenue: "10", groupId: "csv_profile_group")],
+            ["csv_profile_external;csv_profile_removed;5;1"]);
+        var next = package.Job with { DatasetVersion = Guid.NewGuid().ToString("N") };
+        await importer.ImportAsync(next, package.ReportPath, true, CancellationToken.None);
+        Assert.False(await db.CompanyRows.AnyAsync(row => row.Id == "csv_profile_removed"));
+        Assert.False(await db.CompanyProfileRows.AnyAsync(row => row.CompanyId == "csv_profile_removed"));
+        var rebuilt = await new ProfileBuilder(db).BuildAsync(new RebuildProfilesJob(next.DatasetVersion), profileReportPath, true, CancellationToken.None);
+        Assert.Equal(0, rebuilt.Report.CompanyCount);
+        Assert.False(await db.GroupProfileRows.AnyAsync(row => row.GroupId == "csv_profile_group"));
+        await db.BackgroundJobRows.Where(row => row.Kind == "RebuildProfiles" && row.ResultId == rebuilt.Report.DataVersion).ExecuteDeleteAsync();
+        Assert.False((await new ProfileBuilder(db).BuildAsync(new RebuildProfilesJob(next.DatasetVersion), profileReportPath, true, CancellationToken.None)).Skipped);
     }
 
     [PostgresFact]

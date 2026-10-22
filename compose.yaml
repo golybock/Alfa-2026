@@ -90,6 +90,8 @@ services:
             Data__ImportOnStartup: "true"
             Data__DatasetVersion: hackathon-2026-v1
             Data__ImportReportPath: /reports/import_report.json
+            Data__BuildProfilesOnStartup: "true"
+            Data__ProfilesReportPath: /reports/profile_candidates.json
             Llm__UseMock: ${LLM_USE_MOCK:-true}
             Llm__BaseUrl: ${LLM_BASE_URL:-}
             Llm__ApiKey: ${LLM_API_KEY:-}
