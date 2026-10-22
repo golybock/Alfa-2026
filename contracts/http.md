@@ -1,6 +1,6 @@
 # HTTP-контракт MVP
 
-DTO: [Api](../backend/AlfaNews.Contracts/Api), [api.ts](api.ts); общие поля карточки в [Domain](../backend/AlfaNews.Contracts/Domain). Пути ниже нормативные для задач Дани. Здесь пока нет работающих endpoints.
+DTO: [Api](../backend/AlfaNews.Contracts/Api), [api.ts](api.ts); общие поля карточки в [Domain](../backend/AlfaNews.Contracts/Domain). Пути ниже нормативные для задач Дани. В A02 реализован endpoint activity; остальные реализуются в соответствующих задачах.
 
 Все пути начинаются `/api`. Авторизация — cookie HttpOnly; production cookie Secure/SameSite=Lax, same-origin reverse proxy сайта/API. Изменяющие запросы проверяют Origin/CSRF; API не принимает произвольный cross-origin credentialed вызов. Один общий middleware/сервис доступа пишет Артём/проверяет в A02, Даня применяет его во всех своих endpoints. Пользователь имеет доступ только к CLIENT-компаниям из MeResponse, операторские действия требуют IsOperator. Секреты и raw ORM entities наружу не отдаём.
 
@@ -18,6 +18,7 @@ DTO: [Api](../backend/AlfaNews.Contracts/Api), [api.ts](api.ts); общие по
 | POST /insights/{id}/chat | ChatRequest | 200 ChatAnswerDto из кэша; иначе 202 AcceptedResponse | 400/401/403/409/429 | D09 → A13 |
 | GET /insights/{id}/chat | — | 200 ChatHistoryResponse: только история текущего пользователя | 401/403 | D09 |
 | POST /insights/{id}/feedback | FeedbackRequest | 204 | 400/401/403 | D12 |
+| POST /insights/{id}/activity | UserActivityRequest | 204, включая точный повтор | 400/401/403/404/409; доступ к карточке | A02 |
 | GET /jobs/{id} | — | 200 JobResponse | 401/403/404; только владелец либо оператор | D09 |
 | POST /admin/documents | multipart: file PDF; title string; published_on YYYY-MM-DD или пусто; source_url URL или пусто | 202 DocumentAcceptedResponse | 400/401/403/413/415 | D10 |
 | GET /admin/documents | — | 200 DocumentListResponse, включая стартовые 9 документов | 401/403 | D10 |
@@ -42,6 +43,14 @@ PDF: стартовый лимит 50 MiB и 50 страниц на файл, MI
 Review: только существующие chunk_id/chart local_id данной страницы. CorrectedTables/CorrectedChart сохраняются вместе с review. Нельзя поставить reviewed странице, оставив непроверенный график/блок; сервер вычисляет aggregate review_status. Конкурирующая правка не перетирает новый OCR: версия документа передаётся в заголовке If-Match; иначе 409 stale_review. По новой версии — переиндексация и инвалидирование зависимых результатов, не синхронный повтор всех LLM в HTTP.
 
 Добавление/редактирование источников, журнал расходов и выбор режима через операторскую панель — желательно, не часть этих обязательных endpoints. Редактирования .env в браузере нет.
+
+## Журнал действий пользователя
+
+`POST /api/insights/{id}/activity` принимает только `event_id` (UUID), `type`, `evidence_id`, `action_id`. Все четыре поля обязательны; неиспользуемые ссылки равны null. Разрешённые браузерные типы: insight_opened, reasons_opened, source_opened, action_interacted. Компания определяется по карточке, пользователь — по сессии, время — сервером. Для source_opened ссылка должна существовать в evidence; для action_interacted — в actions. Нет действия в интерфейсе — нет события.
+
+Точный повтор event_id и содержимого возвращает 204 без повторного подсчёта. Другой payload с тем же ID — 409 event_conflict. Чужая карточка — 403; неизвестная — 404; неготовая — 409 insight_not_prepared. Неизвестные поля, произвольный текст, поддельный user/company/time, недействительные ссылки и браузерный chat_question_accepted отклоняются. Последний тип пишет только серверный UserActivityService после принятия вопроса; D09/A13 подключают его в транзакцию сохранения chat_message. Endpoint не подтверждает фактическое открытие внешнего сайта, а фиксирует заявленный UI переход.
+
+Имя cookie для D04 — alfa_session. SessionService.HashToken вычисляет SHA-256 случайного токена; оригинал остаётся только в HttpOnly cookie. Каждый запрос проверяет срок, отзыв сессии и активность пользователя. Изменяющие запросы требуют Origin из Auth:AllowedOrigins; при отсутствии настройки разрешён только origin текущего запроса. Для HTTPS за reverse proxy нужно явно настроить разрешённый внешний origin. Cookie Secure/SameSite=Lax выставляет D04. Не включать CORS с произвольным origin и credentials.
 
 ## Желательно: ограниченные дополнения
 

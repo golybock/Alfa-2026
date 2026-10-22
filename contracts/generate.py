@@ -98,13 +98,13 @@ for name in sorted(public_types):
             if optional: typ = typ.removesuffix('?')
             lines.append('  readonly ' + prop + ('?' if optional else '') + ': ' + ts_type(typ) + ';')
         lines += ['}', '']
-(ROOT / 'api.ts').write_text('\n'.join(lines), encoding='utf-8')
+(ROOT / 'api.ts').write_text('\n'.join(lines).rstrip('\n'), encoding='utf-8')
 
 schema_roots = ['NewsExtraction','PdfPageExtraction','AgentPlan','InsightDraft','CriticResult','ChatDraft','ScopeGateResult',
-                'FeedResponse','InsightDto','ChatAnswerDto','JobResponse','DocumentResponse','PageReviewRequest']
+                'FeedResponse','InsightDto','ChatAnswerDto','JobResponse','DocumentResponse','PageReviewRequest','UserActivityRequest']
 (ROOT / 'schemas').mkdir(exist_ok=True)
 for name in schema_roots:
     doc = {'$schema':'https://json-schema.org/draft/2020-12/schema', 'title':name,
            '$ref':'#/$defs/' + name, '$defs':reachable(name)}
-    (ROOT / 'schemas' / (name + '.schema.json')).write_text(json.dumps(doc, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    (ROOT / 'schemas' / (name + '.schema.json')).write_text(json.dumps(doc, ensure_ascii=False, indent=2), encoding='utf-8')
 print(f'Generated api.ts ({len(public_types)} types) and {len(schema_roots)} JSON schemas.')

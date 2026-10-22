@@ -14,6 +14,7 @@ public sealed class ContractJsonTests
 
     public static TheoryData<string, Type> Examples => new()
     {
+        { "activity.json", typeof(UserActivityRequest) },
         { "me.json", typeof(MeResponse) },
         { "feed-ready.json", typeof(FeedResponse) },
         { "feed-pending.json", typeof(FeedResponse) },
