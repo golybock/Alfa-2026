@@ -15,7 +15,7 @@ namespace AlfaNews.Core.Profiles;
 
 public sealed class ProfileBuilder(AlfaNewsDbContext db)
 {
-    public const string AlgorithmVersion = "profiles-v2";
+    public const string AlgorithmVersion = "profiles-v3";
     private static readonly JsonSerializerOptions JsonOptions = CreateJsonOptions();
 
     public async Task<ProfileBuildResult> BuildAsync(RebuildProfilesJob job, string reportPath, bool onlyIfCurrent,
