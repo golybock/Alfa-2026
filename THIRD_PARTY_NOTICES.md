@@ -13,6 +13,7 @@
 | dotnet-ef | 10.0.4 | MIT | Локальный инструмент миграций |
 | Pgvector.EntityFrameworkCore | 0.3.0 | MIT | Тип vector и запросы EF Core |
 | Pgvector | 0.3.2, транзитивно | MIT | Значения vector(768) для Npgsql |
+| Microsoft.OpenApi | 2.7.5 | MIT | Исправление CVE-2026-49451 в транзитивной зависимости ASP.NET OpenAPI |
 
 ## web (npm)
 
