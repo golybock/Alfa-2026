@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "UserActivityRequest",
+  "$ref": "#/$defs/UserActivityRequest",
+  "$defs": {
+    "UserActivityRequest": {
+      "type": "object",
+      "properties": {
+        "event_id": {
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/UserActivityType"
+        },
+        "evidence_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "action_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "event_id",
+        "type",
+        "evidence_id",
+        "action_id"
+      ],
+      "additionalProperties": false
+    },
+    "UserActivityType": {
+      "type": "string",
+      "enum": [
+        "insight_opened",
+        "reasons_opened",
+        "chat_question_accepted",
+        "source_opened",
+        "action_interacted"
+      ]
+    }
+  }
+}

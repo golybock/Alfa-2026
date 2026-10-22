@@ -300,3 +300,17 @@ CREATE TABLE llm_cache (
     response_json jsonb NOT NULL,
     created_at timestamptz NOT NULL
 );
+
+CREATE TABLE user_activity (
+    id uuid PRIMARY KEY,
+    created_at timestamptz NOT NULL,
+    user_id uuid NOT NULL REFERENCES app_user(id),
+    company_id text NOT NULL REFERENCES company(id),
+    insight_id uuid NOT NULL REFERENCES insight(id),
+    kind text NOT NULL CHECK (kind IN ('insight_opened','reasons_opened','chat_question_accepted','source_opened','action_interacted')),
+    evidence_id text,
+    action_id text,
+    CHECK ((kind = 'source_opened') = (evidence_id IS NOT NULL)),
+    CHECK ((kind = 'action_interacted') = (action_id IS NOT NULL))
+);
+CREATE INDEX activity_user_insight_idx ON user_activity(user_id, insight_id, created_at);

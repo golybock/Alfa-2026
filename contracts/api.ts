@@ -411,6 +411,15 @@ export interface TableDraft {
   readonly rows: ReadonlyArray<ReadonlyArray<string | null>>;
 }
 
+export interface UserActivityRequest {
+  readonly event_id: string;
+  readonly type: UserActivityType;
+  readonly evidence_id: string | null;
+  readonly action_id: string | null;
+}
+
+export type UserActivityType = "insight_opened" | "reasons_opened" | "chat_question_accepted" | "source_opened" | "action_interacted";
+
 export interface VerificationDto {
   readonly code_status: CodeStatus;
   readonly critic: CriticVerificationDto;
