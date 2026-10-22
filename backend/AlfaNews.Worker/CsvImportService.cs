@@ -18,12 +18,13 @@ public sealed class CsvImportService(IConfiguration configuration, CsvImporter i
         await RunAsync(job, true, cancellationToken);
     }
 
-    public Task ImportAsync(ImportCsvJob job, CancellationToken cancellationToken) => RunAsync(job, false, cancellationToken);
+    public Task ImportAsync(ImportCsvJob job, CancellationToken cancellationToken, Guid? backgroundJobId = null) =>
+        RunAsync(job, false, cancellationToken, backgroundJobId);
 
-    private async Task RunAsync(ImportCsvJob job, bool onlyIfMissing, CancellationToken cancellationToken)
+    private async Task RunAsync(ImportCsvJob job, bool onlyIfMissing, CancellationToken cancellationToken, Guid? backgroundJobId = null)
     {
         var reportPath = configuration["Data:ImportReportPath"] ?? "data/reports/import_report.json";
-        var result = await importer.ImportAsync(job, reportPath, onlyIfMissing, cancellationToken);
+        var result = await importer.ImportAsync(job, reportPath, onlyIfMissing, cancellationToken, backgroundJobId);
         if (result.Skipped)
             logger.LogInformation("CSV-пакет {DatasetVersion} уже импортирован, повторная загрузка пропущена.", job.DatasetVersion);
         else

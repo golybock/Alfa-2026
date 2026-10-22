@@ -30,7 +30,7 @@ public sealed class CsvImporter(AlfaNewsDbContext db)
     private const string CompletedStage = "csv_imported_known_payments_v1";
 
     public async Task<CsvImportResult> ImportAsync(ImportCsvJob job, string reportPath, bool onlyIfMissing,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, Guid? backgroundJobId = null)
     {
         if (string.IsNullOrWhiteSpace(job.DatasetVersion))
             throw new ArgumentException("Не задана версия CSV-пакета.", nameof(job));
@@ -158,10 +158,12 @@ public sealed class CsvImporter(AlfaNewsDbContext db)
                 pay_cnt = EXCLUDED.pay_cnt, dataset_version = EXCLUDED.dataset_version;
             INSERT INTO background_job (id, kind, payload, status, priority, created_at, started_at,
                 finished_at, attempts, stage, result_type, result_id)
-            VALUES (@id, 'ImportCsv', @payload, 'done', 0, now(), now(), now(), 1, @stage, 'csv_package', @hash);
+            VALUES (@id, 'ImportCsv', @payload, 'done', 0, now(), now(), now(), 1, @stage, 'csv_package', @hash)
+            ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status, finished_at = EXCLUDED.finished_at,
+                stage = EXCLUDED.stage, result_type = EXCLUDED.result_type, result_id = EXCLUDED.result_id;
             """, connection);
         save.Parameters.AddWithValue("version", job.DatasetVersion);
-        save.Parameters.AddWithValue("id", Guid.NewGuid());
+        save.Parameters.AddWithValue("id", backgroundJobId ?? Guid.NewGuid());
         save.Parameters.AddWithValue("payload", NpgsqlDbType.Jsonb, payload);
         save.Parameters.AddWithValue("hash", packageHash);
         save.Parameters.AddWithValue("stage", CompletedStage);

@@ -19,7 +19,7 @@ public sealed class ProfileBuilder(AlfaNewsDbContext db)
     private static readonly JsonSerializerOptions JsonOptions = CreateJsonOptions();
 
     public async Task<ProfileBuildResult> BuildAsync(RebuildProfilesJob job, string reportPath, bool onlyIfCurrent,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, Guid? backgroundJobId = null)
     {
         if (string.IsNullOrWhiteSpace(job.DatasetVersion))
             throw new ArgumentException("Не задана версия исходных данных.", nameof(job));
@@ -67,7 +67,7 @@ public sealed class ProfileBuilder(AlfaNewsDbContext db)
                     known.Length == 0 ? null : known.Sum(), known.Length, dataVersion);
             }).ToArray();
         var report = ProfileReportBuilder.Create(job.DatasetVersion, dataVersion, AlgorithmVersion, companies, groups);
-        await SaveAsync(connection, job, dataVersion, companies, groups, cancellationToken);
+        await SaveAsync(connection, job, dataVersion, companies, groups, cancellationToken, backgroundJobId);
         await WriteReportAsync(reportPath, report, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return new ProfileBuildResult(false, report);
@@ -170,7 +170,7 @@ public sealed class ProfileBuilder(AlfaNewsDbContext db)
     }
 
     private static async Task SaveAsync(NpgsqlConnection connection, RebuildProfilesJob job, string dataVersion,
-        IReadOnlyList<CompanyProfile> companies, IReadOnlyList<GroupProfile> groups, CancellationToken token)
+        IReadOnlyList<CompanyProfile> companies, IReadOnlyList<GroupProfile> groups, CancellationToken token, Guid? backgroundJobId)
     {
         await ExecuteAsync(connection, """
             CREATE TEMP TABLE profile_company_output (id text, body jsonb) ON COMMIT DROP;
@@ -217,11 +217,13 @@ public sealed class ProfileBuilder(AlfaNewsDbContext db)
             INSERT INTO background_job (id, kind, payload, status, priority, created_at, started_at,
                 finished_at, attempts, stage, result_type, result_id)
             VALUES (@id, 'RebuildProfiles', @payload, 'done', 0, now(), now(), now(), 1,
-                'profiles_built_v1', 'profile_version', @version);
+                'profiles_built_v1', 'profile_version', @version)
+            ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status, finished_at = EXCLUDED.finished_at,
+                stage = EXCLUDED.stage, result_type = EXCLUDED.result_type, result_id = EXCLUDED.result_id;
             """, connection) { CommandTimeout = 300 };
         save.Parameters.AddWithValue("prefix", job.DatasetVersion + ":profiles:");
         save.Parameters.AddWithValue("version", dataVersion);
-        save.Parameters.AddWithValue("id", Guid.NewGuid());
+        save.Parameters.AddWithValue("id", backgroundJobId ?? Guid.NewGuid());
         save.Parameters.AddWithValue("payload", NpgsqlDbType.Jsonb, JsonSerializer.Serialize(job, JsonOptions));
         await save.ExecuteNonQueryAsync(token);
     }

@@ -21,6 +21,7 @@
     <ItemGroup>
       <ProjectReference Include="..\AlfaNews.Core\AlfaNews.Core.csproj" />
       <ProjectReference Include="..\AlfaNews.Api\AlfaNews.Api.csproj" />
+      <ProjectReference Include="..\AlfaNews.Worker\AlfaNews.Worker.csproj" />
     </ItemGroup>
 
     <ItemGroup>
