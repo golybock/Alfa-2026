@@ -22,8 +22,8 @@ partial class AlfaNewsDbContextModelSnapshot : ModelSnapshot
             .HasAnnotation("ProductVersion", "10.0.4")
             .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
-        modelBuilder.HasPostgresExtension("vector");
-        modelBuilder.UseIdentityByDefaultColumns();
+        NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "vector");
+        NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
         modelBuilder.Entity("AlfaNews.Core.Data.Entities.AgentRunEntity", b =>
             {
@@ -807,6 +807,19 @@ partial class AlfaNewsDbContextModelSnapshot : ModelSnapshot
                     .HasColumnType("bigint")
                     .HasColumnName("reasoning_tokens");
 
+                b.Property<string>("RequestKey")
+                    .IsRequired()
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("text")
+                    .HasDefaultValue("")
+                    .HasColumnName("request_key");
+
+                b.Property<decimal>("ReservedCostRub")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("numeric(18,8)")
+                    .HasDefaultValue(0m)
+                    .HasColumnName("reserved_cost_rub");
+
                 b.Property<Guid>("RunId")
                     .HasColumnType("uuid")
                     .HasColumnName("run_id");
@@ -821,6 +834,9 @@ partial class AlfaNewsDbContextModelSnapshot : ModelSnapshot
 
                 b.HasIndex("CreatedAt")
                     .HasDatabaseName("usage_date_idx");
+
+                b.HasIndex("RequestKey", "Stage")
+                    .HasDatabaseName("usage_request_stage_idx");
 
                 b.ToTable("llm_usage", (string)null);
             });

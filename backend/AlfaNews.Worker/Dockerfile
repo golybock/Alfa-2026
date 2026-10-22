@@ -13,6 +13,7 @@ COPY ["backend/AlfaNews.Core/AlfaNews.Core.csproj", "backend/AlfaNews.Core/"]
 COPY ["backend/AlfaNews.Contracts/AlfaNews.Contracts.csproj", "backend/AlfaNews.Contracts/"]
 RUN dotnet restore "backend/AlfaNews.Worker/AlfaNews.Worker.csproj"
 COPY backend/ backend/
+COPY contracts/schemas/ contracts/schemas/
 COPY .dockerignore .dockerignore
 WORKDIR "/src/backend/AlfaNews.Worker"
 RUN dotnet build "./AlfaNews.Worker.csproj" -c $BUILD_CONFIGURATION -o /app/build

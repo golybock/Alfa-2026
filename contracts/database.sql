@@ -289,9 +289,12 @@ CREATE TABLE llm_usage (
     duration_ms bigint NOT NULL,
     cache_hit boolean NOT NULL,
     error text,
-    created_at timestamptz NOT NULL
+    created_at timestamptz NOT NULL,
+    request_key text NOT NULL DEFAULT '',
+    reserved_cost_rub numeric(18,8) NOT NULL DEFAULT 0.0
 );
 CREATE INDEX usage_date_idx ON llm_usage(created_at);
+CREATE INDEX usage_request_stage_idx ON llm_usage(request_key, stage);
 CREATE TABLE llm_cache (
     cache_key text PRIMARY KEY,
     task text NOT NULL,

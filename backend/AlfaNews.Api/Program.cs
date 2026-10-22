@@ -4,9 +4,11 @@ using AlfaNews.Api.Activity;
 using AlfaNews.Core.Access;
 using AlfaNews.Core.Activity;
 using AlfaNews.Core.Data;
+using AlfaNews.Core.Configuration;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
 
+LocalEnvironment.Load();
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.ConfigureHttpJsonOptions(options => ContractJson.Configure(options.SerializerOptions));
@@ -27,12 +29,10 @@ builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
-if (args.Contains("--migrate"))
-{
-    await using var scope = app.Services.CreateAsyncScope();
+await using (var scope = app.Services.CreateAsyncScope())
     await scope.ServiceProvider.GetRequiredService<AlfaNewsDbContext>().Database.MigrateAsync(app.Lifetime.ApplicationStopping);
+if (args.Contains("--migrate"))
     return;
-}
 
 app.UseMiddleware<ApiAccessMiddleware>();
 app.UseAuthentication();
