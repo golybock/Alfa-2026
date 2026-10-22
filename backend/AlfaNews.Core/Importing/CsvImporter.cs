@@ -1,6 +1,8 @@
 using System.Globalization;
 using System.Security.Cryptography;
+using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Unicode;
 using AlfaNews.Contracts;
 using AlfaNews.Contracts.Processing;
 using AlfaNews.Core.Data;
@@ -131,6 +133,8 @@ public sealed class CsvImporter(AlfaNewsDbContext db)
         var paymentReport = await ReadPaymentReportAsync(connection, cancellationToken);
         var report = new CsvImportReport(job.DatasetVersion, companyHash, paymentHash, companyReport, paymentReport);
         await using var save = new NpgsqlCommand("""
+            DELETE FROM company_profile p USING csv_company_clean imported
+            WHERE p.company_id = imported.id AND imported.reason = 'group_revenue_below_threshold';
             DELETE FROM company c USING csv_company_clean imported
             WHERE c.id = imported.id AND imported.reason = 'group_revenue_below_threshold';
             INSERT INTO company (id, cl_type, group_id, main_okved_code, main_okved_name, region, city,
@@ -371,7 +375,7 @@ public sealed class CsvImporter(AlfaNewsDbContext db)
 
     private static JsonSerializerOptions CreateJsonOptions()
     {
-        var options = new JsonSerializerOptions { WriteIndented = true };
+        var options = new JsonSerializerOptions { WriteIndented = true, Encoder = JavaScriptEncoder.Create(UnicodeRanges.All) };
         ContractJson.Configure(options);
         return options;
     }
