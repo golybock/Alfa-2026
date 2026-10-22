@@ -87,7 +87,10 @@ public static class RssReader
         {
             var element = item.Elements().FirstOrDefault(candidate => candidate.Name.LocalName == name);
             if (element is not null && !string.IsNullOrWhiteSpace(element.Value))
-                return name == "encoded" ? TextNormalizer.FromHtml(element.Value) : TextNormalizer.Normalize(element.Value);
+            {
+                var decoded = System.Net.WebUtility.HtmlDecode(element.Value);
+                return decoded.Contains('<') ? TextNormalizer.FromHtml(decoded) : TextNormalizer.Normalize(decoded);
+            }
         }
         return null;
     }

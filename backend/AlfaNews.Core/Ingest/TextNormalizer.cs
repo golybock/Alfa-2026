@@ -13,7 +13,7 @@ public static partial class TextNormalizer
 
     public static string FromHtml(string html)
     {
-        var document = new HtmlParser().ParseDocument(html);
+        var document = new HtmlParser().ParseDocument(BlockTagRegex().Replace(html, " $0 "));
         return Normalize(document.Body?.TextContent ?? string.Empty);
     }
 
@@ -32,6 +32,9 @@ public static partial class TextNormalizer
     private static bool IsTracking(string key) =>
         key.StartsWith("utm_", StringComparison.OrdinalIgnoreCase)
         || TrackingKeys.Contains(key, StringComparer.OrdinalIgnoreCase);
+
+    [GeneratedRegex(@"</?(p|div|h[1-6]|li|ul|ol|tr|blockquote|br)\b[^>]*>", RegexOptions.IgnoreCase)]
+    private static partial Regex BlockTagRegex();
 
     [GeneratedRegex(@"\s+")]
     private static partial Regex WhitespaceRegex();

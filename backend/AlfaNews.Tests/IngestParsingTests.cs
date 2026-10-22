@@ -23,6 +23,19 @@ public sealed class IngestParsingTests
     }
 
     [Fact]
+    public void RssReaderStripsEscapedHtmlFromYandexFullText()
+    {
+        const string feed = """
+            <rss xmlns:yandex="http://news.yandex.ru" version="2.0"><channel><item><title>Банкротство</title>
+            <link>https://rusbankrot.ru/a/</link><pubDate>Thu, 22 Oct 2026 18:39:11 +0300</pubDate>
+            <yandex:full-text>Кратко о деле.&amp;lt;p&amp;gt;Первый абзац с &amp;quot;кавычками&amp;quot;.&amp;lt;/p&amp;gt; &amp;lt;h2&amp;gt;Заголовок&amp;lt;/h2&amp;gt;&amp;lt;p&amp;gt;Второй абзац.&amp;lt;/p&amp;gt;</yandex:full-text>
+            </item></channel></rss>
+            """;
+        var entry = Assert.Single(RssReader.Parse(feed));
+        Assert.Equal("Кратко о деле. Первый абзац с \"кавычками\". Заголовок Второй абзац.", entry.FullText);
+    }
+
+    [Fact]
     public void RssReaderSalvagesCompleteItemsFromTruncatedFeed()
     {
         var entries = RssReader.Parse(Fixture("feed-government-truncated.xml"));
