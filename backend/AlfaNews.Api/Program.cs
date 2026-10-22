@@ -17,6 +17,8 @@ builder.Services.AddAlfaNewsData(builder.Configuration.GetConnectionString("Defa
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<SessionService>();
 builder.Services.AddScoped<AccessService>();
+builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<UserSeedService>();
 builder.Services.AddScoped<UserActivityService>();
 builder.Services.AddAuthentication(SessionAuthenticationHandler.SchemeName)
     .AddScheme<AuthenticationSchemeOptions, SessionAuthenticationHandler>(SessionAuthenticationHandler.SchemeName, _ => { });
@@ -34,9 +36,25 @@ if (args.Contains("--migrate"))
     return;
 }
 
+if (args.Contains("--seed-users"))
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    var configuration = app.Configuration;
+    var companyIds = (configuration["Seed:CompanyIds"] ?? throw new InvalidOperationException("Задайте Seed__CompanyIds."))
+        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    await scope.ServiceProvider.GetRequiredService<UserSeedService>().SeedAsync(new UserSeedOptions(
+        configuration["Seed:UserLogin"] ?? "demo",
+        configuration["Seed:UserPassword"] ?? throw new InvalidOperationException("Задайте Seed__UserPassword."),
+        configuration["Seed:OperatorLogin"] ?? "operator",
+        configuration["Seed:OperatorPassword"] ?? throw new InvalidOperationException("Задайте Seed__OperatorPassword."),
+        companyIds), app.Lifetime.ApplicationStopping);
+    return;
+}
+
 app.UseMiddleware<ApiAccessMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
+app.MapAuthEndpoints();
 app.MapActivityEndpoints();
 
 if (app.Environment.IsDevelopment())
