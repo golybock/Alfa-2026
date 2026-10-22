@@ -6,6 +6,7 @@ using AlfaNews.Core.Profiles;
 using AlfaNews.Core.Processing;
 using AlfaNews.Core.Configuration;
 using AlfaNews.Core.Llm;
+using AlfaNews.Core.Documents;
 using Microsoft.EntityFrameworkCore;
 
 LocalEnvironment.Load();
@@ -27,6 +28,14 @@ var builder = Host.CreateApplicationBuilder(manualCommand ? [] : runCommand ? ar
 builder.Services.AddAlfaNewsData(builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Задайте ConnectionStrings__DefaultConnection."));
 builder.Services.AddSingleton(TimeProvider.System);
+var pdfOptions = new PdfOptions();
+builder.Configuration.GetSection("Storage").Bind(pdfOptions);
+pdfOptions.InputPath = builder.Configuration["Data:InputPath"] ?? pdfOptions.InputPath;
+builder.Services.AddSingleton(pdfOptions);
+builder.Services.AddScoped<PdfTools>();
+builder.Services.AddScoped<PdfRegistration>();
+builder.Services.AddScoped<PdfProcessing>();
+builder.Services.AddScoped<PdfScan>();
 var llmOptions = new LlmOptions();
 builder.Configuration.GetSection("Llm").Bind(llmOptions);
 builder.Services.AddAlfaNewsLlm(llmOptions);
@@ -35,10 +44,14 @@ builder.Services.AddSingleton<JobDispatcher>();
 builder.Services.AddScoped<IJobHandler, ImportCsvJobHandler>();
 builder.Services.AddScoped<IJobHandler, RebuildProfilesJobHandler>();
 builder.Services.AddScoped<IJobHandler, ConsoleMessageJobHandler>();
+builder.Services.AddScoped<IJobHandler, IndexPdfJobHandler>();
+builder.Services.AddScoped<IJobHandler, OcrPdfPageJobHandler>();
+builder.Services.AddScoped<IJobHandler, FinalizePdfJobHandler>();
 builder.Services.AddScoped<JobSchedule>();
 builder.Services.AddHostedService<Worker>();
 builder.Services.AddHostedService<JobScheduler>();
 builder.Services.AddHostedService<TestJobScheduler>();
+builder.Services.AddHostedService<PdfScheduler>();
 builder.Services.AddScoped<CsvImporter>();
 builder.Services.AddScoped<CsvImportService>();
 builder.Services.AddScoped<ProfileBuilder>();

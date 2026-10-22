@@ -19,6 +19,7 @@
 
     <ItemGroup>
         <Content Include="Prompts\**\*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+        <EmbeddedResource Include="Data\Migrations\Seeds\bank-research-ocr.json" LogicalName="BankResearchOcrSeed" />
         <Content Include="..\..\contracts\schemas\*.json" Link="Prompts\schemas\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     </ItemGroup>
 
