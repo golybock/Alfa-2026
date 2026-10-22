@@ -17,6 +17,8 @@ public sealed class LlmUsageEntity
     public long OutputTokens { get; set; }
     public long? ReasoningTokens { get; set; }
     public decimal? ActualCostRub { get; set; }
+    public decimal ReservedCostRub { get; set; }
+    public string RequestKey { get; set; } = string.Empty;
     public long DurationMs { get; set; }
     public bool CacheHit { get; set; }
     public string? Error { get; set; }

@@ -23,6 +23,9 @@ public sealed class LlmUsageConfiguration : IEntityTypeConfiguration<LlmUsageEnt
         builder.Property(entity => entity.OutputTokens).HasColumnName("output_tokens").HasColumnType("bigint").IsRequired();
         builder.Property(entity => entity.ReasoningTokens).HasColumnName("reasoning_tokens").HasColumnType("bigint");
         builder.Property(entity => entity.ActualCostRub).HasColumnName("actual_cost_rub").HasColumnType("numeric(18,8)");
+        builder.Property(entity => entity.ReservedCostRub).HasColumnName("reserved_cost_rub").HasColumnType("numeric(18,8)").HasDefaultValue(0m);
+        builder.Property(entity => entity.RequestKey).HasColumnName("request_key").HasColumnType("text").HasDefaultValue("");
+        builder.HasIndex(entity => new { entity.RequestKey, entity.Stage }).HasDatabaseName("usage_request_stage_idx");
         builder.Property(entity => entity.DurationMs).HasColumnName("duration_ms").HasColumnType("bigint").IsRequired();
         builder.Property(entity => entity.CacheHit).HasColumnName("cache_hit").HasColumnType("boolean").IsRequired();
         builder.Property(entity => entity.Error).HasColumnName("error").HasColumnType("text");
