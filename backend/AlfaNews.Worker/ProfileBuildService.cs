@@ -14,12 +14,13 @@ public sealed class ProfileBuildService(IConfiguration configuration, ProfileBui
         await RunAsync(new RebuildProfilesJob(version), true, cancellationToken);
     }
 
-    public Task BuildAsync(RebuildProfilesJob job, CancellationToken cancellationToken) => RunAsync(job, false, cancellationToken);
+    public Task BuildAsync(RebuildProfilesJob job, CancellationToken cancellationToken, Guid? backgroundJobId = null) =>
+        RunAsync(job, false, cancellationToken, backgroundJobId);
 
-    private async Task RunAsync(RebuildProfilesJob job, bool onlyIfCurrent, CancellationToken cancellationToken)
+    private async Task RunAsync(RebuildProfilesJob job, bool onlyIfCurrent, CancellationToken cancellationToken, Guid? backgroundJobId = null)
     {
         var path = configuration["Data:ProfilesReportPath"] ?? "data/reports/profile_candidates.json";
-        var result = await builder.BuildAsync(job, path, onlyIfCurrent, cancellationToken);
+        var result = await builder.BuildAsync(job, path, onlyIfCurrent, cancellationToken, backgroundJobId);
         if (result.Skipped)
             logger.LogInformation("Профили {DataVersion} актуальны: компаний {Companies}, групп {Groups}. Пересборка пропущена.",
                 result.Report.DataVersion, result.Report.CompanyCount, result.Report.GroupCount);

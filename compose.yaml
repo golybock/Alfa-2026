@@ -92,6 +92,9 @@ services:
             Data__ImportReportPath: /reports/import_report.json
             Data__BuildProfilesOnStartup: "true"
             Data__ProfilesReportPath: /reports/profile_candidates.json
+            Feed__CompanyIds: ${FEED_COMPANY_IDS:-}
+            TestJob__Enabled: ${TEST_JOB_ENABLED:-false}
+            TestJob__Text: ${TEST_JOB_TEXT:-Очередь Worker работает.}
             Llm__UseMock: ${LLM_USE_MOCK:-true}
             Llm__BaseUrl: ${LLM_BASE_URL:-}
             Llm__ApiKey: ${LLM_API_KEY:-}
