@@ -20,7 +20,6 @@ TestResults/
 **/out/
 **/build
 dist/
-**/package-lock.json
 *.tsbuildinfo
 next-env.d.ts
 
