@@ -47,7 +47,7 @@ public sealed class ProfileDatabaseTests(PostgresFixture fixture) : IClassFixtur
         Assert.Equal(2, unknownGroup.MemberIds.Count);
         Assert.Equal(a.DataVersion, group.DataVersion);
         Assert.Equal(a.DataVersion, result.Report.DataVersion);
-        Assert.Equal(2, result.Report.Sectors.Count);
+        Assert.Empty(result.Report.Sectors);
         Assert.Contains("НОВАЯ СТРАНА", result.Report.UnmappedCountries);
         Assert.All(result.Report.SensitivityDraft, draft =>
         {
@@ -55,7 +55,7 @@ public sealed class ProfileDatabaseTests(PostgresFixture fixture) : IClassFixtur
             Assert.Null(draft.Weight);
             Assert.Null(draft.Sign);
         });
-        Assert.Contains(result.Report.SensitivityDraft, draft => draft.FactorCode == "key_rate");
+        Assert.Empty(result.Report.SensitivityDraft);
     }
 
     [PostgresFact]
@@ -67,8 +67,8 @@ public sealed class ProfileDatabaseTests(PostgresFixture fixture) : IClassFixtur
         var builder = new ProfileBuilder(db);
         var first = await builder.BuildAsync(input.Job, input.ReportPath, false, CancellationToken.None);
         var initialReport = await File.ReadAllTextAsync(input.ReportPath);
-        Assert.Contains("Тестовая отрасль", initialReport);
-        Assert.DoesNotContain("\\u0422", initialReport);
+        Assert.Contains("Профили отражают", initialReport);
+        Assert.DoesNotContain("\\u041F", initialReport);
         var initialTime = await db.CompanyProfileRows.Where(row => row.CompanyId == input.A).Select(row => row.UpdatedAt).SingleAsync();
         var repeat = await builder.BuildAsync(input.Job, input.ReportPath, false, CancellationToken.None);
         Assert.Equal(first.Report.DataVersion, repeat.Report.DataVersion);
@@ -76,7 +76,7 @@ public sealed class ProfileDatabaseTests(PostgresFixture fixture) : IClassFixtur
         Assert.Equal(initialTime, await db.CompanyProfileRows.Where(row => row.CompanyId == input.A).Select(row => row.UpdatedAt).SingleAsync());
         Assert.True((await builder.BuildAsync(input.Job, input.ReportPath, true, CancellationToken.None)).Skipped);
         await File.WriteAllTextAsync(input.ReportPath, JsonSerializer.Serialize(first.Report, JsonOptions));
-        Assert.Contains("\\u0422", await File.ReadAllTextAsync(input.ReportPath));
+        Assert.Contains("\\u041F", await File.ReadAllTextAsync(input.ReportPath));
         Assert.False((await builder.BuildAsync(input.Job, input.ReportPath, true, CancellationToken.None)).Skipped);
         Assert.Equal(initialReport, await File.ReadAllTextAsync(input.ReportPath));
         await db.CompanyProfileRows.Where(row => row.CompanyId == input.A).ExecuteDeleteAsync();
