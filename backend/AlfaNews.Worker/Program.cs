@@ -4,12 +4,19 @@ using AlfaNews.Core.Importing;
 using AlfaNews.Contracts.Processing;
 using AlfaNews.Core.Profiles;
 using AlfaNews.Core.Processing;
+using AlfaNews.Core.Configuration;
+using AlfaNews.Core.Llm;
+using Microsoft.EntityFrameworkCore;
 
+LocalEnvironment.Load();
 var importCommand = args.FirstOrDefault() == "import-csv";
 var profilesCommand = args.FirstOrDefault() == "rebuild-profiles";
 var retryCommand = args.FirstOrDefault() == "retry-job";
 var runCommand = args.FirstOrDefault() == "run-worker";
-var manualCommand = importCommand || profilesCommand || retryCommand;
+var evaluationCommand = args.FirstOrDefault() == "llm-evaluate";
+var manualCommand = importCommand || profilesCommand || retryCommand || evaluationCommand;
+if (evaluationCommand && args.Length is not (3 or 4))
+    throw new ArgumentException("Использование: llm-evaluate <cases.json> <report.json> [case1,case2].");
 if (retryCommand && (args.Length != 2 || !Guid.TryParse(args[1], out _)))
     throw new ArgumentException("Использование: retry-job <id>.");
 if (importCommand && args.Length != 4)
@@ -20,6 +27,9 @@ var builder = Host.CreateApplicationBuilder(manualCommand ? [] : runCommand ? ar
 builder.Services.AddAlfaNewsData(builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Задайте ConnectionStrings__DefaultConnection."));
 builder.Services.AddSingleton(TimeProvider.System);
+var llmOptions = new LlmOptions();
+builder.Configuration.GetSection("Llm").Bind(llmOptions);
+builder.Services.AddAlfaNewsLlm(llmOptions);
 builder.Services.AddScoped<JobQueue>();
 builder.Services.AddSingleton<JobDispatcher>();
 builder.Services.AddScoped<IJobHandler, ImportCsvJobHandler>();
@@ -33,8 +43,12 @@ builder.Services.AddScoped<CsvImporter>();
 builder.Services.AddScoped<CsvImportService>();
 builder.Services.AddScoped<ProfileBuilder>();
 builder.Services.AddScoped<ProfileBuildService>();
+builder.Services.AddScoped<LlmEvaluation>();
 
 using var host = builder.Build();
+await using (var migrationScope = host.Services.CreateAsyncScope())
+    await migrationScope.ServiceProvider.GetRequiredService<AlfaNewsDbContext>().Database.MigrateAsync(
+        host.Services.GetRequiredService<IHostApplicationLifetime>().ApplicationStopping);
 if (manualCommand)
 {
     using var cancellation = new CancellationTokenSource();
@@ -44,6 +58,12 @@ if (manualCommand)
         cancellation.Cancel();
     };
     await using var scope = host.Services.CreateAsyncScope();
+    if (evaluationCommand)
+    {
+        await scope.ServiceProvider.GetRequiredService<LlmEvaluation>().RunAsync(args[1], args[2], cancellation.Token,
+            args.Length == 4 ? args[3].Split(',').ToHashSet(StringComparer.Ordinal) : null);
+        return;
+    }
     if (retryCommand)
     {
         var retried = await scope.ServiceProvider.GetRequiredService<JobQueue>().RetryAsync(Guid.Parse(args[1]), cancellation.Token);

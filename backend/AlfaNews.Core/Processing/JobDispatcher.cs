@@ -1,5 +1,6 @@
 using System.Text.Json;
 using AlfaNews.Core.Data;
+using AlfaNews.Core.Llm;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -66,7 +67,12 @@ public sealed class JobDispatcher(IServiceScopeFactory scopes, TimeProvider time
         catch (Exception exception)
         {
             job.Status = "failed";
-            job.LastError = exception is JsonException ? "invalid_payload" : "job_failed";
+            job.LastError = exception switch
+            {
+                JsonException => "invalid_payload",
+                LlmException llm => llm.Code,
+                _ => "job_failed"
+            };
             logger.LogError("Ошибка задания {JobId} вида {Kind}: {ErrorType}.", job.Id, job.Kind, exception.GetType().Name);
         }
         if (job.Status == "failed")
