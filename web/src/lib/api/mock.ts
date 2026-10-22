@@ -31,7 +31,7 @@ import type {
 import type { Api } from "./client";
 import { ApiRequestError } from "./client";
 
-export type MockScenario = "pending" | "empty" | "no-bank" | "refusal" | "failed";
+export type MockScenario = "pending" | "empty" | "no-bank" | "refusal" | "failed" | "chat-waiting" | "chat-failed" | "feed-1" | "feed-3" | "feed-5";
 
 type MockCredentials = { login: string; password: string };
 
@@ -49,13 +49,17 @@ const feeds: Record<string, FeedResponse> = {
 const insights = [insightJson, insightCeoJson, insightCompanyBJson, insightCompanyBCeoJson] as InsightDto[];
 const insightNoBank = insightNoBankJson as InsightDto;
 const chatHistory = new Map<string, ChatTurnDto[]>();
+const pendingChat = new Map<string, { insightId: string; turn: ChatTurnDto; polls: number }>();
+
+const CHAT_JOB_POLLS = 2;
+const feedItemCounts: Partial<Record<MockScenario, number>> = { "feed-1": 1, "feed-3": 3, "feed-5": 5 };
 
 function currentScenario(): MockScenario | null {
   if (typeof window === "undefined") {
     return null;
   }
   const value = new URLSearchParams(window.location.search).get("mock");
-  const known: MockScenario[] = ["pending", "empty", "no-bank", "refusal", "failed"];
+  const known: MockScenario[] = ["pending", "empty", "no-bank", "refusal", "failed", "chat-waiting", "chat-failed", "feed-1", "feed-3", "feed-5"];
   return known.find((scenario) => scenario === value) ?? null;
 }
 
@@ -137,6 +141,22 @@ function feedFor(companyId: string): FeedResponse {
   if (scenario === "pending" && companyId === "U_DEMO_A") {
     return feedPendingJson as FeedResponse;
   }
+  const itemCount = scenario ? feedItemCounts[scenario] : undefined;
+  if (itemCount && companyId === "U_DEMO_A") {
+    const base = feeds[companyId];
+    const [first] = base.items;
+    const items = Array.from({ length: itemCount }, (_, index) =>
+      index === 0
+        ? first
+        : {
+            ...first,
+            event_id: `00000000-0000-4000-8000-0000000001${String(index).padStart(2, "0")}`,
+            headline: `${first.headline} (${index + 1})`,
+            relevance: { ...first.relevance, rank: index + 1 },
+          },
+    );
+    return { ...base, items };
+  }
   return feeds[companyId];
 }
 
@@ -199,8 +219,21 @@ export const mockApi: Api = {
     }
     return evidence;
   },
-  getJob: async () => {
+  getJob: async (jobId) => {
     requireSession();
+    const pending = pendingChat.get(jobId);
+    if (pending) {
+      pending.polls += 1;
+      if (pending.polls < CHAT_JOB_POLLS) {
+        return { ...jobQueued, id: jobId, status: "running", stage: "answer" };
+      }
+      pendingChat.delete(jobId);
+      if (currentScenario() === "chat-failed") {
+        return { ...(jobFailedJson as JobResponse), id: jobId };
+      }
+      chatHistory.set(pending.insightId, [...(chatHistory.get(pending.insightId) ?? []), pending.turn]);
+      return { id: jobId, status: "done", stage: "saved", result_type: "chat", result_id: pending.turn.id, error: null };
+    }
     return (currentScenario() === "failed" ? jobFailedJson : jobDoneJson) as JobResponse;
   },
   getChatHistory: async (insightId) => {
@@ -220,6 +253,11 @@ export const mockApi: Api = {
       created_at: new Date().toISOString(),
       answer,
     };
+    if (currentScenario() === "chat-waiting" || currentScenario() === "chat-failed") {
+      const jobId = crypto.randomUUID();
+      pendingChat.set(jobId, { insightId, turn, polls: 0 });
+      return { state: "waiting", data: { job_id: jobId, status_url: `/api/jobs/${jobId}` } };
+    }
     chatHistory.set(insightId, [...history, turn]);
     return { state: "ready", data: answer };
   },

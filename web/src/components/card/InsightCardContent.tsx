@@ -6,6 +6,7 @@ import { useInsight } from "../../lib/hooks/queries";
 import { ANALYTICS_HREF } from "../../lib/navigation";
 import type { Role } from "../../lib/types/api";
 import InsightCardBody from "./InsightCardBody";
+import EvidenceViewerProvider from "./EvidenceViewerProvider";
 import InsightCardHeader from "./InsightCardHeader";
 
 const notPreparedCodes = ["insight_not_prepared", "not_found"];
@@ -42,9 +43,9 @@ export default function InsightCardContent({ companyId, eventId, role }: Insight
   }
 
   return (
-    <>
+    <EvidenceViewerProvider limitations={insight.data.data.limitations}>
       <InsightCardHeader insight={insight.data.data} />
       <InsightCardBody insight={insight.data.data} />
-    </>
+    </EvidenceViewerProvider>
   );
 }
