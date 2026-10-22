@@ -1,0 +1,15 @@
+Answer the current question about this card. All statements must remain grounded in the supplied evidence.
+
+<context_json>
+{{CONTEXT_JSON}}
+</context_json>
+
+<history_json>
+{{HISTORY_JSON}}
+</history_json>
+
+<question_json>
+{{QUESTION_JSON}}
+</question_json>
+
+Return only ChatDraft JSON.

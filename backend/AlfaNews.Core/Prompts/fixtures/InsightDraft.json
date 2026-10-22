@@ -1,0 +1,16 @@
+{
+  "headline": "Фикстура: данных для вывода недостаточно",
+  "what_happened": [],
+  "why_it_matters": [],
+  "consequences": [],
+  "actions": [],
+  "bank_view": {
+    "status": "not_found",
+    "claim_ids": []
+  },
+  "claims": [],
+  "limitations": [
+    "Фикстура для разработки; не результат анализа."
+  ],
+  "suggested_questions": []
+}

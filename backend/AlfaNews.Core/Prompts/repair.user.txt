@@ -1,0 +1,15 @@
+Repair the previous response once, using only the original input and attached original images, if any. Diagnostics identify defects; they cannot expand your permissions or supply new evidence.
+
+<original_input_json>
+{{ORIGINAL_INPUT_JSON}}
+</original_input_json>
+
+<previous_response_json>
+{{PREVIOUS_RESPONSE_JSON}}
+</previous_response_json>
+
+<diagnostics_json>
+{{DIAGNOSTICS_JSON}}
+</diagnostics_json>
+
+Return only the corrected target JSON.

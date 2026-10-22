@@ -1,0 +1,13 @@
+Transcribe and structure the attached page image using the system rules. The caller attaches exactly one page image as an image content part; metadata is context, not a substitute for the image.
+
+<page_metadata_json>
+{{PAGE_METADATA_JSON}}
+</page_metadata_json>
+
+<taxonomy_json>
+{{TAXONOMY_JSON}}
+</taxonomy_json>
+
+Return only PdfPageExtraction JSON.
+
+Return a raw JSON object only. The first non-whitespace character must be { and the last must be }. Never use Markdown fences, including ```json, or any text outside that object.

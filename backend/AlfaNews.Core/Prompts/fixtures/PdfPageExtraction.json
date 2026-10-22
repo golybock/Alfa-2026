@@ -1,0 +1,18 @@
+{
+  "blocks": [
+    {
+      "local_id": "b001",
+      "kind": "disclaimer",
+      "text": "Синтетическая страница для проверки транспорта.",
+      "tables": [],
+      "charts": [],
+      "tags": {
+        "factors": [],
+        "okved2": [],
+        "countries": [],
+        "regions": [],
+        "commodities": []
+      }
+    }
+  ]
+}

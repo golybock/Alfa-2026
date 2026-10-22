@@ -1,0 +1,11 @@
+Select only the additional read-only queries needed for this card. Execution limits and tool permissions come from the trusted system message.
+
+<context_json>
+{{CONTEXT_JSON}}
+</context_json>
+
+<previous_tool_results_json>
+{{PREVIOUS_TOOL_RESULTS_JSON}}
+</previous_tool_results_json>
+
+Return only AgentPlan JSON.
