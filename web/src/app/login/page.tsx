@@ -9,11 +9,11 @@ export default function LoginPage() {
     <>
       <BankBackdrop />
       <ModalFrame title="Авторизация" step={1}>
-        <LoginForm />
+        <Suspense fallback={null}>
+          <LoginForm />
+        </Suspense>
       </ModalFrame>
-      <Suspense fallback={null}>
-        <LoggedInRedirect />
-      </Suspense>
+      <LoggedInRedirect />
     </>
   );
 }

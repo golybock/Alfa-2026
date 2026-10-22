@@ -16,9 +16,3 @@ export type BankHome = {
   };
   promos: { title: string; text: string; tone: string }[];
 };
-
-export type CompanyOption = { id: string; name: string; description: string };
-
-export type RoleOption = { id: string; title: string };
-
-export type SelectionData = { companies: CompanyOption[]; roles: RoleOption[] };

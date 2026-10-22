@@ -1,8 +1,13 @@
-import { requireCurrentUser } from "../../lib/api/auth";
+"use client";
+
+import { useActiveContext } from "../../lib/hooks/session";
 import InsightsWidget from "./InsightsWidget";
 
-export default async function InsightsWidgetScreen() {
-  const user = await requireCurrentUser();
+export default function InsightsWidgetScreen() {
+  const active = useActiveContext();
+  if (!active) {
+    return null;
+  }
 
-  return <InsightsWidget companyId={user.companyId} role={user.role} />;
+  return <InsightsWidget companyId={active.company.company_id} role={active.context.role} />;
 }

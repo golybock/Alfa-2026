@@ -1,15 +1,18 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import Icon from "./Icon";
 
 type DrawerProps = { title: string; subtitle: string; onClose: () => void; children: ReactNode };
 
 export default function Drawer({ title, subtitle, onClose, children }: DrawerProps) {
+  const dialogRef = useRef<HTMLElement>(null);
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
+      const dialogs = document.querySelectorAll('[role="dialog"]');
+      if (event.key === "Escape" && dialogs[dialogs.length - 1] === dialogRef.current) {
         onClose();
       }
     };
@@ -20,6 +23,7 @@ export default function Drawer({ title, subtitle, onClose, children }: DrawerPro
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-zinc-900/40" onClick={onClose}>
       <aside
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={title}

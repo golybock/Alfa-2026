@@ -1,0 +1,200 @@
+[
+  {
+    "id": "spec-kommersant-economics",
+    "name": "Коммерсантъ: Экономика",
+    "feed_url": "https://www.kommersant.ru/RSS/section-economics.xml",
+    "kind": "media",
+    "rubric": "economy",
+    "publisher": "Коммерсантъ",
+    "allowed_hosts": [
+      "www.kommersant.ru",
+      "kommersant.ru"
+    ],
+    "enabled": true,
+    "poll_seconds": 900,
+    "reliability": 0.9,
+    "validation_status": "checked",
+    "checked_at": "2026-10-22T22:55:00+03:00",
+    "selection_reason": "проверена: XML валиден, 21 запись, полный текст и даты ок"
+  },
+  {
+    "id": "spec-kommersant-business",
+    "name": "Коммерсантъ: Бизнес",
+    "feed_url": "https://www.kommersant.ru/RSS/section-business.xml",
+    "kind": "media",
+    "rubric": "business",
+    "publisher": "Коммерсантъ",
+    "allowed_hosts": [
+      "www.kommersant.ru",
+      "kommersant.ru"
+    ],
+    "enabled": true,
+    "poll_seconds": 900,
+    "reliability": 0.9,
+    "validation_status": "checked",
+    "checked_at": "2026-10-22T22:55:00+03:00",
+    "selection_reason": "проверена: XML валиден, 125 записей, полный текст и даты ок"
+  },
+  {
+    "id": "spec-kommersant-finance",
+    "name": "Коммерсантъ: Финансы",
+    "feed_url": "https://www.kommersant.ru/RSS/section-finance.xml",
+    "kind": "media",
+    "rubric": "finance",
+    "publisher": "Коммерсантъ",
+    "allowed_hosts": [
+      "www.kommersant.ru",
+      "kommersant.ru"
+    ],
+    "enabled": true,
+    "poll_seconds": 900,
+    "reliability": 0.9,
+    "validation_status": "checked",
+    "checked_at": "2026-10-22T22:55:00+03:00",
+    "selection_reason": "проверена: XML валиден, 34 записи, полный текст и даты ок"
+  },
+  {
+    "id": "spec-vedomosti-economics",
+    "name": "Ведомости: Экономика",
+    "feed_url": "https://www.vedomosti.ru/rss/rubric/economics",
+    "kind": "media",
+    "rubric": "economy",
+    "publisher": "Ведомости",
+    "allowed_hosts": [
+      "www.vedomosti.ru",
+      "vedomosti.ru"
+    ],
+    "enabled": true,
+    "poll_seconds": 900,
+    "reliability": 0.9,
+    "validation_status": "checked",
+    "checked_at": "2026-10-22T22:55:00+03:00",
+    "selection_reason": "проверена: XML валиден, 200 записей, полный текст и даты ок"
+  },
+  {
+    "id": "spec-vedomosti-finance",
+    "name": "Ведомости: Финансы",
+    "feed_url": "https://www.vedomosti.ru/rss/rubric/finance",
+    "kind": "media",
+    "rubric": "finance",
+    "publisher": "Ведомости",
+    "allowed_hosts": [
+      "www.vedomosti.ru",
+      "vedomosti.ru"
+    ],
+    "enabled": true,
+    "poll_seconds": 900,
+    "reliability": 0.9,
+    "validation_status": "checked",
+    "checked_at": "2026-10-22T22:55:00+03:00",
+    "selection_reason": "проверена: XML валиден, 200 записей, полный текст и даты ок"
+  },
+  {
+    "id": "spec-vedomosti-business",
+    "name": "Ведомости: Бизнес",
+    "feed_url": "https://www.vedomosti.ru/rss/rubric/business",
+    "kind": "media",
+    "rubric": "business",
+    "publisher": "Ведомости",
+    "allowed_hosts": [
+      "www.vedomosti.ru",
+      "vedomosti.ru"
+    ],
+    "enabled": true,
+    "poll_seconds": 900,
+    "reliability": 0.9,
+    "validation_status": "checked",
+    "checked_at": "2026-10-22T22:55:00+03:00",
+    "selection_reason": "проверена: XML валиден, 200 записей, полный текст и даты ок"
+  },
+  {
+    "id": "spec-prime-finance",
+    "name": "Прайм: Финансы",
+    "feed_url": "https://1prime.ru/export/rss2/finance/index.xml",
+    "kind": "media",
+    "rubric": "finance",
+    "publisher": "Прайм",
+    "allowed_hosts": [
+      "1prime.ru",
+      "www.1prime.ru"
+    ],
+    "enabled": true,
+    "poll_seconds": 900,
+    "reliability": 0.9,
+    "validation_status": "checked",
+    "checked_at": "2026-10-22T22:55:00+03:00",
+    "selection_reason": "проверена: XML валиден, 30 записей, полный текст через адаптер, даты из ленты"
+  },
+  {
+    "id": "spec-prime-business",
+    "name": "Прайм: Бизнес",
+    "feed_url": "https://1prime.ru/export/rss2/business/index.xml",
+    "kind": "media",
+    "rubric": "business",
+    "publisher": "Прайм",
+    "allowed_hosts": [
+      "1prime.ru",
+      "www.1prime.ru"
+    ],
+    "enabled": true,
+    "poll_seconds": 900,
+    "reliability": 0.9,
+    "validation_status": "checked",
+    "checked_at": "2026-10-22T22:55:00+03:00",
+    "selection_reason": "проверена: XML валиден, 30 записей, полный текст через адаптер, даты из ленты"
+  },
+  {
+    "id": "spec-prime-energy",
+    "name": "Прайм: Энергетика",
+    "feed_url": "https://1prime.ru/export/rss2/energy/index.xml",
+    "kind": "media",
+    "rubric": "markets",
+    "publisher": "Прайм",
+    "allowed_hosts": [
+      "1prime.ru",
+      "www.1prime.ru"
+    ],
+    "enabled": true,
+    "poll_seconds": 900,
+    "reliability": 0.9,
+    "validation_status": "checked",
+    "checked_at": "2026-10-22T22:55:00+03:00",
+    "selection_reason": "проверена: XML валиден, 30 записей, полный текст через адаптер, даты из ленты"
+  },
+  {
+    "id": "spec-prime-regulation",
+    "name": "Прайм: Госрегулирование",
+    "feed_url": "https://1prime.ru/export/rss2/state_regulation/index.xml",
+    "kind": "media",
+    "rubric": "regulation",
+    "publisher": "Прайм",
+    "allowed_hosts": [
+      "1prime.ru",
+      "www.1prime.ru"
+    ],
+    "enabled": true,
+    "poll_seconds": 900,
+    "reliability": 0.9,
+    "validation_status": "checked",
+    "checked_at": "2026-10-22T22:55:00+03:00",
+    "selection_reason": "проверена: XML валиден, 30 записей, полный текст через адаптер, даты из ленты"
+  },
+  {
+    "id": "spec-banki-news",
+    "name": "Банки.ру: Новости",
+    "feed_url": "https://www.banki.ru/xml/news.rss",
+    "kind": "media",
+    "rubric": "finance",
+    "publisher": "Банки.ру",
+    "allowed_hosts": [
+      "www.banki.ru",
+      "banki.ru"
+    ],
+    "enabled": true,
+    "poll_seconds": 900,
+    "reliability": 0.9,
+    "validation_status": "checked",
+    "checked_at": "2026-10-22T22:55:00+03:00",
+    "selection_reason": "проверена: XML валиден, 25 записей, полный текст на страницах, даты из ленты"
+  }
+]

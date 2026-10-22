@@ -1,18 +1,4 @@
 [
-  {
-    "login": "demo-ceo",
-    "password": "demo",
-    "companyId": "U_DEMO_A",
-    "companyName": "Синтетическая компания A",
-    "displayName": "Иванов Иван Иванович",
-    "role": "ceo"
-  },
-  {
-    "login": "demo-cfo",
-    "password": "demo",
-    "companyId": "U_DEMO_A",
-    "companyName": "Синтетическая компания A",
-    "displayName": "Иванов Иван Иванович",
-    "role": "cfo"
-  }
+  { "login": "demo-ceo", "password": "demo" },
+  { "login": "demo-cfo", "password": "demo" }
 ]

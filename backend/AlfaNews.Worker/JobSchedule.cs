@@ -1,3 +1,4 @@
+using System.Text.Json;
 using AlfaNews.Contracts.Processing;
 using AlfaNews.Core.Data;
 using AlfaNews.Core.Processing;
@@ -9,12 +10,30 @@ public sealed class JobSchedule(AlfaNewsDbContext db, JobQueue queue, TimeProvid
 {
     public async Task EnqueueAsync(CancellationToken cancellationToken)
     {
-        var sources = await db.SourceRows.AsNoTracking().Where(source => source.Enabled)
-            .OrderBy(source => source.Id).Select(source => source.Id).ToArrayAsync(cancellationToken);
+        await EnqueueCollectionAsync(cancellationToken);
+        await EnqueueFeedRefreshAsync(cancellationToken);
+    }
+
+    public async Task EnqueueCollectionAsync(CancellationToken cancellationToken)
+    {
+        var now = timeProvider.GetUtcNow();
+        var enabled = await db.SourceRows.AsNoTracking().Where(source => source.Enabled)
+            .Select(source => new { source.Id, source.PollSeconds, source.LastCheckedAt }).ToListAsync(cancellationToken);
         var collectionKind = JobKinds.Name<CollectNewsJob>();
-        if (sources.Length > 0 && !await db.BackgroundJobRows.AnyAsync(row => row.Kind == collectionKind
-                && row.OwnerUserId == null && row.CompanyId == null && (row.Status == "queued" || row.Status == "running"), cancellationToken))
-            await queue.EnqueueAsync(new CollectNewsJob(sources), null, null, cancellationToken);
+        var activePayloads = await db.BackgroundJobRows.AsNoTracking().Where(row => row.Kind == collectionKind
+                && row.OwnerUserId == null && row.CompanyId == null && (row.Status == "queued" || row.Status == "running"))
+            .Select(row => row.Payload).ToListAsync(cancellationToken);
+        var busy = activePayloads.SelectMany(payload => payload.Deserialize<CollectNewsJob>(JobKinds.JsonOptions)!.SourceIds)
+            .ToHashSet(StringComparer.Ordinal);
+        var due = enabled.Where(source => !busy.Contains(source.Id)
+            && (source.LastCheckedAt is null || source.LastCheckedAt.Value.AddSeconds(source.PollSeconds) <= now));
+        foreach (var group in due.GroupBy(source => source.PollSeconds).OrderBy(group => group.Key))
+            await queue.EnqueueAsync(new CollectNewsJob(group.Select(source => source.Id).Order(StringComparer.Ordinal).ToArray()),
+                null, null, cancellationToken);
+    }
+
+    public async Task EnqueueFeedRefreshAsync(CancellationToken cancellationToken)
+    {
         var companyIds = (configuration["Feed:CompanyIds"] ?? string.Empty)
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Distinct(StringComparer.Ordinal).ToArray();
