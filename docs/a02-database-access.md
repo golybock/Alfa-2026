@@ -14,7 +14,7 @@ dotnet ef migrations list --project backend/AlfaNews.Core
 dotnet ef database update --project backend/AlfaNews.Core
 ```
 
-PostgreSQL в штатном Compose не публикует порт на хост. Для CLI используйте отдельную локальную PostgreSQL или изолированный SDK-контейнер в Compose-сети. Не передавайте строку подключения через аргументы CLI или исходный код.
+PostgreSQL в штатном Compose доступен с хоста по `127.0.0.1:15432`; внутри Compose — `postgres:5432`. Для CLI задайте `Host=127.0.0.1;Port=15432`, а имя БД, пользователя и пароль возьмите из `.env`. Не передавайте строку подключения через аргументы CLI или исходный код.
 
 ## Подключение в D04/D09/D10
 

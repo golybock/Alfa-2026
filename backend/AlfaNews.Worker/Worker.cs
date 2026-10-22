@@ -1,17 +1,12 @@
 namespace AlfaNews.Worker;
 
-public class Worker(ILogger<Worker> logger) : BackgroundService
+public class Worker(IServiceScopeFactory scopes) : BackgroundService
 {
-	protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-	{
-		while (!stoppingToken.IsCancellationRequested)
-		{
-			if (logger.IsEnabled(LogLevel.Information))
-			{
-				logger.LogInformation("Worker running at: {time}", DateTimeOffset.Now);
-			}
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        await using (var scope = scopes.CreateAsyncScope())
+            await scope.ServiceProvider.GetRequiredService<CsvImportService>().ImportOnStartupAsync(stoppingToken);
 
-			await Task.Delay(1000, stoppingToken);
-		}
-	}
+        await Task.Delay(Timeout.InfiniteTimeSpan, stoppingToken);
+    }
 }

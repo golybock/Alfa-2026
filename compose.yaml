@@ -12,6 +12,8 @@ services:
     postgres:
         image: pgvector/pgvector:pg17
         restart: unless-stopped
+        ports:
+            - "127.0.0.1:15432:5432"
         environment:
             POSTGRES_DB: ${POSTGRES_DB:-alfanews}
             POSTGRES_USER: ${POSTGRES_USER:-alfanews}
@@ -85,6 +87,9 @@ services:
         restart: unless-stopped
         environment:
             <<: *backend-env
+            Data__ImportOnStartup: "true"
+            Data__DatasetVersion: hackathon-2026-v1
+            Data__ImportReportPath: /reports/import_report.json
             Llm__UseMock: ${LLM_USE_MOCK:-true}
             Llm__BaseUrl: ${LLM_BASE_URL:-}
             Llm__ApiKey: ${LLM_API_KEY:-}
@@ -98,6 +103,7 @@ services:
         volumes:
             - research-files:/var/lib/alfanews/research
             - ./data:/input:ro
+            - ./data/reports:/reports
         depends_on:
             postgres:
                 condition: service_healthy
