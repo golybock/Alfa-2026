@@ -43,3 +43,5 @@ docker builder prune --all
 `web/package-lock.json` хранится в Git. Для установки используйте `npm ci` в каталоге web; Docker использует ту же команду. Версии Next и eslint-config-next согласованы и остаются 16.4.2.
 
 Пять high-предупреждений npm audit относятся к одной цепочке ESLint: eslint-config-next → fast-glob → micromatch → braces. Для braces 3.0.3 исправления CVE-2026-93687 пока нет. Не применять `npm audit fix --force`: предлагаемый откат eslint-config-next до 14.x не принят. После выхода исправления обновить цепочку, повторить audit, lint и build.
+
+Локальные API, Worker и EF автоматически читают существующий `.env` из корня репозитория. Переменные процесса имеют приоритет; секреты в вывод не попадают. Настройка LLM, бюджет и проверка промптов: [A06 и ALF-53](docs/a06-llm-gateway.md).

@@ -99,13 +99,19 @@ services:
             Llm__UseMock: ${LLM_USE_MOCK:-true}
             Llm__BaseUrl: ${LLM_BASE_URL:-}
             Llm__ApiKey: ${LLM_API_KEY:-}
-            Llm__AgentModel: ${DEEPSEEK_MODEL_ID:-}
-            Llm__ClassifierModel: ${DEEPSEEK_MODEL_ID:-}
-            Llm__PdfModel: ${GLM_MODEL_ID:-}
-            Llm__CriticModel: ${GLM_MODEL_ID:-}
-            Llm__GlmReasoningLevel: high
+            Llm__DeepSeekModel: ${DEEPSEEK_MODEL_ID:-deepseek/deepseek-v4.1-flash}
+            Llm__GlmModel: ${GLM_MODEL_ID:-z-ai/glm-5.3-flash}
+            Llm__GlmReasoningLevel: ${LLM_GLM_REASONING_LEVEL:-low}
+            Llm__DeepSeekThinkingEnabled: ${LLM_DEEPSEEK_THINKING_ENABLED:-true}
             Llm__MaxOutputTokens: "32000"
             Llm__ChatMaxOutputTokens: "8000"
+            Llm__DeepSeekInputEstimateRubPerMillion: ${LLM_DEEPSEEK_INPUT_ESTIMATE_RUB_PER_MILLION:-500}
+            Llm__StructuredOutput: ${LLM_STRUCTURED_OUTPUT:-true}
+            Llm__DeepSeekOutputEstimateRubPerMillion: ${LLM_DEEPSEEK_OUTPUT_ESTIMATE_RUB_PER_MILLION:-500}
+            Llm__GlmInputEstimateRubPerMillion: ${LLM_GLM_INPUT_ESTIMATE_RUB_PER_MILLION:-100}
+            Llm__GlmOutputEstimateRubPerMillion: ${LLM_GLM_OUTPUT_ESTIMATE_RUB_PER_MILLION:-100}
+            Llm__CriticEnabled: ${CRITIC_ENABLED:-true}
+            Llm__CriticScope: ${CRITIC_SCOPE:-all_full}
         volumes:
             - research-files:/var/lib/alfanews/research
             - ./data:/input:ro

@@ -6,6 +6,9 @@
 
 | Пакет | Версия | Лицензия | Зачем |
 |---|---|---|---|
+| JsonSchema.Net | 7.3.4 | MIT | Проверка ответов LLM по JSON Schema Draft 2020-12 |
+| JsonPointer.Net | 5.3.1, транзитивно | MIT | JSON Pointer для валидатора схем |
+| Json.More.Net | 2.1.1, транзитивно | MIT | JSON-операции для валидатора схем |
 | Npgsql.EntityFrameworkCore.PostgreSQL | 10.0.3 | PostgreSQL | EF Core provider для PostgreSQL |
 | Npgsql | 10.0.3, транзитивно | PostgreSQL | Драйвер PostgreSQL |
 | Microsoft.EntityFrameworkCore / Relational / Abstractions / Analyzers | 10.0.4, транзитивно | MIT | ORM, конфигурации и миграции |

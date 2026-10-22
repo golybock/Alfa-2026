@@ -1,0 +1,15 @@
+Classify the current request against this authorized card and company context. Do not answer it.
+
+<context_json>
+{{CONTEXT_JSON}}
+</context_json>
+
+<history_json>
+{{HISTORY_JSON}}
+</history_json>
+
+<question_json>
+{{QUESTION_JSON}}
+</question_json>
+
+Return only ScopeGateResult JSON.
