@@ -1,6 +1,9 @@
+"use client";
+
 import { formatDate } from "../../lib/dates";
 import { contributionLabel, criticStatusLabels, evidenceTypeLabels, reviewStatusLabels } from "../../lib/labels";
 import type { InsightDto } from "../../lib/types/api";
+import EvidenceRefButton from "../ui/EvidenceRefButton";
 import Icon from "../ui/Icon";
 
 const numberFormat = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 2 });
@@ -19,9 +22,7 @@ export default function WhyPanel({ insight }: WhyPanelProps) {
             <li key={reason.code}>
               {reason.text}{" "}
               {reason.evidence_refs.map((ref) => (
-                <code key={ref} className="rounded bg-zinc-100 px-1.5 text-[11px] text-zinc-500">
-                  {ref}
-                </code>
+                <EvidenceRefButton key={ref} id={ref} evidence={insight.evidence} />
               ))}
             </li>
           ))}
@@ -59,7 +60,7 @@ export default function WhyPanel({ insight }: WhyPanelProps) {
         <ul className="flex flex-col gap-3">
           {Object.entries(insight.evidence).map(([id, item]) => (
             <li key={id} className="grid grid-cols-[32px_1fr_16px] items-start gap-2 text-xs">
-              <code className="font-medium">{id}</code>
+              <EvidenceRefButton id={id} evidence={insight.evidence} />
               <div>
                 <p className="font-medium">
                   {evidenceTypeLabels[item.type]} · {item.source}

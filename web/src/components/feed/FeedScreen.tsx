@@ -1,8 +1,13 @@
-import { requireCurrentUser } from "../../lib/api/auth";
+"use client";
+
+import { useActiveContext } from "../../lib/hooks/session";
 import InsightsFeed from "./InsightsFeed";
 
-export default async function FeedScreen() {
-  const user = await requireCurrentUser();
+export default function FeedScreen() {
+  const active = useActiveContext();
+  if (!active) {
+    return null;
+  }
 
-  return <InsightsFeed companyId={user.companyId} companyName={user.companyName} role={user.role} />;
+  return <InsightsFeed companyId={active.company.company_id} companyName={active.company.name} role={active.context.role} />;
 }

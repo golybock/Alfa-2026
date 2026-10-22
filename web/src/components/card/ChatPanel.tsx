@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { describeError } from "../../lib/api/client";
-import { useAskQuestion, useChatHistory } from "../../lib/hooks/queries";
+import { queryKeys, useAskQuestion, useChatHistory, useJob } from "../../lib/hooks/queries";
 import type { InsightDto } from "../../lib/types/api";
 import Icon from "../ui/Icon";
 import ChatTurn from "./ChatTurn";
@@ -16,6 +16,12 @@ export default function ChatPanel({ insight }: ChatPanelProps) {
   const [question, setQuestion] = useState("");
   const history = useChatHistory(insight.id);
   const ask = useAskQuestion(insight.id);
+  const [jobId, setJobId] = useState<string | null>(null);
+  const job = useJob(jobId, queryKeys.chat(insight.id));
+  const jobStatus = job.data?.status;
+  const jobFinished = jobStatus === "done" || jobStatus === "failed";
+  const awaitingJob = jobId !== null && !jobFinished && !job.isError;
+  const busy = ask.isPending || awaitingJob;
   const turns = history.data?.items ?? [];
   const lastTurn = turns.at(-1);
   const suggestions = lastTurn?.answer.suggested_questions ?? insight.suggested_questions;
@@ -24,10 +30,18 @@ export default function ChatPanel({ insight }: ChatPanelProps) {
 
   const send = (text: string) => {
     const trimmed = text.trim();
-    if (!trimmed || ask.isPending || exhausted) {
+    if (!trimmed || busy || exhausted) {
       return;
     }
-    ask.mutate({ question: trimmed }, { onSuccess: () => setQuestion("") });
+    ask.mutate(
+      { question: trimmed },
+      {
+        onSuccess: (outcome) => {
+          setQuestion("");
+          setJobId(outcome.state === "waiting" ? outcome.data.job_id : null);
+        },
+      },
+    );
   };
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -50,9 +64,20 @@ export default function ChatPanel({ insight }: ChatPanelProps) {
           ))}
         </ul>
       ) : null}
-      {ask.isPending ? <p className="text-sm text-zinc-500">Готовим ответ…</p> : null}
-      {ask.data?.state === "waiting" ? (
-        <p className="text-sm text-zinc-500">Вопрос принят, ответ готовится в фоне.</p>
+      {busy ? (
+        <p role="status" className="rounded-2xl bg-zinc-100 p-4 text-sm text-zinc-500">
+          Готовим ответ…
+        </p>
+      ) : null}
+      {jobStatus === "failed" ? (
+        <p role="alert" className="text-sm text-alfa">
+          Ответ не получен: {job.data?.error?.message ?? "обработка вопроса не удалась"}
+        </p>
+      ) : null}
+      {job.isError ? (
+        <p role="alert" className="text-sm text-alfa">
+          Не удалось узнать статус ответа: {describeError(job.error)}
+        </p>
       ) : null}
       {ask.isError ? (
         <p role="alert" className="text-sm text-alfa">
@@ -65,7 +90,7 @@ export default function ChatPanel({ insight }: ChatPanelProps) {
             <button
               type="button"
               onClick={() => send(suggestion)}
-              disabled={ask.isPending || exhausted}
+              disabled={busy || exhausted}
               className="rounded-xl bg-zinc-100 px-3 py-2 text-left text-xs hover:bg-zinc-200 disabled:opacity-60"
             >
               {suggestion}
@@ -87,7 +112,7 @@ export default function ChatPanel({ insight }: ChatPanelProps) {
         <button
           type="submit"
           aria-label="Отправить"
-          disabled={ask.isPending || exhausted || question.trim().length === 0}
+          disabled={busy || exhausted || question.trim().length === 0}
           className="flex h-10 w-10 items-center justify-center rounded-lg bg-alfa text-white disabled:opacity-60"
         >
           <Icon name="send" className="h-5 w-5" />

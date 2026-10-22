@@ -1,13 +1,16 @@
 "use client";
 
+import { useState } from "react";
 import { describeError } from "../../lib/api/client";
 import { formatDateTime, formatPeriod } from "../../lib/dates";
-import { useFeed, useRefreshFeed } from "../../lib/hooks/queries";
+import { queryKeys, useFeed, useJob, useRefreshFeed } from "../../lib/hooks/queries";
 import { roleLabels } from "../../lib/labels";
 import type { FeedResponse, RefreshStatus, Role } from "../../lib/types/api";
 import EmptyFeed from "./EmptyFeed";
 import FeedHeader from "./FeedHeader";
 import InsightRow from "./InsightRow";
+
+const MAX_FEED_ITEMS = 5;
 
 const refreshStatusLabels: Record<Exclude<RefreshStatus, "idle">, string> = {
   queued: "сбор новостей в очереди",
@@ -31,21 +34,35 @@ type InsightsFeedProps = { companyId: string; companyName: string; role: Role };
 
 export default function InsightsFeed({ companyId, companyName, role }: InsightsFeedProps) {
   const feed = useFeed(companyId, role);
-  const refresh = useRefreshFeed(companyId, role);
+  const refresh = useRefreshFeed(companyId);
+  const [refreshJobId, setRefreshJobId] = useState<string | null>(null);
+  const refreshJob = useJob(refreshJobId, queryKeys.feed(companyId, role));
+  const refreshJobStatus = refreshJob.data?.status;
+  const refreshRunning = refreshJobId !== null && refreshJobStatus !== "done" && refreshJobStatus !== "failed" && !refreshJob.isError;
 
   return (
     <>
       <FeedHeader
         subtitle={`${companyName} · ${roleLabels[role]}`}
-        refreshing={refresh.isPending}
-        onRefresh={() => refresh.mutate()}
+        refreshing={refresh.isPending || refreshRunning}
+        onRefresh={() => refresh.mutate(undefined, { onSuccess: (accepted) => setRefreshJobId(accepted.job_id) })}
       />
       {refresh.isError ? (
         <p role="alert" className="mb-3 text-sm text-alfa">
           Не удалось запустить обновление: {describeError(refresh.error)}. Показана последняя сохранённая лента.
         </p>
       ) : null}
-      {refresh.isSuccess ? <p className="mb-3 text-sm text-zinc-500">Запрос на обновление принят.</p> : null}
+      {refreshRunning ? (
+        <p role="status" className="mb-3 text-sm text-zinc-500">
+          Обновляем ленту. Пока показана последняя сохранённая версия.
+        </p>
+      ) : null}
+      {refreshJobStatus === "failed" || refreshJob.isError ? (
+        <p role="alert" className="mb-3 text-sm text-alfa">
+          Обновление не удалось: {refreshJob.data?.error?.message ?? "не получен статус обновления."} Показана последняя
+          сохранённая лента.
+        </p>
+      ) : null}
       {feed.isPending ? <p className="rounded-2xl bg-white p-5 text-sm text-zinc-500">Загружаем ленту…</p> : null}
       {feed.isError ? (
         <div role="alert" className="rounded-2xl bg-white p-5 text-sm">
@@ -69,7 +86,7 @@ export default function InsightsFeed({ companyId, companyName, role }: InsightsF
             />
           ) : (
             <ul className="mt-4 flex flex-col gap-3">
-              {feed.data.items.map((item) => (
+              {feed.data.items.slice(0, MAX_FEED_ITEMS).map((item) => (
                 <InsightRow key={item.event_id} item={item} />
               ))}
             </ul>

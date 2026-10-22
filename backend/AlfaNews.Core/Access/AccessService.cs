@@ -37,6 +37,17 @@ public sealed class AccessService(AlfaNewsDbContext db, TimeProvider timeProvide
             throw new AccessException(403, "forbidden_role", "Нет доступа к выбранной роли.");
     }
 
+    public async Task RequireCompanyAsync(UserContext context, string companyId, CancellationToken cancellationToken)
+    {
+        await RequireUserAsync(context, cancellationToken);
+        var hasAccess = await (from access in db.UserCompanyAccessRows.AsNoTracking()
+            join company in db.CompanyRows.AsNoTracking() on access.CompanyId equals company.Id
+            where access.UserId == context.UserId && company.Id == companyId && company.ClType == "CLIENT"
+            select access.Role).AnyAsync(cancellationToken);
+        if (!hasAccess)
+            throw new AccessException(403, "forbidden_company", "Нет доступа к компании.");
+    }
+
     public async Task RequireOperatorAsync(UserContext context, CancellationToken cancellationToken)
     {
         var user = await RequireUserAsync(context, cancellationToken);
