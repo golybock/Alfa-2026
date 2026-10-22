@@ -9,7 +9,7 @@ public sealed class TestJobScheduler(IServiceScopeFactory scopes, IConfiguration
         if (!configuration.GetValue<bool>("TestJob:Enabled"))
             return;
         var text = configuration["TestJob:Text"] ?? "Очередь Worker работает.";
-        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(10));
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(30));
         while (await timer.WaitForNextTickAsync(stoppingToken))
         {
             try
