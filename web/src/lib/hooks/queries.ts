@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { QueryKey } from "@tanstack/react-query";
 import { api } from "../api";
-import type { ChatRequest, Role } from "../types/api";
+import type { ChatRequest, FeedbackRequest, Role } from "../types/api";
 
 const FEED_POLL_MS = 120_000;
 const JOB_POLL_MS = 3_000;
@@ -65,5 +65,17 @@ export function useAskQuestion(insightId: string) {
   return useMutation({
     mutationFn: (request: ChatRequest) => api.askQuestion(insightId, request),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.chat(insightId) }),
+  });
+}
+
+export function useSendFeedback(insightId: string, companyId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (request: FeedbackRequest) => api.sendFeedback(insightId, request),
+    onSuccess: (_, request) => {
+      if (request.kind === "hide") {
+        return queryClient.invalidateQueries({ queryKey: ["feed", companyId] });
+      }
+    },
   });
 }

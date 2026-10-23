@@ -7,21 +7,15 @@ import { useActiveContext } from "../../lib/hooks/session";
 import { roleLabels } from "../../lib/labels";
 import { ANALYTICS_HREF } from "../../lib/navigation";
 import type { InsightDto } from "../../lib/types/api";
-import type { IconName } from "../../lib/types/icon";
 import Drawer from "../ui/Drawer";
 import Icon from "../ui/Icon";
 import RankBadge from "../ui/RankBadge";
 import RoleSwitch from "../ui/RoleSwitch";
 import ChatPanel from "./ChatPanel";
+import FeedbackButtons from "./FeedbackButtons";
 import WhyPanel from "./WhyPanel";
 
 type Panel = "why" | "chat" | null;
-
-const feedbackActions: { title: string; icon: IconName }[] = [
-  { title: "Интересно", icon: "thumbUp" },
-  { title: "Не интересно", icon: "thumbDown" },
-  { title: "Скрыть", icon: "eyeOff" },
-];
 
 type InsightCardHeaderProps = { insight: InsightDto };
 
@@ -64,18 +58,7 @@ export default function InsightCardHeader({ insight }: InsightCardHeaderProps) {
               Чат по инсайту
             </button>
           </div>
-          <div className="flex gap-2">
-            {feedbackActions.map((action) => (
-              <button
-                key={action.title}
-                type="button"
-                className="flex h-8 items-center gap-1.5 rounded-lg border border-zinc-200 px-3 text-xs hover:bg-zinc-50"
-              >
-                <Icon name={action.icon} className="h-3.5 w-3.5" />
-                {action.title}
-              </button>
-            ))}
-          </div>
+          <FeedbackButtons insightId={insight.id} />
           <RoleSwitch />
         </div>
       </div>

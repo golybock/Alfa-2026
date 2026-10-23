@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useSelectContext } from "../../lib/hooks/session";
 import type { ScreenContext } from "../../lib/hooks/session";
 import { roleLabels } from "../../lib/labels";
+import { ANALYTICS_HREF } from "../../lib/navigation";
 import type { MeResponse, Role } from "../../lib/types/api";
 
 type CompanyRoleFormProps = { me: MeResponse; current: ScreenContext | null };
@@ -35,7 +36,7 @@ export default function CompanyRoleForm({ me, current }: CompanyRoleFormProps) {
       return;
     }
     selectContext({ companyId: company.company_id, role });
-    router.push("/");
+    router.push(ANALYTICS_HREF);
   };
 
   if (me.companies.length === 0) {
