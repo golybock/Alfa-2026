@@ -5,6 +5,7 @@ import type { FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ApiRequestError, describeError } from "../../lib/api/client";
 import { useLogin } from "../../lib/hooks/session";
+import { ANALYTICS_HREF } from "../../lib/navigation";
 
 function loginErrorText(error: Error): string {
   if (error instanceof ApiRequestError && error.status === 401) {
@@ -33,7 +34,7 @@ export default function LoginForm() {
       return;
     }
     setEmptyFields(false);
-    login.mutate({ login: loginValue, password }, { onSuccess: () => router.replace("/") });
+    login.mutate({ login: loginValue, password }, { onSuccess: () => router.replace(ANALYTICS_HREF) });
   };
 
   return (

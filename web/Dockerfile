@@ -1,7 +1,7 @@
 FROM node:24-bookworm-slim AS build
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV NEXT_PUBLIC_USE_MOCKS=true
+ENV NEXT_PUBLIC_USE_MOCKS=false
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
@@ -11,7 +11,7 @@ FROM node:24-bookworm-slim AS final
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV NEXT_PUBLIC_USE_MOCKS=true
+ENV NEXT_PUBLIC_USE_MOCKS=false
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
 COPY --from=build --chown=node:node /app/package.json ./package.json

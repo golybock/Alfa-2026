@@ -148,7 +148,7 @@ services:
             NODE_ENV: production
             HOSTNAME: 0.0.0.0
             PORT: "3000"
-            NEXT_PUBLIC_USE_MOCKS: "true"
+            NEXT_PUBLIC_USE_MOCKS: "false"
         expose: [ "3000" ]
         healthcheck:
             test: [ CMD, node, -e, "fetch('http://127.0.0.1:3000/login').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))" ]

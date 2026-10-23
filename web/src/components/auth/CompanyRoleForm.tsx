@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useSelectContext } from "../../lib/hooks/session";
 import type { ScreenContext } from "../../lib/hooks/session";
 import { roleLabels } from "../../lib/labels";
+import { ANALYTICS_HREF } from "../../lib/navigation";
 import type { MeResponse, Role } from "../../lib/types/api";
 
 type CompanyRoleFormProps = { me: MeResponse; current: ScreenContext | null };
@@ -35,7 +36,7 @@ export default function CompanyRoleForm({ me, current }: CompanyRoleFormProps) {
       return;
     }
     selectContext({ companyId: company.company_id, role });
-    router.push("/");
+    router.push(ANALYTICS_HREF);
   };
 
   if (me.companies.length === 0) {
@@ -52,7 +53,7 @@ export default function CompanyRoleForm({ me, current }: CompanyRoleFormProps) {
           {me.companies.map((option) => (
             <label
               key={option.company_id}
-              className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 ${
+              className={`flex cursor-pointer items-center gap-3 rounded-xl border px-5 py-4 ${
                 companyId === option.company_id ? "border-2 border-zinc-900 bg-canvas" : "border-zinc-200"
               }`}
             >
@@ -109,7 +110,7 @@ export default function CompanyRoleForm({ me, current }: CompanyRoleFormProps) {
           disabled={!company || !role}
           className="flex h-11 items-center rounded-xl bg-alfa px-6 text-sm font-medium text-white disabled:opacity-60"
         >
-          Показать сигналы
+          Показать инсайты
         </button>
       </div>
     </form>

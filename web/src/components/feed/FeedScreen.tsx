@@ -9,5 +9,12 @@ export default function FeedScreen() {
     return null;
   }
 
-  return <InsightsFeed companyId={active.company.company_id} companyName={active.company.name} role={active.context.role} />;
+  return (
+    <InsightsFeed
+      key={`${active.company.company_id}-${active.context.role}`}
+      companyId={active.company.company_id}
+      companyName={active.company.name}
+      role={active.context.role}
+    />
+  );
 }
