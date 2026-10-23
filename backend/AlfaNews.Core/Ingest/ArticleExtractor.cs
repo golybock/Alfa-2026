@@ -46,9 +46,15 @@ public static class ArticleExtractor
             article.TextContent ?? string.Empty, published ?? readerPublished);
     }
 
+    public static bool IsBoilerplateOnly(string text) =>
+        text.TrimStart().StartsWith("Copyright", StringComparison.OrdinalIgnoreCase)
+        && text.Contains("Все права защищены", StringComparison.OrdinalIgnoreCase);
+
     private static ArticleContent Build(string title, string text, DateTimeOffset? published, int minLength = MinTextLength)
     {
         var normalized = text.Contains('\n') ? string.Join("\n", text.Split('\n').Select(TextNormalizer.Normalize)) : TextNormalizer.Normalize(text);
+        if (IsBoilerplateOnly(normalized))
+            throw new FetchException("boilerplate_body", false, "Вместо текста статьи получен футер сайта.");
         if (TextNormalizer.Normalize(normalized).Length < minLength)
             throw new FetchException("empty_body", false, "Не удалось выделить текст статьи.");
         return new ArticleContent(title, normalized, published);

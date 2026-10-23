@@ -1,7 +1,9 @@
 using AlfaNews.Contracts.Processing;
 using AlfaNews.Core.Data;
 using AlfaNews.Core.Llm;
+using AlfaNews.Core.Processing;
 using AlfaNews.Worker;
+using AlfaNews.Worker.Evaluation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -16,9 +18,9 @@ public sealed class LlmGatewayDatabaseTests(PostgresFixture fixture) : IClassFix
         var transport = new ScriptedClient(ValidNews(), ValidNews());
         await using var services = Services(transport);
         var request = LlmPromptTests.Request(LlmTask.NewsExtract, fixture.JobId);
-        var first = await GenerateAsync<NewsExtraction>(services, request);
-        var cached = await GenerateAsync<NewsExtraction>(services, request);
-        var changed = await GenerateAsync<NewsExtraction>(services, request with { InputVersion = "v2" });
+        var first = await GenerateAsync<NewsExtractionDraft>(services, request);
+        var cached = await GenerateAsync<NewsExtractionDraft>(services, request);
+        var changed = await GenerateAsync<NewsExtractionDraft>(services, request with { InputVersion = "v2" });
         Assert.False(first.CacheHit);
         Assert.True(cached.CacheHit);
         Assert.False(changed.CacheHit);
@@ -37,10 +39,10 @@ public sealed class LlmGatewayDatabaseTests(PostgresFixture fixture) : IClassFix
         var transport = new ScriptedClient(ValidNews(), ValidNews());
         await using var services = Services(transport, options);
         var request = LlmPromptTests.Request(LlmTask.NewsExtract, fixture.JobId);
-        var thinking = await GenerateAsync<NewsExtraction>(services, request);
+        var thinking = await GenerateAsync<NewsExtractionDraft>(services, request);
         options.DeepSeekThinkingEnabled = false;
-        var direct = await GenerateAsync<NewsExtraction>(services, request);
-        var cached = await GenerateAsync<NewsExtraction>(services, request);
+        var direct = await GenerateAsync<NewsExtractionDraft>(services, request);
+        var cached = await GenerateAsync<NewsExtractionDraft>(services, request);
         Assert.NotEqual(thinking.CacheKey, direct.CacheKey);
         Assert.False(direct.CacheHit);
         Assert.True(cached.CacheHit);
@@ -75,7 +77,7 @@ public sealed class LlmGatewayDatabaseTests(PostgresFixture fixture) : IClassFix
             {
                 try
                 {
-                    await budget.StartAsync(run.Id, request, request.Task, route, "reserve-" + index, 1, 30, CancellationToken.None);
+                    await budget.StartAsync(run.Id, request, request.Task, route, "reserve-" + index, 1, 39, CancellationToken.None);
                     return "reserved";
                 }
                 catch (LlmException exception)
@@ -87,10 +89,43 @@ public sealed class LlmGatewayDatabaseTests(PostgresFixture fixture) : IClassFix
             Assert.Contains("budget_exhausted", attempts);
         }
         await using var restarted = Services(transport, options);
-        var failure = await Assert.ThrowsAsync<LlmException>(() => GenerateAsync<NewsExtraction>(restarted,
+        var failure = await Assert.ThrowsAsync<LlmException>(() => GenerateAsync<NewsExtractionDraft>(restarted,
             LlmPromptTests.Request(LlmTask.NewsExtract, fixture.JobId)));
         Assert.Equal("budget_exhausted", failure.Code);
         Assert.Equal(0, transport.Calls);
+    }
+
+    [PostgresFact]
+    public async Task AbandonedRequestsKeepTheirEstimateAsCostAndStopBlockingTheDay()
+    {
+        await ResetAsync();
+        var options = Options();
+        await using var services = Services(new ScriptedClient(), options);
+        await using var db = fixture.CreateDb();
+        var run = new AlfaNews.Core.Data.Entities.AgentRunEntity
+        {
+            Id = Guid.NewGuid(),
+            JobId = fixture.JobId,
+            InputVersion = "v1",
+            Status = "running",
+            StartedAt = DateTimeOffset.UtcNow
+        };
+        db.AgentRunRows.Add(run);
+        await db.SaveChangesAsync();
+        var request = LlmPromptTests.Request(LlmTask.Draft, fixture.JobId);
+        var budget = services.GetRequiredService<LlmBudget>();
+        var route = options.Route(request.Task, request.Task);
+        var reserve = budget.Estimate(new LlmPromptCatalog().Render(request, request.Task), route, null);
+        Assert.InRange(reserve, 0.5m, 5m);
+        var stale = await budget.StartAsync(run.Id, request, request.Task, route, "abandoned", 1, reserve, CancellationToken.None);
+        var fresh = await budget.StartAsync(run.Id, request, request.Task, route, "in-flight", 1, reserve, CancellationToken.None);
+        await db.LlmUsageRows.Where(row => row.Id == stale.Id).ExecuteUpdateAsync(update => update.SetProperty(row => row.CreatedAt, DateTimeOffset.UtcNow.AddHours(-1)));
+        Assert.Equal(1, await budget.ReleaseAbandonedAsync(CancellationToken.None));
+        var rows = await db.LlmUsageRows.AsNoTracking().Where(row => row.RunId == run.Id).ToDictionaryAsync(row => row.Id);
+        Assert.Equal("request_abandoned", rows[stale.Id].Error);
+        Assert.Equal(reserve, rows[stale.Id].ActualCostRub);
+        Assert.Equal("request_started", rows[fresh.Id].Error);
+        Assert.Null(rows[fresh.Id].ActualCostRub);
     }
 
     [PostgresFact]
@@ -145,11 +180,35 @@ public sealed class LlmGatewayDatabaseTests(PostgresFixture fixture) : IClassFix
             new LlmClientResponse("malformed", ActualCostRub: 0.1m), ValidNews());
         await using var services = Services(client);
         var request = LlmPromptTests.Request(LlmTask.NewsExtract, fixture.JobId);
-        await GenerateAsync<NewsExtraction>(services, request);
+        await GenerateAsync<NewsExtractionDraft>(services, request);
         Assert.Equal(4, client.Calls);
-        var hit = await GenerateAsync<NewsExtraction>(services, request);
+        var hit = await GenerateAsync<NewsExtractionDraft>(services, request);
         Assert.True(hit.CacheHit);
         Assert.Equal(4, client.Calls);
+    }
+
+    [PostgresFact]
+    public async Task AttemptLimitStartsOverWhenTheJobRunsAgain()
+    {
+        await ResetAsync();
+        await using var db = fixture.CreateDb();
+        var job = await new JobQueue(db, TimeProvider.System).EnqueueAsync(new ParseNewsJob(Guid.NewGuid().ToString()), null, null, CancellationToken.None);
+        job.StartedAt = DateTimeOffset.UtcNow.AddMinutes(-1);
+        await db.SaveChangesAsync();
+        var transient = new LlmClientResponse(Error: "llm_unavailable", Transient: true, ActualCostRub: 0, HttpStatus: 503);
+        var client = new ScriptedClient(transient, transient, transient, transient, transient, ValidNews());
+        await using var services = Services(client);
+        var request = LlmPromptTests.Request(LlmTask.NewsExtract, job.Id);
+        var failure = await Assert.ThrowsAsync<LlmException>(() => GenerateAsync<NewsExtractionDraft>(services, request));
+        Assert.Equal("llm_unavailable", failure.Code);
+        Assert.Equal(3, client.Calls);
+        job.StartedAt = DateTimeOffset.UtcNow;
+        await db.SaveChangesAsync();
+        var result = await GenerateAsync<NewsExtractionDraft>(services, request);
+        Assert.False(result.CacheHit);
+        Assert.Equal(6, client.Calls);
+        await using var usageDb = fixture.CreateDb();
+        Assert.Equal(5, await usageDb.LlmUsageRows.CountAsync(row => row.Attempt > 0 && row.HttpStatus == 503));
     }
 
     [PostgresFact]
@@ -295,7 +354,7 @@ public sealed class LlmGatewayDatabaseTests(PostgresFixture fixture) : IClassFix
     }
 
     private static LlmClientResponse ValidNews() => new(File.ReadAllText(Path.Combine(AppContext.BaseDirectory,
-        "Prompts", "fixtures", "NewsExtraction.json")), ActualCostRub: 0.1m);
+        "Prompts", "fixtures", "NewsExtractionDraft.json")), ActualCostRub: 0.1m);
 
     private sealed class ScriptedClient(params LlmClientResponse[] responses) : ILlmClient
     {

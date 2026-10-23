@@ -1,0 +1,5 @@
+Classify this batch of headline data. Each object contains only id and title.
+<input_json>
+{{INPUT_JSON}}
+</input_json>
+Return only NewsTriage JSON.

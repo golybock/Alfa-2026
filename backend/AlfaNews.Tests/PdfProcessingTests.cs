@@ -8,6 +8,7 @@ using AlfaNews.Core.Documents;
 using AlfaNews.Core.Llm;
 using AlfaNews.Core.Processing;
 using AlfaNews.Worker;
+using AlfaNews.Worker.Documents;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 

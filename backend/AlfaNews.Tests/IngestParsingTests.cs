@@ -4,6 +4,13 @@ namespace AlfaNews.Tests;
 
 public sealed class IngestParsingTests
 {
+    [Fact]
+    public void DetectsCopyrightFooterWithoutRejectingArticleWithCopyrightAtTheEnd()
+    {
+        Assert.True(ArticleExtractor.IsBoilerplateOnly("Copyright © 1991—2026 Interfax. Все права защищены. Сайт использует cookie."));
+        Assert.False(ArticleExtractor.IsBoilerplateOnly("Компания сообщила о росте выручки. Copyright © 2026. Все права защищены."));
+    }
+
     private static string Fixture(string name) =>
         File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "ingest", name));
 

@@ -1,10 +1,7 @@
 using System.Text.Json;
-using AlfaNews.Contracts.Processing;
 using AlfaNews.Core.Data;
 using AlfaNews.Core.Data.Entities;
-using AlfaNews.Core.Processing;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Npgsql;
 
@@ -12,8 +9,8 @@ namespace AlfaNews.Core.Ingest;
 
 public sealed record CollectSummary(string SourceId, int Collected, int Rejected, int Failed, int Skipped, string? Error);
 
-public sealed class CollectNewsService(AlfaNewsDbContext db, SafeFetcher fetcher, JobQueue jobs, TimeProvider timeProvider,
-    IConfiguration configuration, ILogger<CollectNewsService> logger)
+public sealed class CollectNewsService(AlfaNewsDbContext db, SafeFetcher fetcher, TimeProvider timeProvider,
+    ILogger<CollectNewsService> logger)
 {
     private const int MinFeedTextLength = 400;
     private static readonly TimeSpan NewsWindow = TimeSpan.FromDays(7);
@@ -53,10 +50,9 @@ public sealed class CollectNewsService(AlfaNewsDbContext db, SafeFetcher fetcher
             return new CollectSummary(source.Id, 0, 0, 0, 0, source.LastError);
         }
 
-        var limit = int.TryParse(configuration["Ingest:MaxArticlesPerSource"], out var configured) && configured > 0 ? configured : 30;
         var recent = entries
             .Where(entry => entry.PublishedAt is null || (entry.PublishedAt >= now - NewsWindow && entry.PublishedAt <= now + ClockSkew))
-            .OrderByDescending(entry => entry.PublishedAt ?? DateTimeOffset.MaxValue).Take(limit).ToList();
+            .OrderByDescending(entry => entry.PublishedAt ?? DateTimeOffset.MaxValue).ToList();
         var candidates = recent.Select(entry => (Entry: entry, Url: TryCanonical(entry.Url))).Where(pair => pair.Url is not null).ToList();
         var urls = candidates.Select(pair => pair.Url!).ToList();
         var known = (await db.NewsRawRows.AsNoTracking().Where(row => urls.Contains(row.CanonicalUrl))
@@ -122,12 +118,13 @@ public sealed class CollectNewsService(AlfaNewsDbContext db, SafeFetcher fetcher
                 FetchedAt = fetchedAt,
                 Status = "failed",
                 LastError = exception.Code
-            }, null, cancellationToken);
+            }, cancellationToken);
             return StoreOutcome.Failed;
         }
 
         var normalized = TextNormalizer.Normalize(text);
         var rejectedForDate = published is null || published < fetchedAt - NewsWindow || published > fetchedAt + ClockSkew;
+        var boilerplate = ArticleExtractor.IsBoilerplateOnly(text);
         var row = new NewsRawEntity
         {
             Id = Guid.NewGuid(),
@@ -138,19 +135,20 @@ public sealed class CollectNewsService(AlfaNewsDbContext db, SafeFetcher fetcher
             TextSha256 = TextNormalizer.Sha256(normalized),
             PublishedAt = published,
             FetchedAt = fetchedAt,
-            Status = rejectedForDate ? "rejected" : "queued",
-            RejectionReason = rejectedForDate ? (published is null ? "no_published_date" : "outside_window") : null
+            Status = rejectedForDate || boilerplate ? "rejected" : "queued",
+            Importance = source.IsSpecialized ? 1 : null,
+            RejectionReason = rejectedForDate ? (published is null ? "no_published_date" : "outside_window") : boilerplate ? "boilerplate_body" : null
         };
-        var saved = await SaveAsync(row, rejectedForDate ? null : new ParseNewsJob(row.Id.ToString()), cancellationToken);
+        var saved = await SaveAsync(row, cancellationToken);
         return saved switch
         {
-            SaveResult.Saved => rejectedForDate ? StoreOutcome.Rejected : StoreOutcome.Collected,
+            SaveResult.Saved => rejectedForDate || boilerplate ? StoreOutcome.Rejected : StoreOutcome.Collected,
             SaveResult.Duplicate => StoreOutcome.Skipped,
             _ => StoreOutcome.Failed
         };
     }
 
-    private async Task<SaveResult> SaveAsync(NewsRawEntity row, ParseNewsJob? parse, CancellationToken cancellationToken)
+    private async Task<SaveResult> SaveAsync(NewsRawEntity row, CancellationToken cancellationToken)
     {
         db.NewsRawRows.Add(row);
         try
@@ -168,8 +166,6 @@ public sealed class CollectNewsService(AlfaNewsDbContext db, SafeFetcher fetcher
                 postgres?.ConstraintName ?? "n/a");
             return SaveResult.Error;
         }
-        if (parse is not null)
-            await jobs.EnqueueAsync(parse, null, null, cancellationToken);
         return SaveResult.Saved;
     }
 

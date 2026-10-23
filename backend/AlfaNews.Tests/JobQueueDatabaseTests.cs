@@ -8,6 +8,9 @@ using AlfaNews.Core.Importing;
 using AlfaNews.Core.Profiles;
 using Microsoft.Extensions.Configuration;
 using AlfaNews.Worker;
+using AlfaNews.Worker.Importing;
+using AlfaNews.Worker.Profiles;
+using AlfaNews.Worker.Queue;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Pgvector.EntityFrameworkCore;
@@ -79,6 +82,44 @@ public sealed class JobQueueDatabaseTests(PostgresFixture fixture) : IClassFixtu
     }
 
     [PostgresFact]
+    public async Task DeferredJobGoesBehindSamePriorityWithoutSpendingAttempt()
+    {
+        await ResetAsync();
+        var order = new List<string>();
+        var deferOnce = true;
+        await using var services = CreateServices(new TestHandler("ParseNews", (job, _) =>
+        {
+            var id = job.Payload.Deserialize<ParseNewsJob>(JobKinds.JsonOptions)!.NewsRawId;
+            order.Add(id);
+            if (id == "first" && deferOnce)
+            {
+                deferOnce = false;
+                return Task.FromResult(new JobResult("deferred", Defer: true));
+            }
+            return Task.FromResult(new JobResult());
+        }));
+        await using var db = fixture.CreateDb();
+        var queue = new JobQueue(db, TimeProvider.System);
+        var first = await queue.EnqueueAsync(new ParseNewsJob("first"), null, null, CancellationToken.None);
+        await queue.EnqueueAsync(new ParseNewsJob("second"), null, null, CancellationToken.None);
+        first.CreatedAt = DateTimeOffset.UtcNow.AddMinutes(-1);
+        await db.SaveChangesAsync();
+        var dispatcher = services.GetRequiredService<JobDispatcher>();
+        Assert.False(await dispatcher.DispatchNextAsync(CancellationToken.None));
+        await db.Entry(first).ReloadAsync();
+        Assert.Equal(("queued", "deferred", 0), (first.Status, first.Stage, first.Attempts));
+        Assert.Null(first.StartedAt);
+        Assert.True(await dispatcher.DispatchNextAsync(CancellationToken.None));
+        Assert.True(await dispatcher.DispatchNextAsync(CancellationToken.None));
+        Assert.Equal(["first", "second", "first"], order);
+        await db.Entry(first).ReloadAsync();
+        Assert.Equal(("done", 1), (first.Status, first.Attempts));
+        Assert.Throws<InvalidOperationException>(() => new QueueOptions { NewsSlots = 0 }.Validate());
+        Assert.Equal(4, new QueueOptions().LaneSlots()[JobKinds.NewsLane]);
+        Assert.Equal(1, new QueueOptions { NewsSlots = 8 }.LaneSlots()[JobKinds.DataLane]);
+    }
+
+    [PostgresFact]
     public async Task ShutdownLeavesRunningAndRestartAutomaticallyRequeuesIt()
     {
         await ResetAsync();
@@ -134,7 +175,7 @@ public sealed class JobQueueDatabaseTests(PostgresFixture fixture) : IClassFixtu
     }
 
     [PostgresFact]
-    public async Task ScheduleDoesNotAccumulateActiveRefreshesWhenAsOfChanges()
+    public async Task ScheduleRefreshesEachListedCompanyOncePerInterval()
     {
         await ResetAsync();
         await using var db = fixture.CreateDb();
@@ -154,6 +195,9 @@ public sealed class JobQueueDatabaseTests(PostgresFixture fixture) : IClassFixtu
         Assert.Equal(companyCount, await db.BackgroundJobRows.CountAsync(row => row.Kind == "RefreshFeed"));
         await db.BackgroundJobRows.Where(row => row.Kind == "RefreshFeed" && row.CompanyId == "test_company_a")
             .ExecuteUpdateAsync(update => update.SetProperty(row => row.Status, "done"));
+        await schedule.EnqueueAsync(CancellationToken.None);
+        Assert.Equal(companyCount, await db.BackgroundJobRows.CountAsync(row => row.Kind == "RefreshFeed"));
+        clock.Now = clock.Now.AddDays(1);
         await schedule.EnqueueAsync(CancellationToken.None);
         Assert.Equal(companyCount + 1, await db.BackgroundJobRows.CountAsync(row => row.Kind == "RefreshFeed"));
     }
@@ -272,6 +316,40 @@ public sealed class JobQueueDatabaseTests(PostgresFixture fixture) : IClassFixtu
     }
 
     [PostgresFact]
+    public async Task LanesTakeOnlyTheirKindsAndDoNotWaitForEachOther()
+    {
+        await ResetAsync();
+        await using var db = fixture.CreateDb();
+        var queue = new JobQueue(db, TimeProvider.System);
+        var news = await queue.EnqueueAsync(new ParseNewsJob("lane-news"), null, null, CancellationToken.None);
+        var document = await queue.EnqueueAsync(new FinalizePdfJob(Guid.NewGuid().ToString()), null, null, CancellationToken.None);
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        await using var services = CreateServices(
+            new TestHandler("ParseNews", async (_, token) =>
+            {
+                started.SetResult();
+                await release.Task.WaitAsync(token);
+                return new JobResult();
+            }),
+            new TestHandler("FinalizePdf", (_, _) => Task.FromResult(new JobResult())));
+        var dispatcher = services.GetRequiredService<JobDispatcher>();
+        var running = dispatcher.DispatchNextAsync(JobKinds.InLane(JobKinds.NewsLane), CancellationToken.None);
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.False(await dispatcher.DispatchNextAsync(JobKinds.InLane(JobKinds.NewsLane), CancellationToken.None));
+        Assert.True(await dispatcher.DispatchNextAsync(JobKinds.InLane(JobKinds.DocumentsLane), CancellationToken.None));
+        await db.Entry(document).ReloadAsync();
+        await db.Entry(news).ReloadAsync();
+        Assert.Equal("done", document.Status);
+        Assert.Equal("running", news.Status);
+        release.SetResult();
+        Assert.True(await running);
+        await db.Entry(news).ReloadAsync();
+        Assert.Equal("done", news.Status);
+        Assert.Equal(1, news.Attempts);
+    }
+
+    [PostgresFact]
     public async Task HandlerCanReportKeyRequiredWithoutAutomaticRetry()
     {
         await ResetAsync();
@@ -294,7 +372,7 @@ public sealed class JobQueueDatabaseTests(PostgresFixture fixture) : IClassFixtu
         Guid id;
         await using (var db = fixture.CreateDb())
         {
-            var job = await new JobQueue(db, TimeProvider.System).EnqueueAsync(new ParseNewsJob("process-restart"), null, null, CancellationToken.None);
+            var job = await new JobQueue(db, TimeProvider.System).EnqueueAsync(new ParseNewsJob(Guid.NewGuid().ToString()), null, null, CancellationToken.None);
             id = job.Id;
             job.Status = "running";
             job.Attempts = 1;
@@ -314,7 +392,7 @@ public sealed class JobQueueDatabaseTests(PostgresFixture fixture) : IClassFixtu
                     var job = await db.BackgroundJobRows.AsNoTracking().SingleAsync(row => row.Id == id, timeout.Token);
                     if (job.Status == "failed")
                     {
-                        Assert.Equal("not_implemented", job.LastError);
+                        Assert.Equal("news_not_found", job.LastError);
                         Assert.Equal(2, job.Attempts);
                         break;
                     }
@@ -391,6 +469,7 @@ public sealed class JobQueueDatabaseTests(PostgresFixture fixture) : IClassFixtu
     {
         await using var db = fixture.CreateDb();
         await db.BackgroundJobRows.ExecuteDeleteAsync();
+        await db.SourceRows.ExecuteUpdateAsync(update => update.SetProperty(row => row.Enabled, false));
     }
 
     private ServiceProvider CreateServices(params IJobHandler[] handlers)

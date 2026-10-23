@@ -1,0 +1,22 @@
+{
+  "headline": "Фикстура: тестовая ставка",
+  "event_date": null,
+  "facts": [
+    {
+      "text": "В тестовой публикации ставка составляет 14%.",
+      "line": 1,
+      "start": null,
+      "end": null
+    }
+  ],
+  "participants": [],
+  "tags": {
+    "factors": [
+      "key_rate"
+    ],
+    "okved2": [],
+    "countries": [],
+    "regions": [],
+    "commodities": []
+  }
+}

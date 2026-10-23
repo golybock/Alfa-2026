@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "NewsExtractionDraft",
+  "$ref": "#/$defs/NewsExtractionDraft",
+  "$defs": {
+    "FactReference": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "line": {
+          "type": "integer"
+        },
+        "start": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "end": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "text",
+        "line",
+        "start",
+        "end"
+      ],
+      "additionalProperties": false
+    },
+    "NewsExtractionDraft": {
+      "type": "object",
+      "properties": {
+        "headline": {
+          "type": "string"
+        },
+        "event_date": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "facts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FactReference"
+          }
+        },
+        "participants": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tags": {
+          "$ref": "#/$defs/NewsTags"
+        }
+      },
+      "required": [
+        "headline",
+        "event_date",
+        "facts",
+        "participants",
+        "tags"
+      ],
+      "additionalProperties": false
+    },
+    "NewsTags": {
+      "type": "object",
+      "properties": {
+        "factors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "okved2": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "countries": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "regions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "commodities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "factors",
+        "okved2",
+        "countries",
+        "regions",
+        "commodities"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

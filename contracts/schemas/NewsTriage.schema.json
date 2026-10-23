@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "NewsTriage",
+  "$ref": "#/$defs/NewsTriage",
+  "$defs": {
+    "NewsImportance": {
+      "type": "string",
+      "enum": [
+        "yes",
+        "maybe",
+        "no"
+      ]
+    },
+    "NewsImportanceDecision": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "importance": {
+          "$ref": "#/$defs/NewsImportance"
+        }
+      },
+      "required": [
+        "id",
+        "importance"
+      ],
+      "additionalProperties": false
+    },
+    "NewsTriage": {
+      "type": "object",
+      "properties": {
+        "decisions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NewsImportanceDecision"
+          }
+        }
+      },
+      "required": [
+        "decisions"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

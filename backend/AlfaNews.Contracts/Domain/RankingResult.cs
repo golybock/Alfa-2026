@@ -6,7 +6,6 @@ public sealed record RankingResult(
 	decimal Base,
 	decimal Recency,
 	decimal SourceReliability,
-	bool HasBankView,
 	decimal Score,
 	int Rank,
 	bool Eligible,

@@ -12,7 +12,8 @@ public sealed class SourceEntity
     public string Kind { get; set; } = string.Empty;
     public JsonElement AllowedHosts { get; set; }
     public bool Enabled { get; set; } = false;
-    public int PollSeconds { get; set; } = 120;
+    public bool IsSpecialized { get; set; }
+    public int PollSeconds { get; set; } = 3600;
     public decimal Reliability { get; set; }
     public string ValidationStatus { get; set; } = string.Empty;
     public DateTimeOffset? LastCheckedAt { get; set; }

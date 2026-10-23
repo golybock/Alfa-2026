@@ -10,7 +10,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AlfaNews.Core.Feed;
 
-public sealed class FeedService(AlfaNewsDbContext db, AccessService access, JobQueue jobs, TimeProvider timeProvider)
+public sealed class FeedService(AlfaNewsDbContext db, AccessService access, JobQueue jobs, FeedSettings settings, TimeProvider timeProvider)
 {
     private static readonly JsonSerializerOptions JsonOptions = CreateJsonOptions();
     private static readonly TimeSpan NewsWindow = TimeSpan.FromDays(7);
@@ -20,7 +20,7 @@ public sealed class FeedService(AlfaNewsDbContext db, AccessService access, JobQ
     {
         await access.RequireCompanyAccessAsync(user, companyId, role, cancellationToken);
         var snapshot = await db.FeedSnapshotRows.AsNoTracking()
-            .SingleOrDefaultAsync(row => row.CompanyId == companyId, cancellationToken);
+            .SingleOrDefaultAsync(row => row.CompanyId == companyId && row.Mode == settings.Mode, cancellationToken);
         if (snapshot is null)
         {
             var now = timeProvider.GetUtcNow();

@@ -10,18 +10,18 @@
 | payment | Ребро PAYER → BENEFICIARY, сумма и число платежей; без самопереводов |
 | company_profile | profile_json = CompanyProfile, включая продукты/ФТС/платёжные доли |
 | group_profile | profile_json = GroupProfile; только доступные участники GROUP_ID |
-| factor / sector_sensitivity / product_factor_rule | Общая таксономия и проверенные правила; матрица только двух отраслей |
+| factor / sector_sensitivity / product_factor_rule | Общая таксономия и правила из data/taxonomy.json; матрица демо-отраслей — черновик до ручной проверки |
 | app_user / auth_session / user_company_access | Учётки, хэши сессий, доступы company × ceo/cfo |
 | source / news_raw | Конфигурация источника, исходный текст, URL, дата, статус и причина отказа |
 | event / event_source / event_tag | Валидированная NewsExtraction и ссылки на явные дубли; не кластер событий |
 | research_doc / research_page / research_chunk | PDF, страницы и блоки; PdfPageExtraction, ChartDraft и независимая сверка |
-| feed_snapshot | Один последний порядок компании; items_json = FeedItemDto[]; role в ключе отсутствует |
+| feed_snapshot | Последний порядок компании для режима mode (live — живая лента, demo — заранее посчитанный демо-снимок); ключ (company_id, mode); items_json = FeedItemDto[]; role в ключе отсутствует |
 | insight | Версия полной карточки; body_json = InsightDto только при ready |
 | chat_message | Один вопрос и его ChatAnswerDto; история строго user × insight |
 | feedback | Последняя оценка пользователя для company × event; hide влияет на его выдачу |
 | background_job | Kind + типизированный payload из backend/AlfaNews.Contracts/Processing; одна последовательная очередь |
-| agent_run / agent_step | Прогоны всех LLM-операций и понятный журнал шагов, не скрытые рассуждения |
-| llm_usage / llm_cache | Фактический расход и кэш валидированных ответов |
+| agent_run / agent_step | Прогоны всех LLM-операций и понятный журнал шагов, не скрытые рассуждения; arguments_json/result_json — аргументы и результат инструмента |
+| llm_usage / llm_cache | Фактический расход, finish_reason и http_status попытки; кэш валидированных ответов |
 | user_activity | Минимальный журнал действий: ID, серверное время, пользователь, компания, карточка, тип и ссылка evidence/action |
 
 ## Важные детали
@@ -43,3 +43,11 @@
 
 - user_activity создаётся в первой миграции A02. Все текущие события относятся к карточке, поэтому company_id/insight_id обязательны и выводятся сервером из разрешённого insight. user_id и created_at также задаёт сервер. Текст вопроса, источника или произвольные metadata не принимаются. Для source_opened обязателен evidence_id из evidence карточки; для action_interacted — action_id из массива actions (ID утверждения действия). Для остальных типов оба поля null.
 - ID браузерного события — UUID, новый для каждого фактического действия и сохранённый при повторе доставки. Точный повтор возвращает успех без второй строки; повтор ID с другим содержимым даёт 409. chat_question_accepted записывает только сервер после сохранения chat_message, используя ID сообщения для идемпотентности. D09/A13 вызывают RecordAcceptedChatAsync в той же транзакции, что сохранение принятого вопроса; повтор выполнения job не создаёт новое событие.
+
+## A07: важность и каталоги
+
+Миграция NewsImportanceAndSourceCatalog добавляет source.is_specialized и синхронизирует 23 источника: общий каталог sources.json — poll_seconds=3600, специализированный — 900. Даты проверок сохраняются.
+
+news_raw.importance: null — без оценки, 1 — приоритетная/yes, 2 — maybe, 3 — no (исключена). filter_json содержит результат классификации, e5 или диагностические коды отказа; embedding — локальный vector(768). news_pending_idx обслуживает выборку очереди. Схема ответа фильтра заголовков — NewsTriage.schema.json, C#-типы NewsTriage/NewsImportanceDecision/NewsImportance. ID результата обязаны совпадать с входными ровно по одному; это дополнительно проверяет код.
+
+Exact-дубль пополняет event_source без нового извлечения. Похожесть не объединяет события. Принятая NewsExtraction сохраняется с event_tag, русским FTS и вектором в транзакции. Страны используют общий русский словарь CountryNames, как профили компаний.

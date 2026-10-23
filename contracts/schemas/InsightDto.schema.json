@@ -323,7 +323,7 @@
       "type": "object",
       "properties": {
         "code": {
-          "type": "string"
+          "$ref": "#/$defs/RankingFeatureCode"
         },
         "value": {
           "type": "number"
@@ -592,6 +592,17 @@
         "bank_analytics",
         "ai_inference",
         "ai_hypothesis"
+      ]
+    },
+    "RankingFeatureCode": {
+      "type": "string",
+      "enum": [
+        "okved",
+        "factor",
+        "product",
+        "country",
+        "cp",
+        "group"
       ]
     },
     "RelevanceDto": {

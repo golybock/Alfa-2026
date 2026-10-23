@@ -1,6 +1,7 @@
 using System.Text.Json;
 using AlfaNews.Contracts.Processing;
 using AlfaNews.Core.Configuration;
+using AlfaNews.Core.Ingest;
 using AlfaNews.Core.Llm;
 
 namespace AlfaNews.Tests;
@@ -86,32 +87,30 @@ public sealed class LlmPromptTests
     }
 
     [Fact]
-    public void QuoteValidationRejectsStitchedAndTranslatedQuotes()
+    public void FactReferencesRejectUnknownLinesAndMarkdown()
     {
         var request = Request(LlmTask.NewsExtract);
         var prompt = new LlmPromptCatalog().Render(request, request.Task);
-        var content = """{"headline":"Тест","event_date":null,"facts":[{"text":"Тест","quote":"stitched"}],"participants":[],"tags":{"factors":[],"okved2":[],"countries":[],"regions":[],"commodities":[]}}""";
-        Assert.Contains("news:quote_not_in_body", LlmOutputValidator.Validate<NewsExtraction>(content, prompt, request, out _));
-        Assert.Contains("schema:invalid_json", LlmOutputValidator.Validate<NewsExtraction>("```json\n" + content + "\n```", prompt, request, out _));
+        var content = """{"headline":"Тест","event_date":null,"facts":[{"text":"Тест","line":5,"start":null,"end":null}],"participants":[],"tags":{"factors":[],"okved2":[],"countries":[],"regions":[],"commodities":[]}}""";
+        Assert.Contains("news:unknown_line", LlmOutputValidator.Validate<NewsExtractionDraft>(content, prompt, request, out _));
+        Assert.Contains("schema:invalid_json", LlmOutputValidator.Validate<NewsExtractionDraft>("```json\n" + content + "\n```", prompt, request, out _));
     }
 
     [Theory]
-    [InlineData("Ставка\u00A0равна\u202F14%.", "Ставка равна 14%.", true)]
-    [InlineData("Ставка\r\n\tравна  14%.", "Ставка равна 14%.", true)]
-    [InlineData("\uFEFFСтав\u00ADка\u200B равна\u2060 14%.", "Ставка равна 14%.", true)]
-    [InlineData("Ставка равна 14%.", "Ставка\u00A0равна\n14%.", true)]
-    [InlineData("Ставка равна 14%.", "Ставка равна 15%.", false)]
-    [InlineData("Ставка равна 14%.", "Ставка равна 14.", false)]
-    [InlineData("Ставка равна 14%.", "Ставкаравна 14%.", false)]
-    [InlineData("Ставка равна 14%.", "ставка равна 14%.", false)]
-    [InlineData("Ставка равна 14%.", "\u00A0\u200B\t", false)]
-    public void QuoteValidationIgnoresOnlyWhitespaceAndInvisibleTypography(string body, string quote, bool valid)
+    [InlineData(1, null, null, "Ставка составила 14%.", true)]
+    [InlineData(1, 0, 6, "Ставка составила 14%.", true)]
+    [InlineData(2, null, null, "Ставка составила 14%.", false)]
+    [InlineData(3, null, null, "Прогноз", false)]
+    [InlineData(1, 5, 2, "Ставка", false)]
+    [InlineData(1, 0, null, "Ставка", false)]
+    [InlineData(1, 0, 99, "Ставка", false)]
+    public void FactReferencesCheckLineRangeAndNumbers(int line, int? start, int? end, string text, bool valid)
     {
         var request = Request(LlmTask.NewsExtract) with
         {
             Values = Values(new
             {
-                INPUT_JSON = new { body },
+                INPUT_JSON = new { text = "Ставка равна 14%. Прогноз сохранён." },
                 TAXONOMY_JSON = new
                 {
                     factors = Array.Empty<string>(),
@@ -126,7 +125,7 @@ public sealed class LlmPromptTests
         {
             headline = "Тест",
             event_date = (string?)null,
-            facts = new[] { new { text = "Тест", quote } },
+            facts = new[] { new { text, line, start, end } },
             participants = Array.Empty<string>(),
             tags = new
             {
@@ -138,8 +137,18 @@ public sealed class LlmPromptTests
             }
         });
         var prompt = new LlmPromptCatalog().Render(request, request.Task);
-        var errors = LlmOutputValidator.Validate<NewsExtraction>(content, prompt, request, out _);
+        var errors = LlmOutputValidator.Validate<NewsExtractionDraft>(content, prompt, request, out _);
         Assert.Equal(valid, errors.Count == 0);
+    }
+
+    [Fact]
+    public void FactQuoteIsCutFromCitedSpanOrWholeLine()
+    {
+        var lines = NewsLines.Split("Банк России сохранил ставку 16%.\nРешение ожидалось — сказал аналитик.");
+        Assert.Equal(2, lines.Count);
+        Assert.Equal("ставку 16%", NewsLines.Resolve(lines, new FactReference("Ставка 16%", 1, 21, 31)).Quote);
+        Assert.Equal(lines[0], NewsLines.Resolve(lines, new FactReference("Ставка 16%", 1, 0, 11)).Quote);
+        Assert.Equal("news:number_not_in_quote", NewsLines.Resolve(lines, new FactReference("Ставка 16%", 2, null, null)).Error);
     }
 
     [Fact]

@@ -1,21 +1,22 @@
-using AlfaNews.Contracts;
 using AlfaNews.Api.Access;
 using AlfaNews.Api.Activity;
+using AlfaNews.Api.Chat;
 using AlfaNews.Api.Documents;
-using AlfaNews.Core.Documents;
-using AlfaNews.Core.Processing;
-using Microsoft.AspNetCore.Http.Features;
-using AlfaNews.Core.Access;
-using AlfaNews.Core.Activity;
-using AlfaNews.Core.Data;
-using AlfaNews.Core.Feed;
-using AlfaNews.Core.Insights;
 using AlfaNews.Api.Feed;
 using AlfaNews.Api.Insights;
 using AlfaNews.Api.Jobs;
-using AlfaNews.Core.Processing;
+using AlfaNews.Contracts;
+using AlfaNews.Core.Access;
+using AlfaNews.Core.Activity;
+using AlfaNews.Core.Chat;
 using AlfaNews.Core.Configuration;
+using AlfaNews.Core.Data;
+using AlfaNews.Core.Documents;
+using AlfaNews.Core.Feed;
+using AlfaNews.Core.Insights;
+using AlfaNews.Core.Processing;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
 
 LocalEnvironment.Load();
@@ -33,17 +34,23 @@ pdfOptions.InputPath = builder.Configuration["Data:InputPath"] ?? pdfOptions.Inp
 builder.Services.AddSingleton(pdfOptions);
 builder.Services.AddScoped<PdfTools>();
 builder.Services.AddScoped<PdfRegistration>();
-builder.Services.AddScoped<JobQueue>();
+builder.Services.AddScoped<ResearchReview>();
 builder.Services.Configure<FormOptions>(options => options.MultipartBodyLengthLimit = 52L * 1024 * 1024);
 builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 52L * 1024 * 1024);
 builder.Services.AddScoped<SessionService>();
 builder.Services.AddScoped<AccessService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<JobQueue>();
+var feedSettings = new FeedSettings();
+builder.Configuration.GetSection("Feed").Bind(feedSettings);
+feedSettings.Validate();
+builder.Services.AddSingleton(feedSettings);
 builder.Services.AddScoped<FeedService>();
 builder.Services.AddScoped<InsightService>();
 builder.Services.AddScoped<UserSeedService>();
 builder.Services.AddScoped<UserActivityService>();
+builder.Services.AddScoped<ChatService>();
+builder.Services.AddScoped<FeedbackService>();
 builder.Services.AddAuthentication(SessionAuthenticationHandler.SchemeName)
     .AddScheme<AuthenticationSchemeOptions, SessionAuthenticationHandler>(SessionAuthenticationHandler.SchemeName, _ => { });
 builder.Services.AddAuthorization(options => options.AddPolicy(SessionAuthenticationHandler.OperatorPolicy,
@@ -78,6 +85,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapAuthEndpoints();
 app.MapActivityEndpoints();
+app.MapChatEndpoints();
 app.MapDocumentEndpoints();
 app.MapFeedEndpoints();
 app.MapInsightEndpoints();
@@ -100,4 +108,7 @@ app.UseHttpsRedirection();
 
 app.Run();
 
-public partial class Program;
+namespace AlfaNews.Api
+{
+    public partial class Program;
+}

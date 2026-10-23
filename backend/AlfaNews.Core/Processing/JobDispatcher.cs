@@ -1,5 +1,6 @@
 using System.Text.Json;
 using AlfaNews.Core.Data;
+using AlfaNews.Core.Data.Entities;
 using AlfaNews.Core.Llm;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -9,24 +10,16 @@ namespace AlfaNews.Core.Processing;
 
 public sealed class JobDispatcher(IServiceScopeFactory scopes, TimeProvider timeProvider, ILogger<JobDispatcher> logger)
 {
-    public async Task<bool> DispatchNextAsync(CancellationToken cancellationToken)
+    public Task<bool> DispatchNextAsync(CancellationToken cancellationToken) => DispatchNextAsync(null, cancellationToken);
+
+    public async Task<bool> DispatchNextAsync(IReadOnlyCollection<string>? kinds, CancellationToken cancellationToken)
     {
         await using var scope = scopes.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<AlfaNewsDbContext>();
-        var job = await db.BackgroundJobRows.Where(row => row.Status == "queued")
-            .OrderByDescending(row => row.Priority).ThenBy(row => row.CreatedAt).ThenBy(row => row.Id)
-            .FirstOrDefaultAsync(cancellationToken);
+        var job = await ClaimAsync(db, kinds, cancellationToken);
         if (job is null)
             return false;
-        job.Status = "running";
-        job.Stage = "running";
-        job.StartedAt = timeProvider.GetUtcNow();
-        job.FinishedAt = null;
-        job.Attempts++;
-        job.LastError = null;
-        job.ResultType = null;
-        job.ResultId = null;
-        await db.SaveChangesAsync(cancellationToken);
+        var deferred = false;
         try
         {
             var payloadType = JobKinds.PayloadType(job.Kind);
@@ -49,7 +42,8 @@ public sealed class JobDispatcher(IServiceScopeFactory scopes, TimeProvider time
                 else
                 {
                     var result = await handler.HandleAsync(job, cancellationToken);
-                    job.Status = result.ErrorCode is null ? "done" : "failed";
+                    deferred = result.Defer && result.ErrorCode is null;
+                    job.Status = deferred ? "queued" : result.ErrorCode is null ? "done" : "failed";
                     job.Stage = result.Stage;
                     job.LastError = result.ErrorCode;
                     if (result.ErrorCode is null)
@@ -77,8 +71,38 @@ public sealed class JobDispatcher(IServiceScopeFactory scopes, TimeProvider time
         }
         if (job.Status == "failed")
             job.Stage = "failed";
-        job.FinishedAt = timeProvider.GetUtcNow();
+        if (deferred)
+        {
+            job.StartedAt = null;
+            job.Attempts--;
+            job.CreatedAt = timeProvider.GetUtcNow();
+        }
+        else
+            job.FinishedAt = timeProvider.GetUtcNow();
         await db.SaveChangesAsync(cancellationToken);
-        return true;
+        return !deferred;
+    }
+
+    private async Task<BackgroundJobEntity?> ClaimAsync(AlfaNewsDbContext db, IReadOnlyCollection<string>? kinds,
+        CancellationToken cancellationToken)
+    {
+        while (true)
+        {
+            var queued = db.BackgroundJobRows.AsNoTracking().Where(row => row.Status == "queued");
+            if (kinds is not null)
+                queued = queued.Where(row => kinds.Contains(row.Kind));
+            var candidate = await queued.OrderByDescending(row => row.Priority).ThenBy(row => row.CreatedAt).ThenBy(row => row.Id)
+                .Select(row => (Guid?)row.Id).FirstOrDefaultAsync(cancellationToken);
+            if (candidate is not { } id)
+                return null;
+            var claimed = await db.BackgroundJobRows.Where(row => row.Id == id && row.Status == "queued")
+                .ExecuteUpdateAsync(update => update.SetProperty(row => row.Status, "running")
+                    .SetProperty(row => row.Stage, "running").SetProperty(row => row.StartedAt, (DateTimeOffset?)timeProvider.GetUtcNow())
+                    .SetProperty(row => row.FinishedAt, (DateTimeOffset?)null).SetProperty(row => row.Attempts, row => row.Attempts + 1)
+                    .SetProperty(row => row.LastError, (string?)null).SetProperty(row => row.ResultType, (string?)null)
+                    .SetProperty(row => row.ResultId, (string?)null), cancellationToken);
+            if (claimed == 1)
+                return await db.BackgroundJobRows.SingleAsync(row => row.Id == id, cancellationToken);
+        }
     }
 }

@@ -50,7 +50,7 @@ public sealed class JobQueue(AlfaNewsDbContext db, TimeProvider timeProvider)
     }
 
     public Task<int> RecoverAsync(CancellationToken cancellationToken) => db.BackgroundJobRows
-        .Where(row => row.Status == "running" && row.LastError != "llm_key_required")
+        .Where(row => row.Status == "running")
         .ExecuteUpdateAsync(update => update.SetProperty(row => row.Status, "queued")
             .SetProperty(row => row.Stage, "queued").SetProperty(row => row.StartedAt, (DateTimeOffset?)null)
             .SetProperty(row => row.FinishedAt, (DateTimeOffset?)null), cancellationToken);
@@ -77,7 +77,7 @@ public sealed class JobQueue(AlfaNewsDbContext db, TimeProvider timeProvider)
             "llm_timeout" => new ApiError("processing_failed", "Модель не ответила вовремя.", requestId),
             _ => new ApiError("job_failed", "Не удалось выполнить задание.", requestId)
         };
-        var safeResult = job.Status == "done" && job.ResultType is "insight" or "chat_turn" or "document" or "feed";
+        var safeResult = job.Status == "done" && job.ResultType is "insight" or "chat" or "document" or "feed";
         return new JobResponse(job.Id.ToString(), Enum.Parse<JobStatus>(job.Status, true), job.Stage,
             safeResult ? job.ResultType : null, safeResult ? job.ResultId : null, error);
     }

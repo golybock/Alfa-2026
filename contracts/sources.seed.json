@@ -1,7 +1,350 @@
 [
-  {"id":"cbr_events","name":"Банк России: новости, интервью, выступления","feed_url":"https://www.cbr.ru/rss/eventrss","kind":"official","allowed_hosts":["www.cbr.ru","cbr.ru"],"enabled":false,"poll_seconds":120,"reliability":1.0,"validation_status":"pending"},
-  {"id":"cbr_press","name":"Банк России: пресс-релизы","feed_url":"https://www.cbr.ru/rss/RssPress","kind":"official","allowed_hosts":["www.cbr.ru","cbr.ru"],"enabled":false,"poll_seconds":120,"reliability":1.0,"validation_status":"pending"},
-  {"id":"cbr_new","name":"Банк России: новое на сайте","feed_url":"https://www.cbr.ru/rss/RssNews","kind":"official","allowed_hosts":["www.cbr.ru","cbr.ru"],"enabled":false,"poll_seconds":120,"reliability":1.0,"validation_status":"pending"},
-  {"id":"rbc","name":"РБК: новости","feed_url":"https://rssexport.rbc.ru/rbcnews/news/30/full.rss","kind":"media","allowed_hosts":["rssexport.rbc.ru","www.rbc.ru","rbc.ru"],"enabled":false,"poll_seconds":120,"reliability":0.9,"validation_status":"pending"},
-  {"id":"kommersant","name":"Коммерсантъ: лента новостей","feed_url":"https://www.kommersant.ru/rss/news.xml","kind":"media","allowed_hosts":["www.kommersant.ru","kommersant.ru"],"enabled":false,"poll_seconds":120,"reliability":0.9,"validation_status":"pending"}
+  {
+    "id": "interfax-main",
+    "name": "Интерфакс",
+    "feed_url": "https://www.interfax.ru/rss.asp",
+    "kind": "media",
+    "allowed_hosts": [
+      "www.interfax.ru",
+      "interfax.ru",
+      "sport-interfax.ru",
+      "www.sport-interfax.ru"
+    ],
+    "enabled": true,
+    "poll_seconds": 3600,
+    "reliability": 0.9,
+    "validation_status": "checked",
+    "is_specialized": false
+  },
+  {
+    "id": "tass-main",
+    "name": "ТАСС (общая лента)",
+    "feed_url": "https://tass.ru/rss/v2.xml?category=%D0%AD%D0%BA%D0%BE%D0%BD%D0%BE%D0%BC%D0%B8%D0%BA%D0%B0",
+    "kind": "media",
+    "allowed_hosts": [
+      "tass.ru",
+      "www.tass.ru"
+    ],
+    "enabled": false,
+    "poll_seconds": 3600,
+    "reliability": 0.9,
+    "validation_status": "checked",
+    "is_specialized": false
+  },
+  {
+    "id": "rbc-economy",
+    "name": "РБК",
+    "feed_url": "https://rssexport.rbc.ru/rbcnews/news/30/full.rss",
+    "kind": "media",
+    "allowed_hosts": [
+      "rssexport.rbc.ru",
+      "www.rbc.ru",
+      "rbc.ru"
+    ],
+    "enabled": true,
+    "poll_seconds": 3600,
+    "reliability": 0.9,
+    "validation_status": "checked",
+    "is_specialized": false
+  },
+  {
+    "id": "kommersant-main",
+    "name": "Коммерсантъ",
+    "feed_url": "https://www.kommersant.ru/RSS/news.xml",
+    "kind": "media",
+    "allowed_hosts": [
+      "www.kommersant.ru",
+      "kommersant.ru"
+    ],
+    "enabled": true,
+    "poll_seconds": 3600,
+    "reliability": 0.9,
+    "validation_status": "checked",
+    "is_specialized": false
+  },
+  {
+    "id": "vedomosti-main",
+    "name": "Ведомости",
+    "feed_url": "https://www.vedomosti.ru/rss/news",
+    "kind": "media",
+    "allowed_hosts": [
+      "www.vedomosti.ru",
+      "vedomosti.ru"
+    ],
+    "enabled": false,
+    "poll_seconds": 3600,
+    "reliability": 0.9,
+    "validation_status": "checked",
+    "is_specialized": false
+  },
+  {
+    "id": "prime-main",
+    "name": "Прайм",
+    "feed_url": "https://1prime.ru/export/rss2/index.xml",
+    "kind": "media",
+    "allowed_hosts": [
+      "1prime.ru",
+      "www.1prime.ru"
+    ],
+    "enabled": true,
+    "poll_seconds": 3600,
+    "reliability": 0.9,
+    "validation_status": "checked",
+    "is_specialized": false
+  },
+  {
+    "id": "minfin-news",
+    "name": "Минфин России",
+    "feed_url": "https://minfin.gov.ru/rss_news?mod=news&lim=50",
+    "kind": "official",
+    "allowed_hosts": [
+      "minfin.gov.ru",
+      "www.minfin.gov.ru"
+    ],
+    "enabled": true,
+    "poll_seconds": 3600,
+    "reliability": 1,
+    "validation_status": "checked",
+    "is_specialized": false
+  },
+  {
+    "id": "government-news",
+    "name": "Правительство РФ",
+    "feed_url": "http://government.ru/all/rss/",
+    "kind": "official",
+    "allowed_hosts": [
+      "government.ru",
+      "www.government.ru"
+    ],
+    "enabled": true,
+    "poll_seconds": 3600,
+    "reliability": 1,
+    "validation_status": "checked",
+    "is_specialized": false
+  },
+  {
+    "id": "fns-news",
+    "name": "ФНС России",
+    "feed_url": "https://www.nalog.gov.ru/rn77/rss/",
+    "kind": "official",
+    "allowed_hosts": [
+      "www.nalog.gov.ru",
+      "nalog.gov.ru"
+    ],
+    "enabled": false,
+    "poll_seconds": 3600,
+    "reliability": 1,
+    "validation_status": "checked",
+    "is_specialized": false
+  },
+  {
+    "id": "cbr-press",
+    "name": "Банк России (пресс-релизы)",
+    "feed_url": "https://www.cbr.ru/RSSMain/",
+    "kind": "official",
+    "allowed_hosts": [
+      "www.cbr.ru",
+      "cbr.ru"
+    ],
+    "enabled": false,
+    "poll_seconds": 3600,
+    "reliability": 1,
+    "validation_status": "rejected",
+    "is_specialized": false
+  },
+  {
+    "id": "rusbankrot-news",
+    "name": "Русбанкрот",
+    "feed_url": "https://rusbankrot.ru/rss/",
+    "kind": "media",
+    "allowed_hosts": [
+      "rusbankrot.ru",
+      "www.rusbankrot.ru"
+    ],
+    "enabled": true,
+    "poll_seconds": 3600,
+    "reliability": 0.9,
+    "validation_status": "checked",
+    "is_specialized": false
+  },
+  {
+    "id": "polpred-news",
+    "name": "Polpred.com Обзор СМИ",
+    "feed_url": "https://polpred.com/",
+    "kind": "media",
+    "allowed_hosts": [
+      "polpred.com",
+      "www.polpred.com"
+    ],
+    "enabled": false,
+    "poll_seconds": 3600,
+    "reliability": 0.9,
+    "validation_status": "rejected",
+    "is_specialized": false
+  },
+  {
+    "id": "spec-kommersant-economics",
+    "name": "Коммерсантъ: Экономика",
+    "feed_url": "https://www.kommersant.ru/RSS/section-economics.xml",
+    "kind": "media",
+    "allowed_hosts": [
+      "www.kommersant.ru",
+      "kommersant.ru"
+    ],
+    "enabled": true,
+    "poll_seconds": 900,
+    "reliability": 0.9,
+    "validation_status": "checked",
+    "is_specialized": true
+  },
+  {
+    "id": "spec-kommersant-business",
+    "name": "Коммерсантъ: Бизнес",
+    "feed_url": "https://www.kommersant.ru/RSS/section-business.xml",
+    "kind": "media",
+    "allowed_hosts": [
+      "www.kommersant.ru",
+      "kommersant.ru"
+    ],
+    "enabled": true,
+    "poll_seconds": 900,
+    "reliability": 0.9,
+    "validation_status": "checked",
+    "is_specialized": true
+  },
+  {
+    "id": "spec-kommersant-finance",
+    "name": "Коммерсантъ: Финансы",
+    "feed_url": "https://www.kommersant.ru/RSS/section-finance.xml",
+    "kind": "media",
+    "allowed_hosts": [
+      "www.kommersant.ru",
+      "kommersant.ru"
+    ],
+    "enabled": true,
+    "poll_seconds": 900,
+    "reliability": 0.9,
+    "validation_status": "checked",
+    "is_specialized": true
+  },
+  {
+    "id": "spec-vedomosti-economics",
+    "name": "Ведомости: Экономика",
+    "feed_url": "https://www.vedomosti.ru/rss/rubric/economics",
+    "kind": "media",
+    "allowed_hosts": [
+      "www.vedomosti.ru",
+      "vedomosti.ru"
+    ],
+    "enabled": true,
+    "poll_seconds": 900,
+    "reliability": 0.9,
+    "validation_status": "checked",
+    "is_specialized": true
+  },
+  {
+    "id": "spec-vedomosti-finance",
+    "name": "Ведомости: Финансы",
+    "feed_url": "https://www.vedomosti.ru/rss/rubric/finance",
+    "kind": "media",
+    "allowed_hosts": [
+      "www.vedomosti.ru",
+      "vedomosti.ru"
+    ],
+    "enabled": true,
+    "poll_seconds": 900,
+    "reliability": 0.9,
+    "validation_status": "checked",
+    "is_specialized": true
+  },
+  {
+    "id": "spec-vedomosti-business",
+    "name": "Ведомости: Бизнес",
+    "feed_url": "https://www.vedomosti.ru/rss/rubric/business",
+    "kind": "media",
+    "allowed_hosts": [
+      "www.vedomosti.ru",
+      "vedomosti.ru"
+    ],
+    "enabled": true,
+    "poll_seconds": 900,
+    "reliability": 0.9,
+    "validation_status": "checked",
+    "is_specialized": true
+  },
+  {
+    "id": "spec-prime-finance",
+    "name": "Прайм: Финансы",
+    "feed_url": "https://1prime.ru/export/rss2/finance/index.xml",
+    "kind": "media",
+    "allowed_hosts": [
+      "1prime.ru",
+      "www.1prime.ru"
+    ],
+    "enabled": true,
+    "poll_seconds": 900,
+    "reliability": 0.9,
+    "validation_status": "checked",
+    "is_specialized": true
+  },
+  {
+    "id": "spec-prime-business",
+    "name": "Прайм: Бизнес",
+    "feed_url": "https://1prime.ru/export/rss2/business/index.xml",
+    "kind": "media",
+    "allowed_hosts": [
+      "1prime.ru",
+      "www.1prime.ru"
+    ],
+    "enabled": true,
+    "poll_seconds": 900,
+    "reliability": 0.9,
+    "validation_status": "checked",
+    "is_specialized": true
+  },
+  {
+    "id": "spec-prime-energy",
+    "name": "Прайм: Энергетика",
+    "feed_url": "https://1prime.ru/export/rss2/energy/index.xml",
+    "kind": "media",
+    "allowed_hosts": [
+      "1prime.ru",
+      "www.1prime.ru"
+    ],
+    "enabled": true,
+    "poll_seconds": 900,
+    "reliability": 0.9,
+    "validation_status": "checked",
+    "is_specialized": true
+  },
+  {
+    "id": "spec-prime-regulation",
+    "name": "Прайм: Госрегулирование",
+    "feed_url": "https://1prime.ru/export/rss2/state_regulation/index.xml",
+    "kind": "media",
+    "allowed_hosts": [
+      "1prime.ru",
+      "www.1prime.ru"
+    ],
+    "enabled": true,
+    "poll_seconds": 900,
+    "reliability": 0.9,
+    "validation_status": "checked",
+    "is_specialized": true
+  },
+  {
+    "id": "spec-banki-news",
+    "name": "Банки.ру: Новости",
+    "feed_url": "https://www.banki.ru/xml/news.rss",
+    "kind": "media",
+    "allowed_hosts": [
+      "www.banki.ru",
+      "banki.ru"
+    ],
+    "enabled": true,
+    "poll_seconds": 900,
+    "reliability": 0.9,
+    "validation_status": "checked",
+    "is_specialized": true
+  }
 ]

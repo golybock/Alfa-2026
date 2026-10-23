@@ -1,7 +1,7 @@
 namespace AlfaNews.Contracts.Domain;
 
 public sealed record FeatureContribution(
-	string Code,
+	RankingFeatureCode Code,
 	decimal Value,
 	decimal Weight,
 	decimal Contribution,
