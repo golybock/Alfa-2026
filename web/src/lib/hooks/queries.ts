@@ -13,11 +13,11 @@ export const queryKeys = {
   chat: (insightId: string) => ["chat", insightId] as const,
 };
 
-export function useFeed(companyId: string, role: Role) {
+export function useFeed(companyId: string, role: Role, polling = true) {
   return useQuery({
     queryKey: queryKeys.feed(companyId, role),
     queryFn: () => api.getFeed(companyId, role),
-    refetchInterval: FEED_POLL_MS,
+    refetchInterval: polling ? FEED_POLL_MS : false,
   });
 }
 

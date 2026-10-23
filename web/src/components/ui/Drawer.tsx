@@ -28,7 +28,7 @@ export default function Drawer({ title, subtitle, onClose, children }: DrawerPro
         aria-modal="true"
         aria-label={title}
         onClick={(event) => event.stopPropagation()}
-        className="h-full w-[440px] overflow-y-auto rounded-l-3xl bg-white p-7 text-zinc-900 shadow-xl"
+        className="h-full w-[560px] overflow-y-auto rounded-l-3xl bg-white p-7 text-zinc-900 shadow-xl"
       >
         <div className="flex items-start justify-between gap-4">
           <h2 className="text-2xl font-semibold">{title}</h2>

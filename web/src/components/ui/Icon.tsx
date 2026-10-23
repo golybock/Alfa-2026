@@ -29,6 +29,7 @@ const paths: Record<IconName, string> = {
   upload: "M12 4v12M7 11l5 5 5-5M5 20h14",
   send: "M5 12h14M13 6l6 6-6 6",
   help: "M9 9a3 3 0 116 0c0 2-3 2.5-3 5M12 18v.5",
+  camera: "M4 8h4l1.5-2h5L16 8h4v11H4zM12 16a3 3 0 100-6 3 3 0 000 6z",
 };
 
 type IconProps = { name: IconName; className?: string };

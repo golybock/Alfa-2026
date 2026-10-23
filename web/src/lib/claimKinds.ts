@@ -13,6 +13,14 @@ export const claimKinds: Record<ClaimKind, ClaimKindStyle> = {
   ai_hypothesis: { label: "Гипотеза", className: "bg-amber-50 text-orange-600", icon: "help" },
 };
 
+export const evidenceKinds: Record<EvidenceType, ClaimKind> = {
+  news: "source_fact",
+  bank_research: "bank_analytics",
+  company_feature: "company_data",
+  payment_aggregate: "company_data",
+  group_feature: "company_data",
+};
+
 const companyEvidenceTypes: EvidenceType[] = ["company_feature", "payment_aggregate", "group_feature"];
 
 export function claimKindOf(claim: ClaimDto, evidence: Readonly<Record<string, EvidenceDto>>): ClaimKind {

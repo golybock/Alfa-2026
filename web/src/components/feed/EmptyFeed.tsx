@@ -10,7 +10,7 @@ export default function EmptyFeed({ companyName, period }: EmptyFeedProps) {
       </div>
       <h2 className="mt-4 text-2xl font-semibold">Значимых событий за {period} нет</h2>
       <p className="mt-3 max-w-md text-sm text-zinc-500">
-        Мы не добавляем сигналы ради количества. Как только появится событие, значимое для {companyName}, оно
+        Мы не добавляем инсайты ради количества. Как только появится событие, значимое для {companyName}, оно
         появится здесь.
       </p>
     </section>

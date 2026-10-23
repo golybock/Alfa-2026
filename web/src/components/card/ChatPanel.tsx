@@ -105,8 +105,8 @@ export default function ChatPanel({ insight }: ChatPanelProps) {
           onChange={(event) => setQuestion(event.target.value)}
           maxLength={MAX_QUESTION_LENGTH}
           disabled={exhausted}
-          aria-label="Вопрос по сигналу"
-          placeholder={exhausted ? "Лимит вопросов по карточке исчерпан" : "Задайте вопрос по сигналу"}
+          aria-label="Вопрос по инсайту"
+          placeholder={exhausted ? "Лимит вопросов по карточке исчерпан" : "Задайте вопрос по инсайту"}
           className="min-w-0 flex-1 text-sm outline-none"
         />
         <button
@@ -120,7 +120,7 @@ export default function ChatPanel({ insight }: ChatPanelProps) {
       </form>
       {remaining !== null ? <p className="text-xs text-zinc-500">Осталось вопросов по карточке: {remaining}</p> : null}
       <p className="text-xs text-zinc-500">
-        Ответы ИИ не являются позицией Альфа-Банка и индивидуальной инвестиционной рекомендацией.
+        Ответы ИИ не являются позицией банка и инвестиционной рекомендацией.
       </p>
     </div>
   );

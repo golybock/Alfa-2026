@@ -1,18 +1,10 @@
 import Image from "next/image";
-import type { ClaimKind } from "../../lib/claimKinds";
+import { evidenceKinds } from "../../lib/claimKinds";
 import { formatDate } from "../../lib/dates";
 import { evidenceTypeLabels, reviewStatusLabels } from "../../lib/labels";
-import type { EvidenceDto, EvidenceType, JsonValue } from "../../lib/types/api";
+import type { EvidenceDto, JsonValue } from "../../lib/types/api";
 import ClaimBadge from "../ui/ClaimBadge";
 import SourceLinkRow from "../ui/SourceLinkRow";
-
-const kindByType: Record<EvidenceType, ClaimKind> = {
-  news: "source_fact",
-  bank_research: "bank_analytics",
-  company_feature: "company_data",
-  payment_aggregate: "company_data",
-  group_feature: "company_data",
-};
 
 function formatValue(value: JsonValue | null): string {
   if (value === null) {
@@ -24,7 +16,7 @@ function formatValue(value: JsonValue | null): string {
 type EvidenceDetailProps = { id: string; evidence: EvidenceDto; limitations: ReadonlyArray<string> };
 
 export default function EvidenceDetail({ id, evidence, limitations }: EvidenceDetailProps) {
-  const kind = kindByType[evidence.type];
+  const kind = evidenceKinds[evidence.type];
   const pageImage = evidence.page_image_url;
 
   return (

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { formatDateTime } from "../../lib/dates";
+import { useActiveContext } from "../../lib/hooks/session";
 import { roleLabels } from "../../lib/labels";
 import { ANALYTICS_HREF } from "../../lib/navigation";
 import type { InsightDto } from "../../lib/types/api";
@@ -10,6 +11,7 @@ import type { IconName } from "../../lib/types/icon";
 import Drawer from "../ui/Drawer";
 import Icon from "../ui/Icon";
 import RankBadge from "../ui/RankBadge";
+import RoleSwitch from "../ui/RoleSwitch";
 import ChatPanel from "./ChatPanel";
 import WhyPanel from "./WhyPanel";
 
@@ -25,6 +27,7 @@ type InsightCardHeaderProps = { insight: InsightDto };
 
 export default function InsightCardHeader({ insight }: InsightCardHeaderProps) {
   const [panel, setPanel] = useState<Panel>(null);
+  const companyName = useActiveContext()?.company.name ?? "вашей компании";
   const close = () => setPanel(null);
 
   return (
@@ -34,7 +37,7 @@ export default function InsightCardHeader({ insight }: InsightCardHeaderProps) {
           <div className="flex items-center gap-2">
             <Link href={ANALYTICS_HREF} className="flex items-center gap-1 text-xs text-zinc-600 hover:text-zinc-900">
               <Icon name="chevronLeft" className="h-3.5 w-3.5" />
-              Все сигналы
+              Все инсайты
             </Link>
             <RankBadge rank={insight.relevance.rank} />
           </div>
@@ -58,7 +61,7 @@ export default function InsightCardHeader({ insight }: InsightCardHeaderProps) {
               onClick={() => setPanel("chat")}
               className="h-10 rounded-xl bg-zinc-900 px-5 text-sm font-medium text-white hover:bg-zinc-800"
             >
-              Чат по сигналу
+              Чат по инсайту
             </button>
           </div>
           <div className="flex gap-2">
@@ -73,19 +76,20 @@ export default function InsightCardHeader({ insight }: InsightCardHeaderProps) {
               </button>
             ))}
           </div>
+          <RoleSwitch />
         </div>
       </div>
       {panel === "why" ? (
         <Drawer
           title="Почему я это вижу"
-          subtitle="Причины отбора, вклад признаков и доказательства. Порядок ленты не зависит от роли."
+          subtitle={`Как система выбрала этот инсайт для ${companyName}`}
           onClose={close}
         >
           <WhyPanel insight={insight} />
         </Drawer>
       ) : null}
       {panel === "chat" ? (
-        <Drawer title="Чат по сигналу" subtitle="Отвечаю только по этому сигналу и данным вашей компании" onClose={close}>
+        <Drawer title="Чат по инсайту" subtitle="Отвечаю только по этому инсайту и данным вашей компании" onClose={close}>
           <ChatPanel insight={insight} />
         </Drawer>
       ) : null}

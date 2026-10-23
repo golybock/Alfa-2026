@@ -26,4 +26,5 @@ export type IconName =
   | "swap"
   | "upload"
   | "send"
-  | "help";
+  | "help"
+  | "camera";

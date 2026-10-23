@@ -5,6 +5,16 @@ export const roleLabels: Record<Role, string> = {
   cfo: "Финансовый директор",
 };
 
+export const roleShortLabels: Record<Role, string> = {
+  ceo: "Ген. директор",
+  cfo: "Фин. директор",
+};
+
+export const roleEmphasis: Record<Role, string> = {
+  ceo: "здесь акцент на операционных решениях, спросе и договорах",
+  cfo: "здесь акцент на проверяемых вопросах к финансированию и затратам",
+};
+
 export const evidenceTypeLabels: Record<EvidenceType, string> = {
   news: "Новость",
   bank_research: "Аналитика банка",
