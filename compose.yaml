@@ -67,6 +67,10 @@ services:
             ASPNETCORE_ENVIRONMENT: Development
             ASPNETCORE_URLS: http://+:8080
             Auth__DemoPassword: ${DEMO_LOGIN_PASSWORD:-}
+            # Изменяющие запросы принимаются только с внешнего адреса шлюза (сайт и API на одном origin).
+            Auth__AllowedOrigins__0: ${PUBLIC_ORIGIN:-http://localhost:${HTTP_PORT:-8080}}
+            Auth__AllowedOrigins__1: http://127.0.0.1:${HTTP_PORT:-8080}
+            Feed__Mode: ${FEED_MODE:-live}
         volumes:
             - research-files:/var/lib/alfanews/research
             - ./data:/input:ro
@@ -97,8 +101,13 @@ services:
             Data__ProfilesReportPath: /reports/profile_candidates.json
             Feed__CompanyIds: ${FEED_COMPANY_IDS:-}
             Feed__RefreshIntervalSeconds: ${FEED_REFRESH_INTERVAL_SECONDS:-86400}
-            Ranking__MinBase: ${RANKING_MIN_BASE:-0.20}
+            Ranking__MinBase: ${RANKING_MIN_BASE:-0.30}
             Ranking__MinScore: ${RANKING_MIN_SCORE:-0.15}
+            Queue__NewsSlots: ${QUEUE_NEWS_SLOTS:-4}
+            Queue__DocumentsSlots: ${QUEUE_DOCUMENTS_SLOTS:-3}
+            Queue__InsightsSlots: ${QUEUE_INSIGHTS_SLOTS:-2}
+            Queue__ChatSlots: ${QUEUE_CHAT_SLOTS:-2}
+            Llm__MaxParallelRequests: ${LLM_MAX_PARALLEL_REQUESTS:-8}
             TestJob__Enabled: ${TEST_JOB_ENABLED:-false}
             TestJob__Text: ${TEST_JOB_TEXT:-Очередь Worker работает.}
             Llm__UseMock: ${LLM_USE_MOCK:-true}
@@ -117,6 +126,7 @@ services:
             Llm__GlmOutputEstimateRubPerMillion: ${LLM_GLM_OUTPUT_ESTIMATE_RUB_PER_MILLION:-50}
             Llm__CriticEnabled: ${CRITIC_ENABLED:-true}
             Llm__CriticScope: ${CRITIC_SCOPE:-all_full}
+            Llm__DailyLimitRub: ${LLM_DAILY_LIMIT_RUB:-500}
         volumes:
             - research-files:/var/lib/alfanews/research
             - ./data:/input:ro
