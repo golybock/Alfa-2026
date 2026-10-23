@@ -2,6 +2,7 @@ using System.Text.Json;
 using AlfaNews.Core.Data.Entities;
 using AlfaNews.Core.Processing;
 using AlfaNews.Worker;
+using AlfaNews.Worker.Queue;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
@@ -22,7 +23,7 @@ public sealed class SourcePollingTests(PostgresFixture fixture) : IClassFixture<
         await using var db = fixture.CreateDb();
         await db.BackgroundJobRows.Where(row => row.Kind == "CollectNews").ExecuteDeleteAsync();
         await db.SourceRows.Where(row => row.Id.StartsWith("poll_")).ExecuteDeleteAsync();
-        db.SourceRows.AddRange(NewSource("poll_fast_a", 120), NewSource("poll_fast_b", 120), NewSource("poll_slow", 900));
+        db.SourceRows.AddRange(NewSource("poll_fast_a", 900), NewSource("poll_fast_b", 900), NewSource("poll_slow", 3600));
         await db.SaveChangesAsync();
         await db.SourceRows.Where(row => row.Id != "synthetic" && !row.Id.StartsWith("poll_")).ExecuteUpdateAsync(update => update.SetProperty(row => row.Enabled, false));
         await db.SourceRows.Where(row => row.Id == "synthetic").ExecuteUpdateAsync(update => update.SetProperty(row => row.Enabled, false));
@@ -31,26 +32,26 @@ public sealed class SourcePollingTests(PostgresFixture fixture) : IClassFixture<
         var schedule = new JobSchedule(db, new JobQueue(db, clock), clock, new ConfigurationBuilder().Build());
 
         await schedule.EnqueueCollectionAsync(CancellationToken.None);
-        Assert.Equal([["poll_fast_a", "poll_fast_b"], ["poll_slow"]], await QueuedGroupsAsync(db));
+        Assert.Equal([["poll_fast_a"], ["poll_fast_b"], ["poll_slow"]], await QueuedGroupsAsync(db));
 
         await schedule.EnqueueCollectionAsync(CancellationToken.None);
-        Assert.Equal(2, await db.BackgroundJobRows.CountAsync(row => row.Kind == "CollectNews"));
+        Assert.Equal(3, await db.BackgroundJobRows.CountAsync(row => row.Kind == "CollectNews"));
 
         await db.BackgroundJobRows.Where(row => row.Kind == "CollectNews").ExecuteUpdateAsync(update => update.SetProperty(row => row.Status, "done"));
         await db.SourceRows.Where(row => row.Id.StartsWith("poll_")).ExecuteUpdateAsync(update => update.SetProperty(row => row.LastCheckedAt, clock.Now));
 
         clock.Now = clock.Now.AddMinutes(1);
         await schedule.EnqueueCollectionAsync(CancellationToken.None);
-        Assert.Equal(2, await db.BackgroundJobRows.CountAsync(row => row.Kind == "CollectNews"));
-
-        clock.Now = clock.Now.AddMinutes(2);
-        await schedule.EnqueueCollectionAsync(CancellationToken.None);
         Assert.Equal(3, await db.BackgroundJobRows.CountAsync(row => row.Kind == "CollectNews"));
-        Assert.Equal(["poll_fast_a", "poll_fast_b"], (await QueuedGroupsAsync(db)).Single());
+
+        clock.Now = clock.Now.AddMinutes(14);
+        await schedule.EnqueueCollectionAsync(CancellationToken.None);
+        Assert.Equal(5, await db.BackgroundJobRows.CountAsync(row => row.Kind == "CollectNews"));
+        Assert.Equal([["poll_fast_a"], ["poll_fast_b"]], await QueuedGroupsAsync(db));
 
         await db.BackgroundJobRows.Where(row => row.Kind == "CollectNews").ExecuteUpdateAsync(update => update.SetProperty(row => row.Status, "done"));
         await db.SourceRows.Where(row => row.Id.StartsWith("poll_fast")).ExecuteUpdateAsync(update => update.SetProperty(row => row.LastCheckedAt, clock.Now));
-        clock.Now = clock.Now.AddMinutes(12);
+        clock.Now = clock.Now.AddMinutes(45);
         await schedule.EnqueueCollectionAsync(CancellationToken.None);
         Assert.Contains(["poll_slow"], await QueuedGroupsAsync(db), new SequenceComparer());
     }

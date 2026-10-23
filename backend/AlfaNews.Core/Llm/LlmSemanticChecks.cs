@@ -14,6 +14,13 @@ public static class LlmSemanticChecks
     public static IReadOnlyList<string> Validate(JsonElement value, LlmRequest request)
     {
         var errors = new List<string>();
+        if (request.Task == LlmTask.NewsTriage)
+        {
+            var expected = request.Values["INPUT_JSON"].EnumerateArray().Select(item => item.GetProperty("id").GetString()).ToHashSet();
+            var actual = value.GetProperty("decisions").EnumerateArray().Select(item => item.GetProperty("id").GetString()).ToArray();
+            if (actual.Length != expected.Count || !expected.SetEquals(actual))
+                errors.Add("triage:ids_must_match_exactly_once");
+        }
         if (request.Task == LlmTask.NewsExtract)
         {
             var input = request.Values["INPUT_JSON"];

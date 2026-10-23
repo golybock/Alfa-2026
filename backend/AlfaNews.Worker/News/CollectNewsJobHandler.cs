@@ -4,9 +4,9 @@ using AlfaNews.Core.Data.Entities;
 using AlfaNews.Core.Ingest;
 using AlfaNews.Core.Processing;
 
-namespace AlfaNews.Worker;
+namespace AlfaNews.Worker.News;
 
-public sealed class CollectNewsJobHandler(CollectNewsService service) : IJobHandler
+public sealed class CollectNewsJobHandler(CollectNewsService service, NewsProcessingSchedule schedule) : IJobHandler
 {
     public string Kind => JobKinds.Name<CollectNewsJob>();
 
@@ -14,6 +14,7 @@ public sealed class CollectNewsJobHandler(CollectNewsService service) : IJobHand
     {
         var payload = job.Payload.Deserialize<CollectNewsJob>(JobKinds.JsonOptions)!;
         await service.CollectAsync(payload.SourceIds, cancellationToken);
+        await schedule.EnqueueAsync(cancellationToken);
         return new JobResult("collected");
     }
 }

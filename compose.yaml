@@ -30,6 +30,8 @@ services:
     tei:
         image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.9
         restart: unless-stopped
+        ports:
+            - "127.0.0.1:18081:80"
         entrypoint: [ /bin/sh, /etc/tei/start-int8.sh ]
         command: [ --model-id, /data/e5-base-int8-d128750597153bb5987e10b1c3493a34e5a4502a, --served-model-name, intfloat/multilingual-e5-base, --port, "80", --dtype, float32 ]
         configs:

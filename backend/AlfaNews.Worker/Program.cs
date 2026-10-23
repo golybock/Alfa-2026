@@ -8,6 +8,12 @@ using AlfaNews.Core.Processing;
 using AlfaNews.Core.Configuration;
 using AlfaNews.Core.Llm;
 using AlfaNews.Core.Documents;
+using AlfaNews.Worker.Documents;
+using AlfaNews.Worker.Evaluation;
+using AlfaNews.Worker.Importing;
+using AlfaNews.Worker.News;
+using AlfaNews.Worker.Profiles;
+using AlfaNews.Worker.Queue;
 using Microsoft.EntityFrameworkCore;
 
 LocalEnvironment.Load();
@@ -16,7 +22,10 @@ var profilesCommand = args.FirstOrDefault() == "rebuild-profiles";
 var retryCommand = args.FirstOrDefault() == "retry-job";
 var runCommand = args.FirstOrDefault() == "run-worker";
 var evaluationCommand = args.FirstOrDefault() == "llm-evaluate";
-var manualCommand = importCommand || profilesCommand || retryCommand || evaluationCommand;
+var newsValidationCommand = args.FirstOrDefault() == "news-validate";
+var manualCommand = importCommand || profilesCommand || retryCommand || evaluationCommand || newsValidationCommand;
+if (newsValidationCommand && (args.Length != 4 || !int.TryParse(args[3], out var parseLimit) || parseLimit is < 1 or > 10))
+    throw new ArgumentException("Использование: news-validate <report.json> <source-id> <parse-limit:1-10>.");
 if (evaluationCommand && args.Length is not (3 or 4))
     throw new ArgumentException("Использование: llm-evaluate <cases.json> <report.json> [case1,case2].");
 if (retryCommand && (args.Length != 2 || !Guid.TryParse(args[1], out _)))
@@ -52,6 +61,12 @@ builder.Services.AddScoped<IJobHandler, CollectNewsJobHandler>();
 builder.Services.AddSingleton(_ => new SafeFetcher(builder.Configuration.GetValue<bool>("Ingest:AllowPrivateAddresses")));
 builder.Services.AddScoped<SourceCatalogLoader>();
 builder.Services.AddScoped<CollectNewsService>();
+builder.Services.AddScoped<NewsProcessingSchedule>();
+builder.Services.AddScoped<NewsTriageService>();
+builder.Services.AddScoped<NewsProcessing>();
+builder.Services.AddSingleton(provider => new NewsEmbeddings(new HttpClient { Timeout = TimeSpan.FromSeconds(90) }, provider.GetRequiredService<IConfiguration>()));
+builder.Services.AddScoped<IJobHandler, ParseNewsJobHandler>();
+builder.Services.AddScoped<IJobHandler, TriageNewsJobHandler>();
 builder.Services.AddScoped<JobSchedule>();
 builder.Services.AddHostedService<Worker>();
 builder.Services.AddHostedService<JobScheduler>();
@@ -62,6 +77,7 @@ builder.Services.AddScoped<CsvImportService>();
 builder.Services.AddScoped<ProfileBuilder>();
 builder.Services.AddScoped<ProfileBuildService>();
 builder.Services.AddScoped<LlmEvaluation>();
+builder.Services.AddScoped<NewsValidation>();
 
 using var host = builder.Build();
 await using (var migrationScope = host.Services.CreateAsyncScope())
@@ -76,6 +92,11 @@ if (manualCommand)
         cancellation.Cancel();
     };
     await using var scope = host.Services.CreateAsyncScope();
+    if (newsValidationCommand)
+    {
+        await scope.ServiceProvider.GetRequiredService<NewsValidation>().RunAsync(args[1], args[2], int.Parse(args[3]), cancellation.Token);
+        return;
+    }
     if (evaluationCommand)
     {
         await scope.ServiceProvider.GetRequiredService<LlmEvaluation>().RunAsync(args[1], args[2], cancellation.Token,

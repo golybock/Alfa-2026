@@ -5,7 +5,7 @@ using AlfaNews.Core.Data.Entities;
 using AlfaNews.Core.Llm;
 using Microsoft.EntityFrameworkCore;
 
-namespace AlfaNews.Worker;
+namespace AlfaNews.Worker.Evaluation;
 
 public sealed class LlmEvaluation(AlfaNewsDbContext db, LlmGateway gateway, LlmOptions options,
     TimeProvider timeProvider, ILogger<LlmEvaluation> logger)
@@ -50,6 +50,11 @@ public sealed class LlmEvaluation(AlfaNewsDbContext db, LlmGateway gateway, LlmO
             {
                 switch (task)
                 {
+                    case LlmTask.NewsTriage:
+                        var triage = await ExecuteAsync<NewsTriage>(request, test, cancellationToken);
+                        replay = triage.CacheHit;
+                        candidate = JsonSerializer.SerializeToElement(triage.Value, LlmOutputValidator.JsonOptions);
+                        break;
                     case LlmTask.NewsExtract:
                         var news = await ExecuteAsync<NewsExtraction>(request, test, cancellationToken);
                         replay = news.CacheHit;

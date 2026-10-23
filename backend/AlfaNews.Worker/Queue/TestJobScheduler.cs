@@ -1,6 +1,6 @@
 using AlfaNews.Core.Processing;
 
-namespace AlfaNews.Worker;
+namespace AlfaNews.Worker.Queue;
 
 public sealed class TestJobScheduler(IServiceScopeFactory scopes, IConfiguration configuration, ILogger<TestJobScheduler> logger) : BackgroundService
 {

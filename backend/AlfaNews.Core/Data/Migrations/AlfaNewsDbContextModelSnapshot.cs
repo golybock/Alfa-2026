@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Text.Json;
 using AlfaNews.Core.Data;
 using Microsoft.EntityFrameworkCore;
@@ -852,9 +852,21 @@ partial class AlfaNewsDbContextModelSnapshot : ModelSnapshot
                     .HasColumnType("text")
                     .HasColumnName("canonical_url");
 
+                b.Property<Vector>("Embedding")
+                    .HasColumnType("vector(768)")
+                    .HasColumnName("embedding");
+
                 b.Property<DateTimeOffset>("FetchedAt")
                     .HasColumnType("timestamptz")
                     .HasColumnName("fetched_at");
+
+                b.Property<JsonElement?>("FilterJson")
+                    .HasColumnType("jsonb")
+                    .HasColumnName("filter_json");
+
+                b.Property<int?>("Importance")
+                    .HasColumnType("integer")
+                    .HasColumnName("importance");
 
                 b.Property<string>("LastError")
                     .HasColumnType("text")
@@ -906,9 +918,14 @@ partial class AlfaNewsDbContextModelSnapshot : ModelSnapshot
                 b.HasIndex("TextSha256")
                     .HasDatabaseName("news_hash_idx");
 
+                b.HasIndex("Status", "Importance", "FetchedAt")
+                    .HasDatabaseName("news_pending_idx");
+
                 b.ToTable("news_raw", null, t =>
                     {
                         t.HasCheckConstraint("news_raw_1_check", "status IN ('queued','processing','accepted','duplicate','rejected','failed')");
+
+                        t.HasCheckConstraint("news_raw_importance_check", "importance IS NULL OR importance BETWEEN 1 AND 3");
                     });
             });
 
@@ -1261,6 +1278,12 @@ partial class AlfaNewsDbContextModelSnapshot : ModelSnapshot
                     .HasColumnType("text")
                     .HasColumnName("feed_url");
 
+                b.Property<bool>("IsSpecialized")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("boolean")
+                    .HasDefaultValue(false)
+                    .HasColumnName("is_specialized");
+
                 b.Property<string>("Kind")
                     .IsRequired()
                     .HasColumnType("text")
@@ -1286,7 +1309,7 @@ partial class AlfaNewsDbContextModelSnapshot : ModelSnapshot
                 b.Property<int>("PollSeconds")
                     .ValueGeneratedOnAdd()
                     .HasColumnType("integer")
-                    .HasDefaultValue(120)
+                    .HasDefaultValue(3600)
                     .HasColumnName("poll_seconds");
 
                 b.Property<decimal>("Reliability")

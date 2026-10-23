@@ -2,7 +2,7 @@ using System.Text.Json;
 using AlfaNews.Core.Data.Entities;
 using AlfaNews.Core.Processing;
 
-namespace AlfaNews.Worker;
+namespace AlfaNews.Worker.Queue;
 
 public sealed class ConsoleMessageJobHandler(ILogger<ConsoleMessageJobHandler> logger) : IJobHandler
 {

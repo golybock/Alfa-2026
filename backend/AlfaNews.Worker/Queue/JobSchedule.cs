@@ -4,7 +4,7 @@ using AlfaNews.Core.Data;
 using AlfaNews.Core.Processing;
 using Microsoft.EntityFrameworkCore;
 
-namespace AlfaNews.Worker;
+namespace AlfaNews.Worker.Queue;
 
 public sealed class JobSchedule(AlfaNewsDbContext db, JobQueue queue, TimeProvider timeProvider, IConfiguration configuration)
 {
@@ -27,9 +27,8 @@ public sealed class JobSchedule(AlfaNewsDbContext db, JobQueue queue, TimeProvid
             .ToHashSet(StringComparer.Ordinal);
         var due = enabled.Where(source => !busy.Contains(source.Id)
             && (source.LastCheckedAt is null || source.LastCheckedAt.Value.AddSeconds(source.PollSeconds) <= now));
-        foreach (var group in due.GroupBy(source => source.PollSeconds).OrderBy(group => group.Key))
-            await queue.EnqueueAsync(new CollectNewsJob(group.Select(source => source.Id).Order(StringComparer.Ordinal).ToArray()),
-                null, null, cancellationToken);
+        foreach (var source in due.OrderBy(source => source.PollSeconds).ThenBy(source => source.Id, StringComparer.Ordinal))
+            await queue.EnqueueAsync(new CollectNewsJob([source.Id]), null, null, cancellationToken);
     }
 
     public async Task EnqueueFeedRefreshAsync(CancellationToken cancellationToken)

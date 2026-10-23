@@ -97,12 +97,13 @@ CREATE TABLE source (
     kind text NOT NULL CHECK (kind IN ('official','media')),
     allowed_hosts jsonb NOT NULL,
     enabled boolean NOT NULL DEFAULT false,
-    poll_seconds integer NOT NULL DEFAULT 120 CHECK (poll_seconds >= 60),
+    poll_seconds integer NOT NULL DEFAULT 3600 CHECK (poll_seconds >= 60),
     reliability numeric(3,2) NOT NULL CHECK (reliability BETWEEN 0 AND 1),
     validation_status text NOT NULL,
     last_checked_at timestamptz,
     last_success_at timestamptz,
-    last_error text
+    last_error text,
+    is_specialized boolean NOT NULL DEFAULT false
 );
 CREATE TABLE news_raw (
     id uuid PRIMARY KEY,
@@ -115,8 +116,12 @@ CREATE TABLE news_raw (
     fetched_at timestamptz NOT NULL,
     status text NOT NULL CHECK (status IN ('queued','processing','accepted','duplicate','rejected','failed')),
     rejection_reason text,
-    last_error text
+    last_error text,
+    embedding vector(768),
+    filter_json jsonb,
+    importance integer CHECK (importance IS NULL OR importance BETWEEN 1 AND 3)
 );
+CREATE INDEX news_pending_idx ON news_raw(status, importance, fetched_at);
 CREATE INDEX news_hash_idx ON news_raw(text_sha256);
 CREATE INDEX news_date_idx ON news_raw(published_at DESC);
 CREATE TABLE event (

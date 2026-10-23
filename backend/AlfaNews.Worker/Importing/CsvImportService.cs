@@ -1,7 +1,7 @@
 using AlfaNews.Contracts.Processing;
 using AlfaNews.Core.Importing;
 
-namespace AlfaNews.Worker;
+namespace AlfaNews.Worker.Importing;
 
 public sealed class CsvImportService(IConfiguration configuration, CsvImporter importer, ILogger<CsvImportService> logger)
 {

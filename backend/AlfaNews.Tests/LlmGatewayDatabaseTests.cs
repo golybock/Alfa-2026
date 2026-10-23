@@ -2,6 +2,7 @@ using AlfaNews.Contracts.Processing;
 using AlfaNews.Core.Data;
 using AlfaNews.Core.Llm;
 using AlfaNews.Worker;
+using AlfaNews.Worker.Evaluation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 

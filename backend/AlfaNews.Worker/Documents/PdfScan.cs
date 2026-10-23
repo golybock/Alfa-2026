@@ -1,12 +1,12 @@
 using System.Security.Cryptography;
 using System.Text.Json;
 using AlfaNews.Contracts.Processing;
-using AlfaNews.Core.Documents;
 using AlfaNews.Core.Data;
+using AlfaNews.Core.Documents;
 using AlfaNews.Core.Processing;
 using Microsoft.EntityFrameworkCore;
 
-namespace AlfaNews.Worker;
+namespace AlfaNews.Worker.Documents;
 
 public sealed class PdfScan(AlfaNewsDbContext db, PdfRegistration registration, PdfOptions options, ILogger<PdfScan> logger)
 {

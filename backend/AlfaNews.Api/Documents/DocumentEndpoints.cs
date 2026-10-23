@@ -111,9 +111,6 @@ public static class DocumentEndpoints
             }
             return Results.File(path, "image/png");
         }).RequireAuthorization();
-        app.MapGet("/api/jobs/{id:guid}", async (Guid id, HttpContext http, AccessService access, CancellationToken cancellationToken) =>
-            JobQueue.ToResponse(await access.RequireJobAsync(SessionAuthenticationHandler.CurrentUser(http.User), id, cancellationToken), http.TraceIdentifier))
-            .RequireAuthorization();
         app.MapPost("/api/admin/jobs/{id:guid}/retry", async (Guid id, HttpContext http, AccessService access, JobQueue queue,
             CancellationToken cancellationToken) =>
         {

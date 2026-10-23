@@ -1,6 +1,8 @@
 using AlfaNews.Core.Processing;
+using AlfaNews.Worker.Importing;
+using AlfaNews.Worker.Profiles;
 
-namespace AlfaNews.Worker;
+namespace AlfaNews.Worker.Queue;
 
 public class Worker(IServiceScopeFactory scopes, JobDispatcher dispatcher, ILogger<Worker> logger) : BackgroundService
 {

@@ -4,7 +4,7 @@ using AlfaNews.Core.Data.Entities;
 using AlfaNews.Core.Documents;
 using AlfaNews.Core.Processing;
 
-namespace AlfaNews.Worker;
+namespace AlfaNews.Worker.Documents;
 
 public sealed class IndexPdfJobHandler(PdfProcessing service) : IJobHandler
 {

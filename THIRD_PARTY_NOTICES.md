@@ -31,3 +31,10 @@
 |---|---|---|---|
 | @tanstack/react-query | 5.104.5 | MIT | Запросы к API и кэш данных на фронте, единый Query provider |
 | @tanstack/query-core | 5.104.5, зависимость @tanstack/react-query | MIT | Ядро @tanstack/react-query |
+
+## Локальные embeddings
+
+| Компонент | Версия | Лицензия | Зачем |
+|---|---|---|---|
+| [Text Embeddings Inference](https://github.com/huggingface/text-embeddings-inference/blob/main/LICENSE) | существующий Docker-образ cpu-1.9 | Apache-2.0 | Локальный HTTP-сервис e5; фильтр новостей и поиск похожих публикаций A07 |
+| [intfloat/multilingual-e5-base](https://huggingface.co/intfloat/multilingual-e5-base) | revision d128750597153bb5987e10b1c3493a34e5a4502a, существующий ONNX int8 | MIT | Локальные векторы размерности 768 для новостей; веса в Docker volume, не в Git |

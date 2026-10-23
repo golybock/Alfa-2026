@@ -1,4 +1,4 @@
-namespace AlfaNews.Worker;
+namespace AlfaNews.Worker.Documents;
 
 public sealed class PdfScheduler(IServiceScopeFactory scopes, ILogger<PdfScheduler> logger) : BackgroundService
 {

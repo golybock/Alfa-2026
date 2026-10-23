@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Net.Sockets;
 using System.Text.Json;
+using AlfaNews.Api;
 using AlfaNews.Contracts;
 using AlfaNews.Contracts.Api;
 using AlfaNews.Contracts.Domain;

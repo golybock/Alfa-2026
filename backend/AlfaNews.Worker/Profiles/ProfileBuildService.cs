@@ -1,7 +1,7 @@
 using AlfaNews.Contracts.Processing;
 using AlfaNews.Core.Profiles;
 
-namespace AlfaNews.Worker;
+namespace AlfaNews.Worker.Profiles;
 
 public sealed class ProfileBuildService(IConfiguration configuration, ProfileBuilder builder, ILogger<ProfileBuildService> logger)
 {

@@ -1,6 +1,6 @@
 using AlfaNews.Core.Ingest;
 
-namespace AlfaNews.Worker;
+namespace AlfaNews.Worker.Queue;
 
 public sealed class JobScheduler(IServiceScopeFactory scopes, IConfiguration configuration, ILogger<JobScheduler> logger) : BackgroundService
 {
@@ -21,7 +21,7 @@ public sealed class JobScheduler(IServiceScopeFactory scopes, IConfiguration con
             try
             {
                 await using var scope = scopes.CreateAsyncScope();
-                var count = await scope.ServiceProvider.GetRequiredService<SourceCatalogLoader>().LoadAsync(path, cancellationToken);
+                var count = await scope.ServiceProvider.GetRequiredService<SourceCatalogLoader>().LoadAsync(path, cancellationToken, file == "sources-specialized.json");
                 logger.LogInformation("Каталог источников {File} загружен: {Count} записей.", file, count);
             }
             catch (Exception exception) when (exception is not OperationCanceledException)
@@ -43,6 +43,7 @@ public sealed class JobScheduler(IServiceScopeFactory scopes, IConfiguration con
                 await using var scope = scopes.CreateAsyncScope();
                 var schedule = scope.ServiceProvider.GetRequiredService<JobSchedule>();
                 await schedule.EnqueueCollectionAsync(stoppingToken);
+                await scope.ServiceProvider.GetRequiredService<NewsProcessingSchedule>().EnqueueAsync(stoppingToken);
                 if (tick++ % FeedRefreshEveryTicks == 0)
                     await schedule.EnqueueFeedRefreshAsync(stoppingToken);
             }

@@ -16,5 +16,8 @@ public sealed class NewsRawEntity
     public DateTimeOffset FetchedAt { get; set; }
     public string Status { get; set; } = string.Empty;
     public string? RejectionReason { get; set; }
+    public int? Importance { get; set; }
+    public JsonElement? FilterJson { get; set; }
+    public Vector? Embedding { get; set; }
     public string? LastError { get; set; }
 }

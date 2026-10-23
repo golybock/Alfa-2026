@@ -8,6 +8,9 @@ using AlfaNews.Core.Importing;
 using AlfaNews.Core.Profiles;
 using Microsoft.Extensions.Configuration;
 using AlfaNews.Worker;
+using AlfaNews.Worker.Importing;
+using AlfaNews.Worker.Profiles;
+using AlfaNews.Worker.Queue;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Pgvector.EntityFrameworkCore;
@@ -294,7 +297,7 @@ public sealed class JobQueueDatabaseTests(PostgresFixture fixture) : IClassFixtu
         Guid id;
         await using (var db = fixture.CreateDb())
         {
-            var job = await new JobQueue(db, TimeProvider.System).EnqueueAsync(new ParseNewsJob("process-restart"), null, null, CancellationToken.None);
+            var job = await new JobQueue(db, TimeProvider.System).EnqueueAsync(new ParseNewsJob(Guid.NewGuid().ToString()), null, null, CancellationToken.None);
             id = job.Id;
             job.Status = "running";
             job.Attempts = 1;
@@ -314,7 +317,7 @@ public sealed class JobQueueDatabaseTests(PostgresFixture fixture) : IClassFixtu
                     var job = await db.BackgroundJobRows.AsNoTracking().SingleAsync(row => row.Id == id, timeout.Token);
                     if (job.Status == "failed")
                     {
-                        Assert.Equal("not_implemented", job.LastError);
+                        Assert.Equal("news_not_found", job.LastError);
                         Assert.Equal(2, job.Attempts);
                         break;
                     }
@@ -391,6 +394,7 @@ public sealed class JobQueueDatabaseTests(PostgresFixture fixture) : IClassFixtu
     {
         await using var db = fixture.CreateDb();
         await db.BackgroundJobRows.ExecuteDeleteAsync();
+        await db.SourceRows.ExecuteUpdateAsync(update => update.SetProperty(row => row.Enabled, false));
     }
 
     private ServiceProvider CreateServices(params IJobHandler[] handlers)

@@ -100,7 +100,7 @@ for name in sorted(public_types):
         lines += ['}', '']
 (ROOT / 'api.ts').write_text('\n'.join(lines).rstrip('\n'), encoding='utf-8')
 
-schema_roots = ['NewsExtraction','PdfPageExtraction','AgentPlan','InsightDraft','CriticResult','ChatDraft','ScopeGateResult',
+schema_roots = ['NewsTriage','NewsExtraction','PdfPageExtraction','AgentPlan','InsightDraft','CriticResult','ChatDraft','ScopeGateResult',
                 'FeedResponse','InsightDto','ChatAnswerDto','JobResponse','DocumentResponse','PageReviewRequest','UserActivityRequest']
 (ROOT / 'schemas').mkdir(exist_ok=True)
 for name in schema_roots:

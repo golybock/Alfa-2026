@@ -1,5 +1,5 @@
 {
-  "pack_version": "2.0.3",
+  "pack_version": "2.1.0",
   "created_on": "2026-10-22",
   "language": "en",
   "generated_user_text_language": "ru",
@@ -153,6 +153,23 @@
           "QUESTION_JSON"
         ]
       }
+    },
+    "NewsTriage": {
+      "system": "news-triage.system.txt",
+      "user": "news-triage.user.txt",
+      "output_type": "NewsTriage",
+      "schema": "schemas/NewsTriage.schema.json",
+      "model_config_key": "deepseek_no_thinking",
+      "max_output_tokens": 6000,
+      "prompt_version": "2.1.0",
+      "placeholders": {
+        "system": [
+          "OUTPUT_SCHEMA_JSON"
+        ],
+        "user": [
+          "INPUT_JSON"
+        ]
+      }
     }
   },
   "sha256": {
@@ -180,7 +197,10 @@
     "schemas/ScopeGateResult.schema.json": "dc594ca4f60f59a27073c6ef31111001e295372e99599cb706c1118550e9fb34",
     "scope-gate.system.txt": "5288b92f9d115b96373fd471dafe9fa90657facf56b6993cd26c41d0f77f3c00",
     "scope-gate.user.txt": "7e025fd14f0f7ce140814662ef72a7e900a8a795ec8ddd911abdc82b0f8edced",
-    "verify_pack.py": "3932618008d1110e792bdfbdb852540786a441c9d1e16fa54eaf617154b3e62b"
+    "verify_pack.py": "872b2afe21107a8c4e9cfbe9a9e476a57a9c13959c0ee42e456993e4f416340c",
+    "news-triage.system.txt": "e9c9c0a7ab1d52351cba95fa96fb524fc3d51cc64e2a0306460a5db891f51a2d",
+    "news-triage.user.txt": "a9f9b061578314d3222d42d109891590cd00e5ac7e62de887d9c5df44176d20c",
+    "schemas/NewsTriage.schema.json": "1fdfc15e1dea92659ebd815a39e4d36c9dacd7f0eaf60542d860345ee2a7331b"
   },
   "hash_normalization": "lf_no_final_whitespace"
 }

@@ -10,6 +10,36 @@ namespace AlfaNews.Tests;
 
 public sealed class CollectNewsServiceTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
+    [PostgresFact]
+    public async Task CollectsMoreThanThirtyArticlesAndMarksSpecializedSourceImportant()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var feed = "";
+        using var server = new LocalHttpServer(_ => new LocalResponse(200, feed, "application/xml"));
+        feed = "<rss><channel>" + string.Concat(Enumerable.Range(0, 40).Select(index =>
+            $"<item><title>Новость {index}</title><link>{server.BaseUrl}/article/{index}</link><pubDate>{now:R}</pubDate><full-text>{new string('а', 500)}</full-text></item>")) + "</channel></rss>";
+        await using var db = fixture.CreateDb();
+        var source = new SourceEntity
+        {
+            Id = "forty_articles",
+            Name = "Синтетический",
+            FeedUrl = server.BaseUrl + "/rss",
+            Kind = "media",
+            AllowedHosts = JsonSerializer.SerializeToElement(new[] { "127.0.0.1" }),
+            Enabled = true,
+            IsSpecialized = true,
+            Reliability = 1,
+            ValidationStatus = "checked"
+        };
+        db.SourceRows.Add(source);
+        await db.SaveChangesAsync();
+        using var fetcher = new SafeFetcher(true, TimeSpan.Zero);
+        var service = new CollectNewsService(db, fetcher, TimeProvider.System, NullLogger<CollectNewsService>.Instance);
+        Assert.Equal(40, (await service.CollectAsync([source.Id], CancellationToken.None)).Single().Collected);
+        Assert.All(await db.NewsRawRows.Where(row => row.SourceId == source.Id).ToArrayAsync(), row => Assert.Equal(1, row.Importance));
+        Assert.Equal(0, (await service.CollectAsync([source.Id], CancellationToken.None)).Single().Collected);
+    }
+
     private const string ArticleText = "Синтетический абзац для проверки сбора новостей из ленты источника и сохранения полного текста статьи. ";
 
     [PostgresFact]
@@ -64,8 +94,8 @@ public sealed class CollectNewsServiceTests(PostgresFixture fixture) : IClassFix
         await db.SaveChangesAsync();
 
         using var fetcher = new SafeFetcher(allowPrivateAddresses: true, TimeSpan.Zero);
-        var service = new CollectNewsService(db, fetcher, new JobQueue(db, TimeProvider.System), TimeProvider.System,
-            new ConfigurationBuilder().Build(), NullLogger<CollectNewsService>.Instance);
+        var service = new CollectNewsService(db, fetcher, TimeProvider.System,
+            NullLogger<CollectNewsService>.Instance);
 
         var summaries = await service.CollectAsync(ids, CancellationToken.None);
         var ok = summaries.Single(summary => summary.SourceId == ids[0]);
@@ -86,9 +116,13 @@ public sealed class CollectNewsServiceTests(PostgresFixture fixture) : IClassFix
         Assert.Equal("empty_body", rows.Single(row => row.Title == "Пустая страница").LastError);
         Assert.DoesNotContain(rows, row => row.Title is "Старая" or "Сбой сервера");
 
+        Assert.All(rows.Where(row => row.Status == "queued"), row => Assert.Null(row.Importance));
+        await new AlfaNews.Core.Ingest.NewsProcessingSchedule(db, new JobQueue(db, TimeProvider.System), TimeProvider.System).EnqueueAsync(CancellationToken.None);
+        var triageJob = await db.BackgroundJobRows.SingleAsync(row => row.Kind == "TriageNews");
         var queuedIds = rows.Where(row => row.Status == "queued").Select(row => row.Id.ToString()).ToHashSet();
         var parseJobs = await db.BackgroundJobRows.AsNoTracking().Where(row => row.Kind == "ParseNews").ToListAsync();
-        Assert.True(queuedIds.IsSubsetOf(parseJobs.Select(row => row.Payload.GetProperty("news_raw_id").GetString()!).ToHashSet()));
+        Assert.DoesNotContain(parseJobs, job => queuedIds.Contains(job.Payload.GetProperty("news_raw_id").GetString()!));
+        Assert.True(queuedIds.SetEquals(triageJob.Payload.GetProperty("news_raw_ids").EnumerateArray().Select(value => value.GetString()!)));
 
         var source = await db.SourceRows.AsNoTracking().SingleAsync(row => row.Id == ids[0]);
         Assert.NotNull(source.LastSuccessAt);

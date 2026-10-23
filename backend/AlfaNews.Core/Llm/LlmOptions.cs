@@ -12,6 +12,7 @@ public sealed class LlmOptions
     public string DeepSeekReasoningLevel { get; set; } = "medium";
     public string GlmReasoningLevel { get; set; } = "low";
     public bool DeepSeekThinkingEnabled { get; set; } = true;
+    public bool TriageUseGlm { get; set; }
     public bool StructuredOutput { get; set; } = true;
     public int MaxOutputTokens { get; set; } = 32000;
     public int ChatMaxOutputTokens { get; set; } = 8000;
@@ -30,15 +31,16 @@ public sealed class LlmOptions
 
     public LlmRoute Route(LlmTask task, LlmTask originalTask)
     {
-        var glm = task is LlmTask.PdfOcr or LlmTask.Critic;
+        var triage = originalTask == LlmTask.NewsTriage;
+        var glm = task is LlmTask.PdfOcr or LlmTask.Critic || triage && TriageUseGlm;
         var chat = originalTask is LlmTask.Chat or LlmTask.ScopeGate;
         return new LlmRoute(glm ? GlmModel : DeepSeekModel,
             glm ? GlmReasoningLevel : DeepSeekReasoningLevel,
-            chat ? ChatMaxOutputTokens : MaxOutputTokens,
+            triage ? 6000 : chat ? ChatMaxOutputTokens : MaxOutputTokens,
             task == LlmTask.Critic ? CriticTimeoutSeconds : TimeoutSeconds,
             glm ? GlmInputEstimateRubPerMillion : DeepSeekInputEstimateRubPerMillion,
             glm ? GlmOutputEstimateRubPerMillion : DeepSeekOutputEstimateRubPerMillion,
-            glm || DeepSeekThinkingEnabled);
+            glm || !triage && DeepSeekThinkingEnabled);
     }
 
     public void Validate()

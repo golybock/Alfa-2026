@@ -5,15 +5,15 @@ using AlfaNews.Core.Data.Entities;
 using AlfaNews.Core.Processing;
 using Microsoft.EntityFrameworkCore;
 
-namespace AlfaNews.Worker;
+namespace AlfaNews.Worker.Importing;
 
-public sealed class RebuildProfilesJobHandler(ProfileBuildService service, AlfaNewsDbContext db) : IJobHandler
+public sealed class ImportCsvJobHandler(CsvImportService service, AlfaNewsDbContext db) : IJobHandler
 {
-    public string Kind => JobKinds.Name<RebuildProfilesJob>();
+    public string Kind => JobKinds.Name<ImportCsvJob>();
 
     public async Task<JobResult> HandleAsync(BackgroundJobEntity job, CancellationToken cancellationToken)
     {
-        await service.BuildAsync(job.Payload.Deserialize<RebuildProfilesJob>(JobKinds.JsonOptions)!, cancellationToken, job.Id);
+        await service.ImportAsync(job.Payload.Deserialize<ImportCsvJob>(JobKinds.JsonOptions)!, cancellationToken, job.Id);
         var completed = await db.BackgroundJobRows.AsNoTracking()
             .SingleAsync(row => row.Id == job.Id && row.Status == "done", cancellationToken);
         return new JobResult(completed.Stage, completed.ResultType, completed.ResultId);

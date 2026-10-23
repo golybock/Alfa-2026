@@ -115,6 +115,7 @@ public sealed class LlmBudget(IServiceScopeFactory scopes, TimeProvider timeProv
     public static string Stage(LlmTask task) => task switch
     {
         LlmTask.NewsExtract => "news_extract",
+        LlmTask.NewsTriage => "news_triage",
         LlmTask.PdfOcr => "pdf_ocr",
         LlmTask.ScopeGate => "scope_gate",
         _ => task.ToString().ToLowerInvariant()
