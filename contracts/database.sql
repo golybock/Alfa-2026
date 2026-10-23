@@ -198,7 +198,7 @@ CREATE TABLE research_chunk (
 CREATE INDEX research_fts_idx ON research_chunk USING gin(search_text);
 
 CREATE TABLE feed_snapshot (
-    company_id text PRIMARY KEY REFERENCES company(id),
+    company_id text NOT NULL REFERENCES company(id),
     as_of timestamptz NOT NULL,
     news_period_from timestamptz NOT NULL,
     news_period_to timestamptz NOT NULL,
@@ -206,7 +206,9 @@ CREATE TABLE feed_snapshot (
     items_json jsonb NOT NULL,
     last_updated_at timestamptz NOT NULL,
     collection_started_at timestamptz,
-    refresh_status text NOT NULL
+    refresh_status text NOT NULL,
+    mode text NOT NULL DEFAULT 'live' CHECK (mode IN ('live','demo')),
+    PRIMARY KEY (company_id, mode)
 );
 CREATE TABLE insight (
     id uuid PRIMARY KEY,

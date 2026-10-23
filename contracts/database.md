@@ -15,7 +15,7 @@
 | source / news_raw | Конфигурация источника, исходный текст, URL, дата, статус и причина отказа |
 | event / event_source / event_tag | Валидированная NewsExtraction и ссылки на явные дубли; не кластер событий |
 | research_doc / research_page / research_chunk | PDF, страницы и блоки; PdfPageExtraction, ChartDraft и независимая сверка |
-| feed_snapshot | Один последний порядок компании; items_json = FeedItemDto[]; role в ключе отсутствует |
+| feed_snapshot | Последний порядок компании для режима mode (live — живая лента, demo — заранее посчитанный демо-снимок); ключ (company_id, mode); items_json = FeedItemDto[]; role в ключе отсутствует |
 | insight | Версия полной карточки; body_json = InsightDto только при ready |
 | chat_message | Один вопрос и его ChatAnswerDto; история строго user × insight |
 | feedback | Последняя оценка пользователя для company × event; hide влияет на его выдачу |

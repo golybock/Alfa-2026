@@ -62,6 +62,17 @@
 - Описание `data/taxonomy.json` в `contracts/inputs.md` и `AGENTS.md`.
 - Тест без рассуждений DeepSeek (тот же сценарий): извлечение новостей 3/3 без починок, 0,33–0,41 ₽ и 5–7 с вместо 0,48–1,24 ₽ и 16–24 с, качество фактов и цитат на уровне. Черновики карточек — 0 из 2: ссылки на несуществующие `E*` и числа без доказательств, починка не помогла (3,42 ₽ за прогон). Решение Артёма: рассуждения DeepSeek остаются включёнными везде (кроме фильтра заголовков, как было), флаг по задачам не вводим.
 
+## Остаток backend по CLAUDE.md (23.10, ночь)
+
+- Чат A13 ([docs/a13-chat.md](a13-chat.md)): `POST/GET /api/insights/{id}/chat`, `ChatService` (лимиты, повтор, приватная история), `ChatResponder` + `AnswerChatJobHandler` (scope gate → один `ChatDraft` по карточке, проверки `InsightChecks.ValidateClaims`, одна починка шлюза). Профиль и данные о пользователе в контекст не идут; история — только этот чат. `result_type` job — `chat`. Живой прогон на модели не выполнялся.
+- A09.4–5: ручная сверка страницы PDF (`ResearchReview`, `POST /api/admin/documents/{id}/pages/{pageNo}/review`, If-Match, пересчёт векторов изменённых блоков). Зависимые карточки не помечаются (решение Артёма).
+- Калибровка e5 на ~500 реальных новостях ([calibration-thresholds.md](calibration-thresholds.md)): склейка пересказов при 0,93 ненадёжна (рекомендация — выключить), похожие новости — поднять 0,84 → 0,86. Score: на 63 событиях × 3 компании (51,65 ₽) — `ranking-v2` (factor 0,30, product 0,15, MinBase 0,30), матрица продакта для 41/16/46 с двумя правками, без правила payroll→taxes; ограничение — факторные теги извлечения слишком широкие.
+- ALF-58: инструкция разметки и `tools/alf58_triage.py` ([alf58-triage-labeling.md](alf58-triage-labeling.md)).
+- Демо-снимок: `feed_snapshot.mode` (live/demo) в ключе, `PrecomputeDemoJob` + команда `precompute-demo`, чтение по `Feed:Mode`.
+- Третья компания в `FEED_COMPANY_IDS` сменилась на `U_258515` (ОКВЭД 46.90, оптовая торговля) вместо `U_12959`.
+- Параллельность Worker: исполнители полос и предел запросов к модели в `.env` (`QUEUE_*_SLOTS`, `LLM_MAX_PARALLEL_REQUESTS`), откладывание задания (`JobResult.Defer`) для карточки второй роли, параллельный точный дубль новости привязывается к событию.
+- D09: `GET /api/insights/{id}/evidence/{evidenceId}`, `POST /api/insights/{id}/feedback` (`FeedbackService`, upsert по пользователь × компания × событие).
+
 ## Что уже сделано в этой сессии (не закоммичено)
 
 - Очередь: полосы `data/news/documents/insights/chat` (`JobKinds.InLane`, `Worker`), атомарный захват через условный UPDATE; `Llm:MaxParallelRequests=6`; `RecoverAsync` без мёртвого условия про ключ.
@@ -77,7 +88,7 @@
 ## Живая проверка: как гонять
 
 - Отдельная база `alfanews_a07_live_agent` в Docker-PostgreSQL, CSV и профили уже импортированы, таксономия залита, источники выключены.
-- Лаунчер в scratchpad сессии: `live.sh` (задаёт строку подключения на тестовую базу, `Llm__UseMock=false`, `Llm__DailyLimitRub=200`, `Feed__CompanyIds=U_68157,U_71942,U_12959`, пустой `Data__InputPath` только с `taxonomy.json`). Команда `dotnet run` запускается с рабочей папкой проекта Worker, поэтому пути к файлам — только абсолютные.
+- Лаунчер в scratchpad сессии: `live.sh` (задаёт строку подключения на тестовую базу, `Llm__UseMock=false`, `Llm__DailyLimitRub=200`, `Feed__CompanyIds=U_68157,U_71942,U_258515`, пустой `Data__InputPath` только с `taxonomy.json`). Команда `dotnet run` запускается с рабочей папкой проекта Worker, поэтому пути к файлам — только абсолютные.
 - Для PostgreSQL-тестов: `ALFANEWS_TEST_CONNECTION` на `127.0.0.1:15432`, база `postgres`, пароль из `.env`.
 - Бюджет живых проверок — 150–200 ₽. В тестовой базе потрачено 90,31 ₽: новости ~20, 6 карточек ~45, диагностика ~22, план и критик — в составе карточек.
 
