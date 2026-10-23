@@ -29,6 +29,8 @@ public sealed class LlmUsageConfiguration : IEntityTypeConfiguration<LlmUsageEnt
         builder.Property(entity => entity.DurationMs).HasColumnName("duration_ms").HasColumnType("bigint").IsRequired();
         builder.Property(entity => entity.CacheHit).HasColumnName("cache_hit").HasColumnType("boolean").IsRequired();
         builder.Property(entity => entity.Error).HasColumnName("error").HasColumnType("text");
+        builder.Property(entity => entity.FinishReason).HasColumnName("finish_reason").HasColumnType("text");
+        builder.Property(entity => entity.HttpStatus).HasColumnName("http_status").HasColumnType("integer");
         builder.Property(entity => entity.CreatedAt).HasColumnName("created_at").HasColumnType("timestamptz").IsRequired();
         builder.HasIndex(entity => entity.CreatedAt).HasDatabaseName("usage_date_idx");
     }

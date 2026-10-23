@@ -1,3 +1,4 @@
+using AlfaNews.Core.Feed;
 using AlfaNews.Core.Ingest;
 
 namespace AlfaNews.Worker.Queue;
@@ -5,7 +6,6 @@ namespace AlfaNews.Worker.Queue;
 public sealed class JobScheduler(IServiceScopeFactory scopes, IConfiguration configuration, ILogger<JobScheduler> logger) : BackgroundService
 {
     private static readonly TimeSpan TickInterval = TimeSpan.FromSeconds(30);
-    private const int FeedRefreshEveryTicks = 4;
 
     private async Task LoadSourceCatalogAsync(CancellationToken cancellationToken)
     {
@@ -31,11 +31,31 @@ public sealed class JobScheduler(IServiceScopeFactory scopes, IConfiguration con
         }
     }
 
+    private async Task LoadTaxonomyAsync(CancellationToken cancellationToken)
+    {
+        var path = Path.Combine(configuration["Data:InputPath"] ?? "data", "taxonomy.json");
+        if (!File.Exists(path))
+        {
+            logger.LogWarning("Каталог таксономии не найден: {Path}.", path);
+            return;
+        }
+        try
+        {
+            await using var scope = scopes.CreateAsyncScope();
+            var count = await scope.ServiceProvider.GetRequiredService<TaxonomyCatalogLoader>().LoadAsync(path, cancellationToken);
+            logger.LogInformation("Каталог таксономии загружен: {Count} факторов.", count);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogError("Не удалось загрузить каталог таксономии: {ErrorType}.", exception.GetType().Name);
+        }
+    }
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         await LoadSourceCatalogAsync(stoppingToken);
+        await LoadTaxonomyAsync(stoppingToken);
         using var timer = new PeriodicTimer(TickInterval);
-        var tick = 0;
         do
         {
             try
@@ -44,8 +64,8 @@ public sealed class JobScheduler(IServiceScopeFactory scopes, IConfiguration con
                 var schedule = scope.ServiceProvider.GetRequiredService<JobSchedule>();
                 await schedule.EnqueueCollectionAsync(stoppingToken);
                 await scope.ServiceProvider.GetRequiredService<NewsProcessingSchedule>().EnqueueAsync(stoppingToken);
-                if (tick++ % FeedRefreshEveryTicks == 0)
-                    await schedule.EnqueueFeedRefreshAsync(stoppingToken);
+                await schedule.EnqueueFeedRefreshAsync(stoppingToken);
+                await schedule.EnqueueMissingEmbeddingsAsync(stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {

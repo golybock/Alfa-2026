@@ -96,6 +96,9 @@ services:
             Data__BuildProfilesOnStartup: "true"
             Data__ProfilesReportPath: /reports/profile_candidates.json
             Feed__CompanyIds: ${FEED_COMPANY_IDS:-}
+            Feed__RefreshIntervalSeconds: ${FEED_REFRESH_INTERVAL_SECONDS:-86400}
+            Ranking__MinBase: ${RANKING_MIN_BASE:-0.20}
+            Ranking__MinScore: ${RANKING_MIN_SCORE:-0.15}
             TestJob__Enabled: ${TEST_JOB_ENABLED:-false}
             TestJob__Text: ${TEST_JOB_TEXT:-Очередь Worker работает.}
             Llm__UseMock: ${LLM_USE_MOCK:-true}
@@ -107,11 +110,11 @@ services:
             Llm__DeepSeekThinkingEnabled: ${LLM_DEEPSEEK_THINKING_ENABLED:-true}
             Llm__MaxOutputTokens: "32000"
             Llm__ChatMaxOutputTokens: "8000"
-            Llm__DeepSeekInputEstimateRubPerMillion: ${LLM_DEEPSEEK_INPUT_ESTIMATE_RUB_PER_MILLION:-500}
+            Llm__DeepSeekInputEstimateRubPerMillion: ${LLM_DEEPSEEK_INPUT_ESTIMATE_RUB_PER_MILLION:-55}
             Llm__StructuredOutput: ${LLM_STRUCTURED_OUTPUT:-true}
-            Llm__DeepSeekOutputEstimateRubPerMillion: ${LLM_DEEPSEEK_OUTPUT_ESTIMATE_RUB_PER_MILLION:-500}
-            Llm__GlmInputEstimateRubPerMillion: ${LLM_GLM_INPUT_ESTIMATE_RUB_PER_MILLION:-100}
-            Llm__GlmOutputEstimateRubPerMillion: ${LLM_GLM_OUTPUT_ESTIMATE_RUB_PER_MILLION:-100}
+            Llm__DeepSeekOutputEstimateRubPerMillion: ${LLM_DEEPSEEK_OUTPUT_ESTIMATE_RUB_PER_MILLION:-100}
+            Llm__GlmInputEstimateRubPerMillion: ${LLM_GLM_INPUT_ESTIMATE_RUB_PER_MILLION:-22}
+            Llm__GlmOutputEstimateRubPerMillion: ${LLM_GLM_OUTPUT_ESTIMATE_RUB_PER_MILLION:-50}
             Llm__CriticEnabled: ${CRITIC_ENABLED:-true}
             Llm__CriticScope: ${CRITIC_SCOPE:-all_full}
         volumes:

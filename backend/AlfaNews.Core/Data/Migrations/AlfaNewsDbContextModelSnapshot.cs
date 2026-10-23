@@ -69,6 +69,10 @@ partial class AlfaNewsDbContextModelSnapshot : ModelSnapshot
                     .HasColumnType("uuid")
                     .HasColumnName("id");
 
+                b.Property<JsonElement?>("ArgumentsJson")
+                    .HasColumnType("jsonb")
+                    .HasColumnName("arguments_json");
+
                 b.Property<long>("DurationMs")
                     .HasColumnType("bigint")
                     .HasColumnName("duration_ms");
@@ -82,6 +86,10 @@ partial class AlfaNewsDbContextModelSnapshot : ModelSnapshot
                 b.Property<int>("Ordinal")
                     .HasColumnType("integer")
                     .HasColumnName("ordinal");
+
+                b.Property<JsonElement?>("ResultJson")
+                    .HasColumnType("jsonb")
+                    .HasColumnName("result_json");
 
                 b.Property<Guid>("RunId")
                     .HasColumnType("uuid")
@@ -789,6 +797,14 @@ partial class AlfaNewsDbContextModelSnapshot : ModelSnapshot
                 b.Property<string>("Error")
                     .HasColumnType("text")
                     .HasColumnName("error");
+
+                b.Property<string>("FinishReason")
+                    .HasColumnType("text")
+                    .HasColumnName("finish_reason");
+
+                b.Property<int?>("HttpStatus")
+                    .HasColumnType("integer")
+                    .HasColumnName("http_status");
 
                 b.Property<long>("InputTokens")
                     .HasColumnType("bigint")

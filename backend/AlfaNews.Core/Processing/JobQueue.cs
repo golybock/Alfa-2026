@@ -50,7 +50,7 @@ public sealed class JobQueue(AlfaNewsDbContext db, TimeProvider timeProvider)
     }
 
     public Task<int> RecoverAsync(CancellationToken cancellationToken) => db.BackgroundJobRows
-        .Where(row => row.Status == "running" && row.LastError != "llm_key_required")
+        .Where(row => row.Status == "running")
         .ExecuteUpdateAsync(update => update.SetProperty(row => row.Status, "queued")
             .SetProperty(row => row.Stage, "queued").SetProperty(row => row.StartedAt, (DateTimeOffset?)null)
             .SetProperty(row => row.FinishedAt, (DateTimeOffset?)null), cancellationToken);

@@ -4,6 +4,7 @@ using System.Text.Json;
 using AlfaNews.Contracts.Processing;
 using AlfaNews.Core.Data;
 using AlfaNews.Core.Data.Entities;
+using AlfaNews.Core.Feed;
 using AlfaNews.Core.Ingest;
 using AlfaNews.Core.Llm;
 using AlfaNews.Core.Processing;
@@ -60,7 +61,9 @@ public sealed class NewsProcessingTests(PostgresFixture fixture) : IClassFixture
         var gateway = new LlmGateway(db, options, new LlmPromptCatalog(), client, budget, TimeProvider.System, NullLogger<LlmGateway>.Instance);
         var queue = new JobQueue(db, TimeProvider.System);
         var schedule = new NewsProcessingSchedule(db, queue, TimeProvider.System);
-        var triage = new NewsTriageService(db, gateway, schedule);
+        using var http = new HttpClient(new EmbedHandler());
+        var triage = new NewsTriageService(db, gateway, schedule, new NewsEmbeddings(http, new ConfigurationBuilder().Build()),
+            new NewsSearch(db, new ConfigurationBuilder().Build()));
         var payload = new TriageNewsJob(rows.Select(row => row.Id.ToString()).ToArray());
         var job = await queue.EnqueueAsync(payload, null, null, CancellationToken.None);
         await triage.ProcessAsync(job, payload, CancellationToken.None);
@@ -127,7 +130,8 @@ public sealed class NewsProcessingTests(PostgresFixture fixture) : IClassFixture
         using var budget = new LlmBudget(services.GetRequiredService<IServiceScopeFactory>(), TimeProvider.System, options);
         var gateway = new LlmGateway(db, options, new LlmPromptCatalog(), client, budget, TimeProvider.System, NullLogger<LlmGateway>.Instance);
         using var http = new HttpClient(new EmbedHandler());
-        var processing = new NewsProcessing(db, gateway, new NewsEmbeddings(http, new ConfigurationBuilder().Build()), new JobQueue(db, TimeProvider.System), TimeProvider.System);
+        var processing = new NewsProcessing(db, gateway, new NewsEmbeddings(http, new ConfigurationBuilder().Build()), new NewsSearch(db, new ConfigurationBuilder().Build()),
+            new FeedRefreshService(db, new JobQueue(db, TimeProvider.System), new RankingOptions(), TimeProvider.System), TimeProvider.System);
         foreach (var row in new[] { first, duplicate, update, first })
             await processing.ProcessAsync(await NewJobAsync(db), row.Id, CancellationToken.None);
         Assert.Equal(2, client.Calls);
@@ -139,7 +143,32 @@ public sealed class NewsProcessingTests(PostgresFixture fixture) : IClassFixture
         Assert.True(await db.EventTagRows.AnyAsync(row => row.EventId == saved.Id && row.Kind == "country" && row.Code == "РОССИЯ"));
         Assert.NotEmpty(saved.SearchText.ToString());
         Assert.Equal(2, await db.EventRows.CountAsync(row => row.NewsRawId == first.Id || row.NewsRawId == update.Id));
-        Assert.True(await db.BackgroundJobRows.AnyAsync(row => row.Kind == "RefreshFeed"));
+        Assert.False(await db.BackgroundJobRows.AnyAsync(row => row.Kind == "RefreshFeed"));
+    }
+
+    [PostgresFact]
+    public async Task UnavailableEmbeddingsSkipE5AndStillExtract()
+    {
+        await using var db = fixture.CreateDb();
+        await db.SourceRows.Where(row => row.Id == "synthetic").ExecuteUpdateAsync(update => update.SetProperty(row => row.Enabled, true));
+        var row = NewRow(Guid.NewGuid().ToString(), 1);
+        row.Text = "Компания объявила о росте выручки на 14%. " + row.Id;
+        db.NewsRawRows.Add(row);
+        await db.SaveChangesAsync();
+        var client = new ExtractClient();
+        var options = new LlmOptions();
+        using var services = new ServiceCollection().AddAlfaNewsData(fixture.ConnectionString!).BuildServiceProvider();
+        using var budget = new LlmBudget(services.GetRequiredService<IServiceScopeFactory>(), TimeProvider.System, options);
+        var gateway = new LlmGateway(db, options, new LlmPromptCatalog(), client, budget, TimeProvider.System, NullLogger<LlmGateway>.Instance);
+        using var http = new HttpClient(new UnavailableHandler());
+        var processing = new NewsProcessing(db, gateway, new NewsEmbeddings(http, new ConfigurationBuilder().Build()), new NewsSearch(db, new ConfigurationBuilder().Build()),
+            new FeedRefreshService(db, new JobQueue(db, TimeProvider.System), new RankingOptions(), TimeProvider.System), TimeProvider.System);
+        await processing.ProcessAsync(await NewJobAsync(db), row.Id, CancellationToken.None);
+        Assert.Equal(1, client.Calls);
+        Assert.Equal("accepted", row.Status);
+        var saved = await db.EventRows.AsNoTracking().SingleAsync(item => item.NewsRawId == row.Id);
+        Assert.Null(saved.Embedding);
+        Assert.Equal("e5_unavailable", row.FilterJson!.Value.GetProperty("decision").GetString());
     }
 
     [PostgresFact]
@@ -161,7 +190,8 @@ public sealed class NewsProcessingTests(PostgresFixture fixture) : IClassFixture
         using var budget = new LlmBudget(services.GetRequiredService<IServiceScopeFactory>(), TimeProvider.System, options);
         var gateway = new LlmGateway(db, options, new LlmPromptCatalog(), client, budget, TimeProvider.System, NullLogger<LlmGateway>.Instance);
         using var http = new HttpClient(new EmbedHandler(sport: true));
-        var processing = new NewsProcessing(db, gateway, new NewsEmbeddings(http, new ConfigurationBuilder().Build()), new JobQueue(db, TimeProvider.System), TimeProvider.System);
+        var processing = new NewsProcessing(db, gateway, new NewsEmbeddings(http, new ConfigurationBuilder().Build()), new NewsSearch(db, new ConfigurationBuilder().Build()),
+            new FeedRefreshService(db, new JobQueue(db, TimeProvider.System), new RankingOptions(), TimeProvider.System), TimeProvider.System);
         await processing.ProcessAsync(await NewJobAsync(db), old.Id, CancellationToken.None);
         await processing.ProcessAsync(await NewJobAsync(db), sport.Id, CancellationToken.None);
         await processing.ProcessAsync(await NewJobAsync(db), footer.Id, CancellationToken.None);
@@ -169,6 +199,91 @@ public sealed class NewsProcessingTests(PostgresFixture fixture) : IClassFixture
         Assert.Equal("outside_window", old.RejectionReason);
         Assert.Equal("e5_clearly_unrelated", sport.RejectionReason);
         Assert.Equal(0, client.Calls);
+    }
+
+    [PostgresFact]
+    public async Task RetellingIsLinkedToTheEventBeforeTriageUnlessItBringsNewNumbers()
+    {
+        await using var db = fixture.CreateDb();
+        await db.SourceRows.Where(row => row.Id == "synthetic").ExecuteUpdateAsync(update => update.SetProperty(row => row.Enabled, true));
+        var prefix = Guid.NewGuid().ToString();
+        var original = NewRow(prefix + "original", 1);
+        original.Text = "Компания объявила о росте выручки на 14%.";
+        original.Title = "Выручка компании";
+        db.NewsRawRows.Add(original);
+        await db.SaveChangesAsync();
+        var client = new ExtractClient();
+        var options = new LlmOptions();
+        using var services = new ServiceCollection().AddAlfaNewsData(fixture.ConnectionString!).BuildServiceProvider();
+        using var budget = new LlmBudget(services.GetRequiredService<IServiceScopeFactory>(), TimeProvider.System, options);
+        var gateway = new LlmGateway(db, options, new LlmPromptCatalog(), client, budget, TimeProvider.System, NullLogger<LlmGateway>.Instance);
+        using var http = new HttpClient(new EmbedHandler());
+        var embeddings = new NewsEmbeddings(http, new ConfigurationBuilder().Build());
+        var search = new NewsSearch(db, new ConfigurationBuilder().Build());
+        var queue = new JobQueue(db, TimeProvider.System);
+        await new NewsProcessing(db, gateway, embeddings, search, new FeedRefreshService(db, queue, new RankingOptions(), TimeProvider.System),
+            TimeProvider.System).ProcessAsync(await NewJobAsync(db), original.Id, CancellationToken.None);
+        var saved = await db.EventRows.AsNoTracking().SingleAsync(row => row.NewsRawId == original.Id);
+        var retelling = NewRow(prefix + "retelling", null);
+        retelling.Text = "Выручка компании выросла на 14%, сообщила пресс-служба.";
+        retelling.Title = "Выручка компании";
+        var update = NewRow(prefix + "update", null);
+        update.Text = "Компания пересмотрела рост выручки до 16%.";
+        update.Title = "yes";
+        db.NewsRawRows.AddRange(retelling, update);
+        await db.SaveChangesAsync();
+        var triageClient = new TriageClient();
+        var triageGateway = new LlmGateway(db, options, new LlmPromptCatalog(), triageClient, budget, TimeProvider.System, NullLogger<LlmGateway>.Instance);
+        var payload = new TriageNewsJob([retelling.Id.ToString(), update.Id.ToString()]);
+        await new NewsTriageService(db, triageGateway, new NewsProcessingSchedule(db, queue, TimeProvider.System), embeddings, search)
+            .ProcessAsync(await queue.EnqueueAsync(payload, null, null, CancellationToken.None), payload, CancellationToken.None);
+        Assert.Equal("duplicate", retelling.Status);
+        Assert.Equal("semantic_duplicate", retelling.RejectionReason);
+        Assert.True(await db.EventSourceRows.AnyAsync(link => link.EventId == saved.Id && link.NewsRawId == retelling.Id));
+        Assert.NotEqual("duplicate", update.Status);
+        Assert.NotNull(update.Embedding);
+        Assert.Equal(1, triageClient.Calls);
+        Assert.Equal(1, client.Calls);
+    }
+
+    [PostgresFact]
+    public async Task SimilarNewsSearchReturnsOnlyEventsAboveTheThreshold()
+    {
+        await using var db = fixture.CreateDb();
+        var now = DateTimeOffset.UtcNow;
+        async Task<Guid> AddAsync(int axis, double weight)
+        {
+            var vector = new float[768];
+            vector[axis] = (float)weight;
+            vector[767] = (float)Math.Sqrt(1 - weight * weight);
+            var row = NewRow(Guid.NewGuid().ToString(), 1);
+            row.Status = "accepted";
+            db.NewsRawRows.Add(row);
+            var id = Guid.NewGuid();
+            db.EventRows.Add(new EventEntity
+            {
+                Id = id,
+                NewsRawId = row.Id,
+                ContentSha256 = row.TextSha256,
+                Headline = "Событие " + id,
+                PublishedAt = now.AddHours(-1),
+                ExtractionJson = JsonSerializer.SerializeToElement(new NewsExtraction("Событие", null, [], [], new NewsTags([], [], [], [], [])),
+                    LlmOutputValidator.JsonOptions),
+                InputVersion = "v-" + id,
+                CreatedAt = now,
+                Embedding = new Pgvector.Vector(vector),
+                SearchText = NpgsqlTypes.NpgsqlTsVector.Empty
+            });
+            await db.SaveChangesAsync();
+            return id;
+        }
+        var current = await AddAsync(700, 1);
+        var close = await AddAsync(700, 0.9);
+        var distant = await AddAsync(700, 0.8);
+        var hits = await new NewsSearch(db, new ConfigurationBuilder().Build())
+            .SearchAsync("событие", current, now.AddDays(-7), now, 5, CancellationToken.None);
+        Assert.Contains(hits, hit => hit.EventId == close);
+        Assert.DoesNotContain(hits, hit => hit.EventId == distant || hit.EventId == current);
     }
 
     private static NewsRawEntity NewRow(string key, int? importance) => new()
@@ -201,8 +316,8 @@ public sealed class NewsProcessingTests(PostgresFixture fixture) : IClassFixture
             var start = prompt.User.IndexOf("<input_json>", StringComparison.Ordinal) + "<input_json>".Length;
             var end = prompt.User.IndexOf("</input_json>", StringComparison.Ordinal);
             var input = JsonSerializer.Deserialize<JsonElement>(prompt.User[start..end]);
-            var text = input.GetProperty("text").GetString()!;
-            var result = new NewsExtraction("Рост выручки", null, [new ExtractedFact(text, text)], [], new NewsTags([], [], ["РОССИЯ"], [], []));
+            var text = input.GetProperty("lines")[0].GetProperty("text").GetString()!;
+            var result = new NewsExtractionDraft("Рост выручки", null, [new FactReference(text, 1, null, null)], [], new NewsTags([], [], ["РОССИЯ"], [], []));
             return Task.FromResult(new LlmClientResponse(JsonSerializer.Serialize(result, LlmOutputValidator.JsonOptions), ActualCostRub: 0));
         }
     }
@@ -224,6 +339,12 @@ public sealed class NewsProcessingTests(PostgresFixture fixture) : IClassFixture
         }
     }
 
+    private sealed class UnavailableHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            throw new HttpRequestException("TEI недоступен.");
+    }
+
     private sealed class EmbedHandler(bool sport = false) : HttpMessageHandler
     {
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
@@ -233,7 +354,8 @@ public sealed class NewsProcessingTests(PostgresFixture fixture) : IClassFixture
             var result = Enumerable.Range(0, count).Select(index =>
             {
                 var vector = new float[768];
-                vector[count == 1 ? sport ? 3 : 0 : index] = 1;
+                var text = input.GetProperty("inputs")[index].GetString()!;
+                vector[count == 1 ? sport ? 3 : 100 + text.Split('\n')[0].Sum(character => character) % 600 : index] = 1;
                 return vector;
             }).ToArray();
             return new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(result) };

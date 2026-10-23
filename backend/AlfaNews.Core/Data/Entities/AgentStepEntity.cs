@@ -11,6 +11,8 @@ public sealed class AgentStepEntity
     public int Ordinal { get; set; }
     public string Stage { get; set; } = string.Empty;
     public string? ToolName { get; set; }
+    public JsonElement? ArgumentsJson { get; set; }
+    public JsonElement? ResultJson { get; set; }
     public JsonElement EvidenceRefs { get; set; } = JsonSerializer.SerializeToElement(Array.Empty<object>());
     public string Summary { get; set; } = string.Empty;
     public long DurationMs { get; set; }

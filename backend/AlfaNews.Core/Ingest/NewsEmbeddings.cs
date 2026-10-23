@@ -36,6 +36,12 @@ public sealed class NewsEmbeddings(HttpClient http, IConfiguration configuration
         return new NewsEmbeddingResult(new Vector(vector), business, unrelated, unrelated >= 0.79 && unrelated - business >= 0.04);
     }
 
+    public async Task<Vector> EmbedPassageAsync(string text, CancellationToken cancellationToken) =>
+        new((await EmbedAsync(["passage: " + text[..Math.Min(text.Length, 12000)]], cancellationToken))[0]);
+
+    public async Task<Vector> EmbedQueryAsync(string text, CancellationToken cancellationToken) =>
+        new((await EmbedAsync(["query: " + text[..Math.Min(text.Length, 2000)]], cancellationToken))[0]);
+
     private async Task<float[][]> EmbedAsync(string[] inputs, CancellationToken cancellationToken)
     {
         var baseUrl = configuration["Embeddings:BaseUrl"] ?? "http://127.0.0.1:18081";

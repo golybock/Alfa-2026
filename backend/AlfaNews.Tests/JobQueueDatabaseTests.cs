@@ -137,7 +137,7 @@ public sealed class JobQueueDatabaseTests(PostgresFixture fixture) : IClassFixtu
     }
 
     [PostgresFact]
-    public async Task ScheduleDoesNotAccumulateActiveRefreshesWhenAsOfChanges()
+    public async Task ScheduleRefreshesEachListedCompanyOncePerInterval()
     {
         await ResetAsync();
         await using var db = fixture.CreateDb();
@@ -157,6 +157,9 @@ public sealed class JobQueueDatabaseTests(PostgresFixture fixture) : IClassFixtu
         Assert.Equal(companyCount, await db.BackgroundJobRows.CountAsync(row => row.Kind == "RefreshFeed"));
         await db.BackgroundJobRows.Where(row => row.Kind == "RefreshFeed" && row.CompanyId == "test_company_a")
             .ExecuteUpdateAsync(update => update.SetProperty(row => row.Status, "done"));
+        await schedule.EnqueueAsync(CancellationToken.None);
+        Assert.Equal(companyCount, await db.BackgroundJobRows.CountAsync(row => row.Kind == "RefreshFeed"));
+        clock.Now = clock.Now.AddDays(1);
         await schedule.EnqueueAsync(CancellationToken.None);
         Assert.Equal(companyCount + 1, await db.BackgroundJobRows.CountAsync(row => row.Kind == "RefreshFeed"));
     }
@@ -272,6 +275,40 @@ public sealed class JobQueueDatabaseTests(PostgresFixture fixture) : IClassFixtu
         {
             Directory.Delete(directory, true);
         }
+    }
+
+    [PostgresFact]
+    public async Task LanesTakeOnlyTheirKindsAndDoNotWaitForEachOther()
+    {
+        await ResetAsync();
+        await using var db = fixture.CreateDb();
+        var queue = new JobQueue(db, TimeProvider.System);
+        var news = await queue.EnqueueAsync(new ParseNewsJob("lane-news"), null, null, CancellationToken.None);
+        var document = await queue.EnqueueAsync(new FinalizePdfJob(Guid.NewGuid().ToString()), null, null, CancellationToken.None);
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        await using var services = CreateServices(
+            new TestHandler("ParseNews", async (_, token) =>
+            {
+                started.SetResult();
+                await release.Task.WaitAsync(token);
+                return new JobResult();
+            }),
+            new TestHandler("FinalizePdf", (_, _) => Task.FromResult(new JobResult())));
+        var dispatcher = services.GetRequiredService<JobDispatcher>();
+        var running = dispatcher.DispatchNextAsync(JobKinds.InLane(JobKinds.NewsLane), CancellationToken.None);
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.False(await dispatcher.DispatchNextAsync(JobKinds.InLane(JobKinds.NewsLane), CancellationToken.None));
+        Assert.True(await dispatcher.DispatchNextAsync(JobKinds.InLane(JobKinds.DocumentsLane), CancellationToken.None));
+        await db.Entry(document).ReloadAsync();
+        await db.Entry(news).ReloadAsync();
+        Assert.Equal("done", document.Status);
+        Assert.Equal("running", news.Status);
+        release.SetResult();
+        Assert.True(await running);
+        await db.Entry(news).ReloadAsync();
+        Assert.Equal("done", news.Status);
+        Assert.Equal(1, news.Attempts);
     }
 
     [PostgresFact]

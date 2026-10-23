@@ -1,5 +1,5 @@
 Extract the central event from the article in input_json using taxonomy_json.
-input_json contains the source title, article body, and publication timestamp when known. The body supplied here is the exact text against which quotations will be checked.
+input_json contains the source title, the article body split into numbered lines, and the publication timestamp when known. Facts cite these lines by number; quotations are cut from them by application code.
 
 <input_json>
 {{INPUT_JSON}}
@@ -9,4 +9,4 @@ input_json contains the source title, article body, and publication timestamp wh
 {{TAXONOMY_JSON}}
 </taxonomy_json>
 
-Return only NewsExtraction JSON.
+Return only NewsExtractionDraft JSON.

@@ -277,6 +277,8 @@ CREATE TABLE agent_step (
     evidence_refs jsonb NOT NULL DEFAULT '[]',
     summary text NOT NULL,
     duration_ms bigint NOT NULL,
+    arguments_json jsonb,
+    result_json jsonb,
     UNIQUE (run_id, ordinal)
 );
 CREATE TABLE llm_usage (
@@ -296,7 +298,9 @@ CREATE TABLE llm_usage (
     error text,
     created_at timestamptz NOT NULL,
     request_key text NOT NULL DEFAULT '',
-    reserved_cost_rub numeric(18,8) NOT NULL DEFAULT 0.0
+    reserved_cost_rub numeric(18,8) NOT NULL DEFAULT 0.0,
+    finish_reason text,
+    http_status integer
 );
 CREATE INDEX usage_date_idx ON llm_usage(created_at);
 CREATE INDEX usage_request_stage_idx ON llm_usage(request_key, stage);

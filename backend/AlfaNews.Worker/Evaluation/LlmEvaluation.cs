@@ -56,7 +56,7 @@ public sealed class LlmEvaluation(AlfaNewsDbContext db, LlmGateway gateway, LlmO
                         candidate = JsonSerializer.SerializeToElement(triage.Value, LlmOutputValidator.JsonOptions);
                         break;
                     case LlmTask.NewsExtract:
-                        var news = await ExecuteAsync<NewsExtraction>(request, test, cancellationToken);
+                        var news = await ExecuteAsync<NewsExtractionDraft>(request, test, cancellationToken);
                         replay = news.CacheHit;
                         candidate = JsonSerializer.SerializeToElement(news.Value, LlmOutputValidator.JsonOptions);
                         break;

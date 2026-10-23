@@ -10,7 +10,7 @@
 | payment | Ребро PAYER → BENEFICIARY, сумма и число платежей; без самопереводов |
 | company_profile | profile_json = CompanyProfile, включая продукты/ФТС/платёжные доли |
 | group_profile | profile_json = GroupProfile; только доступные участники GROUP_ID |
-| factor / sector_sensitivity / product_factor_rule | Общая таксономия и проверенные правила; матрица только двух отраслей |
+| factor / sector_sensitivity / product_factor_rule | Общая таксономия и правила из data/taxonomy.json; матрица демо-отраслей — черновик до ручной проверки |
 | app_user / auth_session / user_company_access | Учётки, хэши сессий, доступы company × ceo/cfo |
 | source / news_raw | Конфигурация источника, исходный текст, URL, дата, статус и причина отказа |
 | event / event_source / event_tag | Валидированная NewsExtraction и ссылки на явные дубли; не кластер событий |
@@ -20,8 +20,8 @@
 | chat_message | Один вопрос и его ChatAnswerDto; история строго user × insight |
 | feedback | Последняя оценка пользователя для company × event; hide влияет на его выдачу |
 | background_job | Kind + типизированный payload из backend/AlfaNews.Contracts/Processing; одна последовательная очередь |
-| agent_run / agent_step | Прогоны всех LLM-операций и понятный журнал шагов, не скрытые рассуждения |
-| llm_usage / llm_cache | Фактический расход и кэш валидированных ответов |
+| agent_run / agent_step | Прогоны всех LLM-операций и понятный журнал шагов, не скрытые рассуждения; arguments_json/result_json — аргументы и результат инструмента |
+| llm_usage / llm_cache | Фактический расход, finish_reason и http_status попытки; кэш валидированных ответов |
 | user_activity | Минимальный журнал действий: ID, серверное время, пользователь, компания, карточка, тип и ссылка evidence/action |
 
 ## Важные детали

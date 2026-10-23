@@ -20,6 +20,13 @@ public sealed class OcrPdfPageJobHandler(PdfProcessing service) : IJobHandler
         service.RecognizeAsync(job, job.Payload.Deserialize<OcrPdfPageJob>(JobKinds.JsonOptions)!, cancellationToken);
 }
 
+public sealed class EmbedContentJobHandler(ResearchSearch search) : IJobHandler
+{
+    public string Kind => JobKinds.Name<EmbedContentJob>();
+    public Task<JobResult> HandleAsync(BackgroundJobEntity job, CancellationToken cancellationToken) =>
+        search.IndexAsync(job.Payload.Deserialize<EmbedContentJob>(JobKinds.JsonOptions)!, cancellationToken);
+}
+
 public sealed class FinalizePdfJobHandler(PdfProcessing service) : IJobHandler
 {
     public string Kind => JobKinds.Name<FinalizePdfJob>();

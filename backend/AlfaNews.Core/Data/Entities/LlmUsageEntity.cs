@@ -22,5 +22,7 @@ public sealed class LlmUsageEntity
     public long DurationMs { get; set; }
     public bool CacheHit { get; set; }
     public string? Error { get; set; }
+    public string? FinishReason { get; set; }
+    public int? HttpStatus { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
 }

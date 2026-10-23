@@ -31,6 +31,22 @@ public sealed class JobSchedule(AlfaNewsDbContext db, JobQueue queue, TimeProvid
             await queue.EnqueueAsync(new CollectNewsJob([source.Id]), null, null, cancellationToken);
     }
 
+    public async Task EnqueueMissingEmbeddingsAsync(CancellationToken cancellationToken)
+    {
+        var embedKind = JobKinds.Name<EmbedContentJob>();
+        var recentFrom = timeProvider.GetUtcNow().AddMinutes(-10);
+        if (await db.BackgroundJobRows.AsNoTracking().AnyAsync(row => row.Kind == embedKind
+                && (row.Status == "queued" || row.Status == "running" || row.CreatedAt > recentFrom), cancellationToken))
+            return;
+        var chunks = await (from chunk in db.ResearchChunkRows.AsNoTracking()
+                            join page in db.ResearchPageRows.AsNoTracking() on chunk.PageId equals page.Id
+                            where chunk.Embedding == null && page.OcrStatus == "ready"
+                            orderby chunk.Id
+                            select new { chunk.Id, chunk.Version }).Take(500).ToListAsync(cancellationToken);
+        foreach (var chunk in chunks)
+            await queue.EnqueueAsync(new EmbedContentJob("research_chunk", chunk.Id.ToString(), chunk.Version), null, null, cancellationToken);
+    }
+
     public async Task EnqueueFeedRefreshAsync(CancellationToken cancellationToken)
     {
         var companyIds = (configuration["Feed:CompanyIds"] ?? string.Empty)
@@ -42,13 +58,15 @@ public sealed class JobSchedule(AlfaNewsDbContext db, JobQueue queue, TimeProvid
             .Where(company => company.ClType == "CLIENT" && companyIds.Contains(company.Id))
             .OrderBy(company => company.Id).Select(company => company.Id).ToArrayAsync(cancellationToken);
         var refreshKind = JobKinds.Name<RefreshFeedJob>();
-        var activeCompanies = await db.BackgroundJobRows.AsNoTracking()
-            .Where(row => row.Kind == refreshKind && row.OwnerUserId == null && (row.Status == "queued" || row.Status == "running"))
-            .Select(row => row.CompanyId).ToArrayAsync(cancellationToken);
-        var active = activeCompanies.ToHashSet(StringComparer.Ordinal);
         var now = timeProvider.GetUtcNow();
+        var recentFrom = now.AddSeconds(-configuration.GetValue("Feed:RefreshIntervalSeconds", 86400));
+        var recentCompanies = await db.BackgroundJobRows.AsNoTracking()
+            .Where(row => row.Kind == refreshKind && row.OwnerUserId == null
+                && (row.Status == "queued" || row.Status == "running" || row.CreatedAt > recentFrom))
+            .Select(row => row.CompanyId).ToArrayAsync(cancellationToken);
+        var recent = recentCompanies.ToHashSet(StringComparer.Ordinal);
         foreach (var company in companies)
-            if (!active.Contains(company))
+            if (!recent.Contains(company))
                 await queue.EnqueueAsync(new RefreshFeedJob(company, now), null, company, cancellationToken);
     }
 }

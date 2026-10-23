@@ -1,0 +1,69 @@
+using System.Text.Json;
+using AlfaNews.Contracts.Domain;
+using AlfaNews.Core.Insights;
+
+namespace AlfaNews.Tests;
+
+public sealed class InsightChecksTests
+{
+    private static readonly IReadOnlyDictionary<string, EvidenceDto> Evidence = new Dictionary<string, EvidenceDto>
+    {
+        ["E1"] = new(EvidenceType.PaymentAggregate, "Платёжные агрегаты компании", null, null, null, null, null, null, "outgoing.sector_shares",
+            JsonSerializer.SerializeToElement(new { coverage = 0.179m, shares = new Dictionary<string, decimal> { ["46"] = 0.42m } }), "test", null, false, null, null),
+        ["E2"] = new(EvidenceType.CompanyFeature, "Данные компании", null, null, null, null, null, null, "fts_countries",
+            JsonSerializer.SerializeToElement(new[] { "КИТАЙ" }), "test", null, false, null, null)
+    };
+
+    [Theory]
+    [InlineData(true, null)]
+    [InlineData(false, "bank_view:not_applicable")]
+    public void BankViewNeedsApplicableResearch(bool applicable, string? error)
+    {
+        var evidence = new Dictionary<string, EvidenceDto>(Evidence)
+        {
+            ["E3"] = new(EvidenceType.BankResearch, "Обзор", null, "Банк ожидает снижения ставки.", new DateOnly(2026, 9, 11), null, 1,
+                Guid.NewGuid().ToString(), "bank_view", null, null, ReviewStatus.NotReviewed, false, null, null)
+        };
+        var draft = JsonSerializer.SerializeToElement(new
+        {
+            headline = "Тест",
+            what_happened = new[] { "C1" },
+            claims = new[] { new { id = "C1", text = "Банк ожидает снижения ставки.", origin = "bank_analytics", refs = new[] { "E3" }, confidence = (string?)null } },
+            bank_view = new { status = "found", claim_ids = new[] { "C1" } },
+            suggested_questions = Array.Empty<string>()
+        });
+        var errors = InsightChecks.Validate(draft, evidence, applicable ? new HashSet<string> { "E3" } : new HashSet<string>());
+        if (error is null)
+            Assert.Empty(errors);
+        else
+            Assert.Equal(error, Assert.Single(errors));
+    }
+
+    [Theory]
+    [InlineData("Покрытие профилями составляет 17,9%, остальные 82,1% оборота приходятся на участников без карточки.", "source_fact", "E1", null)]
+    [InlineData("На компании оптовой торговли приходится 42% внешних исходящих платежей.", "source_fact", "E1", null)]
+    [InlineData("Данные о зависимости от поставщиков топлива отсутствуют.", "ai_inference", "E1", null)]
+    [InlineData("Платёжные доли не подтверждают поставки или долю затрат.", "ai_inference", "E1", null)]
+    [InlineData("Ключевой поставщик компании — оптовая торговля.", "ai_inference", "E1", "payment_overclaim")]
+    [InlineData("Доля выручки от оптовой торговли — 42%.", "source_fact", "E1", "payment_overclaim")]
+    [InlineData("Покрытие составляет 55%.", "source_fact", "E1", "number_not_in_evidence")]
+    [InlineData("В таможенных данных компании есть Китай.", "source_fact", "E2", null)]
+    [InlineData("Компания получает поставки из Китая по данным ФТС.", "source_fact", "E2", "fts_overclaim")]
+    [InlineData("Страны ФТС не доказывают поставки из Китая.", "ai_inference", "E2", null)]
+    public void ClaimsAreCheckedAgainstPaymentAndCustomsEvidence(string text, string origin, string reference, string? error)
+    {
+        var draft = JsonSerializer.SerializeToElement(new
+        {
+            headline = "Тест",
+            what_happened = new[] { "C1" },
+            claims = new[] { new { id = "C1", text, origin, refs = new[] { reference }, confidence = (string?)null } },
+            bank_view = new { status = "not_found", claim_ids = Array.Empty<string>() },
+            suggested_questions = Array.Empty<string>()
+        });
+        var errors = InsightChecks.Validate(draft, Evidence);
+        if (error is null)
+            Assert.Empty(errors);
+        else
+            Assert.Equal("claims:C1:" + error, Assert.Single(errors));
+    }
+}

@@ -1,6 +1,6 @@
 {
-  "pack_version": "2.1.0",
-  "created_on": "2026-10-22",
+  "pack_version": "2.3.0",
+  "created_on": "2026-10-23",
   "language": "en",
   "generated_user_text_language": "ru",
   "source_text_language": "preserve",
@@ -9,11 +9,11 @@
     "NewsExtract": {
       "system": "news-extract.system.txt",
       "user": "news-extract.user.txt",
-      "output_type": "NewsExtraction",
-      "schema": "schemas/NewsExtraction.schema.json",
+      "output_type": "NewsExtractionDraft",
+      "schema": "schemas/NewsExtractionDraft.schema.json",
       "model_config_key": "deepseek",
       "max_output_tokens": 32000,
-      "prompt_version": "2.0.1",
+      "prompt_version": "2.1.0",
       "placeholders": {
         "system": [
           "OUTPUT_SCHEMA_JSON"
@@ -31,7 +31,7 @@
       "schema": "schemas/AgentPlan.schema.json",
       "model_config_key": "deepseek",
       "max_output_tokens": 32000,
-      "prompt_version": "2.0.0",
+      "prompt_version": "2.2.0",
       "placeholders": {
         "system": [
           "OUTPUT_SCHEMA_JSON"
@@ -49,7 +49,7 @@
       "schema": "schemas/InsightDraft.schema.json",
       "model_config_key": "deepseek",
       "max_output_tokens": 32000,
-      "prompt_version": "2.0.1",
+      "prompt_version": "2.2.0",
       "placeholders": {
         "system": [
           "OUTPUT_SCHEMA_JSON"
@@ -105,7 +105,7 @@
       "schema": "schemas/CriticResult.schema.json",
       "model_config_key": "glm",
       "max_output_tokens": 32000,
-      "prompt_version": "2.0.1",
+      "prompt_version": "2.2.0",
       "placeholders": {
         "system": [
           "OUTPUT_SCHEMA_JSON"
@@ -173,16 +173,16 @@
     }
   },
   "sha256": {
-    "agent-draft.system.txt": "bcd55914c3946e62c692d4c6f5fff78f0f09fffb2674c289a0b0e76197e3b6d0",
+    "agent-draft.system.txt": "e6612a47187bdd2922dc2b58c0a845a6c1f665fda42e19bb69265c6af9d93664",
     "agent-draft.user.txt": "22f0859b991b0f85c5c6face4a5a12f1732877f2deb9776d95eb72a37bd4f899",
-    "agent-plan.system.txt": "1951e10df0cf53dec533eb538f2727761dea2ba8813f479dd714e20e8c07d53f",
+    "agent-plan.system.txt": "873ebcf73f1467ee160fffee090870b9ceaee1398f84e9f68726e802def1ec7f",
     "agent-plan.user.txt": "79d55605db62860cde6d5fcb640a7edc0346fa0da062a33b55fc618a07bcbd86",
     "chat.system.txt": "8755beb379674e655e9c276f6f88548ac1f41a704c31770f1b60821883b6ecb3",
     "chat.user.txt": "8d866d56397233d0891bad14b5dfd12b98dab74e5bf98f853d48ed0a99a2f503",
-    "critic.system.txt": "45ff72915ed709ce85123bd6608dfffc5d6e9cae2f8789fa1fd8f0b57b12c848",
+    "critic.system.txt": "b2ccf110525d3d138b1494333e6516849af30814cc6e29e1e1b358a5a4809e0e",
     "critic.user.txt": "345c6de09cd2ed33a46baa2449a1d0f6d12664a1a258f4d0a081a91b659a8fa3",
-    "news-extract.system.txt": "0ad01fe816a7296a0e9d84db7c43ed322dffaa7b801758b2cd33c475d5ebac85",
-    "news-extract.user.txt": "20eef06e9708a111efb0bd8388d6a132a87cdde6a13ff6b5016807810cdbb1a1",
+    "news-extract.system.txt": "8c6739db7c761e8ef8aab9d62a3586c13099ede094067038e9c3c7bed1b15ecf",
+    "news-extract.user.txt": "ea33a370d15813fe3c72e34f0c9fc049f4df4e2c494754abc89a1cca60f2c3ee",
     "pdf-ocr.system.txt": "f02070ceaed421ffa9e3b6e6bf95b60918cdde5589e67c6b6a6f3279e993b872",
     "pdf-ocr.user.txt": "80b601dd923b5222f871e35fee76e3565fab73b12eaf6f777374f0f1966d62dc",
     "README.md": "173afe033b5a7e48e83b8ea17706ddba074e59961fd558a30a99da8d78e12f3e",
@@ -192,7 +192,7 @@
     "schemas/ChatDraft.schema.json": "cd83cbb27cb3f2e3a166f3175e1b265b24254bfa553ec17cef7f236ca5b70742",
     "schemas/CriticResult.schema.json": "6af8c60be39a61bec73223bbd6bad59c90091034e3872031ed33c918999cfb6f",
     "schemas/InsightDraft.schema.json": "a40defbd6348d9d933c040cc6896d0e5cb8b093b4b627ca1a3e17b860c372a02",
-    "schemas/NewsExtraction.schema.json": "06fb3ec7294896e6ce0d1f7da35876c4bb7a1be4ea1528a4ad7d6fe6eb41593c",
+    "schemas/NewsExtractionDraft.schema.json": "e45a11a2d214e0619e36ec5642c89a534997477baf36d006b4ae7fd0752e45c4",
     "schemas/PdfPageExtraction.schema.json": "cf2c8362a13f62511e98d31012d7939ca126f2081237ac0129259c1e10a8ed9e",
     "schemas/ScopeGateResult.schema.json": "dc594ca4f60f59a27073c6ef31111001e295372e99599cb706c1118550e9fb34",
     "scope-gate.system.txt": "5288b92f9d115b96373fd471dafe9fa90657facf56b6993cd26c41d0f77f3c00",
