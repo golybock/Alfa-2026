@@ -29,7 +29,7 @@ export default function InsightCardBody({ insight }: InsightCardBodyProps) {
   const news = evidenceOf(insight.what_happened, claims, insight.evidence, "news");
   const bankSources = evidenceOf(insight.bank_view.claim_ids, claims, insight.evidence, "bank_research");
   const bankFound = insight.bank_view.status === "found";
-  const blocks = ["what", "why", "consequences", ...(insight.actions.length > 0 ? ["actions"] : []), "bank", "shown"];
+  const blocks = ["what", "why", "consequences", "actions", "bank", "shown"];
   const numberOf = (block: string) => blocks.indexOf(block) + 1;
 
   return (
@@ -38,8 +38,12 @@ export default function InsightCardBody({ insight }: InsightCardBodyProps) {
         <div className="flex flex-col gap-4">
           <CardBlock number={numberOf("what")} title="Что произошло">
             <ClaimList ids={insight.what_happened} claims={claims} evidence={insight.evidence} />
-            {news.map(({ id, item }) =>
-              item.url ? <SourceLinkRow key={id} title={`${id} · ${item.source}`} url={item.url} /> : null,
+            {news.length === 0 ? (
+              <p className="mt-3 text-xs text-zinc-500">Ссылка на источник: данных нет</p>
+            ) : (
+              news.map(({ id, item }) =>
+                item.url ? <SourceLinkRow key={id} title={`${id} · ${item.source}`} url={item.url} /> : null,
+              )
             )}
           </CardBlock>
           <CardBlock number={numberOf("why")} title="Почему это важно именно вам">
@@ -47,7 +51,7 @@ export default function InsightCardBody({ insight }: InsightCardBodyProps) {
           </CardBlock>
           <CardBlock number={numberOf("consequences")} title="Какие последствия возможны">
             {insight.consequences.length === 0 ? (
-              <p className="text-sm text-zinc-500">Последствия не выделены: недостаточно оснований.</p>
+              <p className="text-sm text-zinc-500">Данных нет</p>
             ) : (
               <ul className="flex flex-col gap-4">
                 {insight.consequences.map((consequence) => (
@@ -61,14 +65,18 @@ export default function InsightCardBody({ insight }: InsightCardBodyProps) {
           </CardBlock>
         </div>
         <div className="flex flex-col gap-4">
-          {insight.actions.length > 0 ? (
-            <CardBlock number={numberOf("actions")} title="Что стоит проверить">
-              <ClaimList ids={insight.actions} claims={claims} evidence={insight.evidence} />
-              <button type="button" className="mt-4 h-10 rounded-xl bg-zinc-100 px-4 text-sm font-medium hover:bg-zinc-200">
-                Связаться с менеджером
-              </button>
-            </CardBlock>
-          ) : null}
+          <CardBlock number={numberOf("actions")} title="Что стоит проверить">
+            {insight.actions.length === 0 ? (
+              <p className="text-sm text-zinc-500">Данных нет</p>
+            ) : (
+              <>
+                <ClaimList ids={insight.actions} claims={claims} evidence={insight.evidence} />
+                <button type="button" className="mt-4 h-10 rounded-xl bg-zinc-100 px-4 text-sm font-medium hover:bg-zinc-200">
+                  Связаться с менеджером
+                </button>
+              </>
+            )}
+          </CardBlock>
           <CardBlock number={numberOf("bank")} title="Как это оценивает банк">
             {bankFound ? (
               <div className="rounded-xl bg-red-50 p-4">
@@ -80,7 +88,7 @@ export default function InsightCardBody({ insight }: InsightCardBodyProps) {
                       {item.date ? ` · ${formatDate(item.date)}` : ""}
                       {item.page ? ` · стр. ${item.page}` : ""}
                     </p>
-                    {item.review_status ? <p>{reviewStatusLabels[item.review_status]}</p> : null}
+                    {item.review_status && item.review_status !== "not_reviewed" ? <p>{reviewStatusLabels[item.review_status]}</p> : null}
                     {item.page_image_url ? <SourceLinkRow title="Открыть страницу материала" url={item.page_image_url} /> : null}
                   </div>
                 ))}
@@ -93,11 +101,15 @@ export default function InsightCardBody({ insight }: InsightCardBodyProps) {
           </CardBlock>
           <CardBlock number={numberOf("shown")} title="Почему показано">
             <RankBadge rank={insight.relevance.rank} />
-            <ul className="mt-3 flex flex-col gap-2 text-sm">
-              {insight.relevance.reasons.map((reason) => (
-                <li key={reason.code}>{reason.text}</li>
-              ))}
-            </ul>
+            {insight.relevance.reasons.length === 0 ? (
+              <p className="mt-3 text-sm text-zinc-500">Данных нет</p>
+            ) : (
+              <ul className="mt-3 flex flex-col gap-2 text-sm">
+                {insight.relevance.reasons.map((reason) => (
+                  <li key={reason.code}>{reason.text}</li>
+                ))}
+              </ul>
+            )}
             <p className="mt-3 flex items-start gap-2 text-xs text-zinc-500">
               <Icon name="info" className="h-4 w-4 shrink-0" />
               {insight.verification.code_status === "passed" ? "Проверки кодом пройдены. " : "Проверки кодом не пройдены. "}
@@ -105,16 +117,18 @@ export default function InsightCardBody({ insight }: InsightCardBodyProps) {
               {insight.verification.critic.reason ? ` (${insight.verification.critic.reason})` : ""}
             </p>
           </CardBlock>
-          {insight.limitations.length > 0 ? (
-            <section className="rounded-2xl bg-zinc-100 p-5">
-              <h2 className="text-sm font-semibold">Чего мы о вас не знаем</h2>
+          <section className="rounded-2xl bg-zinc-100 p-5">
+            <h2 className="text-sm font-semibold">Чего мы о вас не знаем</h2>
+            {insight.limitations.length === 0 ? (
+              <p className="mt-2 text-xs text-zinc-600">Данных нет</p>
+            ) : (
               <ul className="mt-2 flex list-disc flex-col gap-1 pl-4 text-xs leading-5 text-zinc-600">
                 {insight.limitations.map((limitation) => (
                   <li key={limitation}>{limitation}</li>
                 ))}
               </ul>
-            </section>
-          ) : null}
+            )}
+          </section>
         </div>
       </div>
       <footer className="flex flex-col gap-1 text-xs text-zinc-500">

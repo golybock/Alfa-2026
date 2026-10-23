@@ -8,6 +8,10 @@ type ClaimListProps = {
 };
 
 export default function ClaimList({ ids, claims, evidence }: ClaimListProps) {
+  if (ids.length === 0) {
+    return <p className="text-sm text-zinc-500">Данных нет</p>;
+  }
+
   return (
     <ul className="@container flex flex-col gap-3">
       {ids.map((id) => {
