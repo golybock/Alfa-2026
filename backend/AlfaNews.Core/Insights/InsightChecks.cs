@@ -18,11 +18,35 @@ public static partial class InsightChecks
     public static IReadOnlyList<string> Validate(JsonElement draft, IReadOnlyDictionary<string, EvidenceDto> evidence,
         IReadOnlySet<string>? applicableBankEvidence = null)
     {
-        var errors = new List<string>();
+        var errors = ValidateClaims(draft, evidence).ToList();
         var claims = draft.GetProperty("claims").EnumerateArray().ToArray();
         var origins = claims.ToDictionary(claim => claim.GetProperty("id").GetString()!, claim => claim.GetProperty("origin").GetString()!,
             StringComparer.Ordinal);
-        foreach (var claim in claims)
+        var bankView = draft.GetProperty("bank_view");
+        if (bankView.GetProperty("status").GetString() == "found")
+        {
+            var ids = bankView.GetProperty("claim_ids").EnumerateArray().Select(item => item.GetString()!).ToArray();
+            if (ids.Length == 0 || ids.Any(item => origins.GetValueOrDefault(item) != "bank_analytics"))
+                errors.Add("bank_view:found_requires_bank_analytics_claims");
+            else if (applicableBankEvidence is not null && !claims.Where(claim => ids.Contains(claim.GetProperty("id").GetString()))
+                         .SelectMany(claim => claim.GetProperty("refs").EnumerateArray().Select(item => item.GetString()!))
+                         .Any(applicableBankEvidence.Contains))
+                errors.Add("bank_view:not_applicable");
+        }
+        if (string.IsNullOrWhiteSpace(draft.GetProperty("headline").GetString()))
+            errors.Add("card:empty_headline");
+        if (draft.GetProperty("what_happened").GetArrayLength() == 0)
+            errors.Add("card:what_happened_required");
+        if (draft.GetProperty("suggested_questions").GetArrayLength() > 3)
+            errors.Add("card:too_many_questions");
+        return errors.Distinct(StringComparer.Ordinal).Take(12).ToArray();
+    }
+
+    // Общие проверки утверждений карточки и ответа чата.
+    public static IReadOnlyList<string> ValidateClaims(JsonElement output, IReadOnlyDictionary<string, EvidenceDto> evidence)
+    {
+        var errors = new List<string>();
+        foreach (var claim in output.GetProperty("claims").EnumerateArray())
         {
             var id = claim.GetProperty("id").GetString()!;
             var origin = claim.GetProperty("origin").GetString();
@@ -47,24 +71,7 @@ public static partial class InsightChecks
                 && SupplyOverclaims.Any(word => text.Contains(word, StringComparison.OrdinalIgnoreCase)))
                 errors.Add($"claims:{id}:fts_overclaim");
         }
-        var bankView = draft.GetProperty("bank_view");
-        if (bankView.GetProperty("status").GetString() == "found")
-        {
-            var ids = bankView.GetProperty("claim_ids").EnumerateArray().Select(item => item.GetString()!).ToArray();
-            if (ids.Length == 0 || ids.Any(item => origins.GetValueOrDefault(item) != "bank_analytics"))
-                errors.Add("bank_view:found_requires_bank_analytics_claims");
-            else if (applicableBankEvidence is not null && !claims.Where(claim => ids.Contains(claim.GetProperty("id").GetString()))
-                         .SelectMany(claim => claim.GetProperty("refs").EnumerateArray().Select(item => item.GetString()!))
-                         .Any(applicableBankEvidence.Contains))
-                errors.Add("bank_view:not_applicable");
-        }
-        if (string.IsNullOrWhiteSpace(draft.GetProperty("headline").GetString()))
-            errors.Add("card:empty_headline");
-        if (draft.GetProperty("what_happened").GetArrayLength() == 0)
-            errors.Add("card:what_happened_required");
-        if (draft.GetProperty("suggested_questions").GetArrayLength() > 3)
-            errors.Add("card:too_many_questions");
-        return errors.Distinct(StringComparer.Ordinal).Take(12).ToArray();
+        return errors;
     }
 
     public static IEnumerable<string> Numbers(string text) => NumberPattern().Matches(text)

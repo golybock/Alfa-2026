@@ -94,6 +94,36 @@ public sealed class InsightAgentDatabaseTests(PostgresFixture fixture) : IClassF
         Assert.Equal(0, invalid.Critics);
     }
 
+    [PostgresFact]
+    public async Task CardWaitsWhileOtherRoleOfSameEventIsRunning()
+    {
+        var client = new AgentClient(CriticResponse: """{"issues":[]}""");
+        await using var services = Services(client);
+        await using var scope = services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AlfaNewsDbContext>();
+        var eventId = await PrepareAsync(db, "test_company_a", "deferred");
+        var inputVersion = await db.EventRows.Where(row => row.Id == eventId).Select(row => row.InputVersion).SingleAsync();
+        var queue = scope.ServiceProvider.GetRequiredService<JobQueue>();
+        var ceo = await queue.EnqueueAsync(new GenerateInsightJob("test_company_a", eventId.ToString(), Role.Ceo, inputVersion), null,
+            "test_company_a", CancellationToken.None);
+        var payload = new GenerateInsightJob("test_company_a", eventId.ToString(), Role.Cfo, inputVersion);
+        var cfo = await queue.EnqueueAsync(payload, null, "test_company_a", CancellationToken.None);
+        ceo.Status = "running";
+        ceo.StartedAt = DateTimeOffset.UtcNow.AddSeconds(-30);
+        cfo.Status = "running";
+        cfo.StartedAt = DateTimeOffset.UtcNow;
+        await db.SaveChangesAsync();
+        var agent = scope.ServiceProvider.GetRequiredService<InsightAgent>();
+        Assert.True((await agent.GenerateAsync(cfo, payload, CancellationToken.None)).Defer);
+        Assert.Equal(0, client.Plans);
+        Assert.False(await db.InsightRows.AnyAsync(row => row.EventId == eventId && row.Role == "cfo"));
+        // CEO захвачена позже: ждёт она, а CFO идёт сразу.
+        ceo.StartedAt = cfo.StartedAt.Value.AddSeconds(30);
+        await db.SaveChangesAsync();
+        Assert.False((await agent.GenerateAsync(cfo, payload, CancellationToken.None)).Defer);
+        Assert.True(client.Plans > 0);
+    }
+
     private async Task<(InsightEntity Insight, JobResult Result)> RunAsync(AgentClient client, Role role, string companyId = "test_company_a",
         string eventKey = "agent")
     {

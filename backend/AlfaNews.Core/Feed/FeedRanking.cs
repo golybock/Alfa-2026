@@ -26,7 +26,8 @@ public sealed record FeedCandidate(
     string InputVersion,
     IReadOnlySet<string> Factors,
     IReadOnlySet<string> Okved2,
-    IReadOnlySet<string> Countries);
+    IReadOnlySet<string> Countries,
+    float[]? Embedding = null);
 
 public sealed record RankedCandidate(
     FeedCandidate Candidate,
@@ -37,6 +38,20 @@ public sealed record RankedCandidate(
     IReadOnlyList<FeatureContribution> Contributions,
     IReadOnlyList<RelevanceReasonDto> Reasons,
     IReadOnlyDictionary<string, EvidenceDto> Evidence);
+
+// Калибровка 23.10: статьи об одном решении дают косинус e5 0,84–0,91, соседние темы той же пресс-конференции — 0,82–0,86.
+// Поэтому один сюжет — либо очень близкий текст, либо близкий текст с общим факторным тегом в пределах суток.
+public sealed record SameStoryRule(double MinSimilarity, double TaggedMinSimilarity, TimeSpan TaggedWindow)
+{
+    public bool Matches(FeedCandidate left, FeedCandidate right)
+    {
+        if (left.Embedding is not { } a || right.Embedding is not { } b)
+            return false;
+        var similarity = FeedRanking.Cosine(a, b);
+        return similarity >= MinSimilarity || similarity >= TaggedMinSimilarity && left.Factors.Overlaps(right.Factors)
+            && (left.Source.PublishedAt - right.Source.PublishedAt).Duration() <= TaggedWindow;
+    }
+}
 
 public static class FeedRanking
 {
@@ -59,11 +74,39 @@ public static class FeedRanking
         return new DateTimeOffset(moscow.Date.AddDays(-6), TimeSpan.FromHours(3));
     }
 
-    public static IReadOnlyList<RankedCandidate> Select(IEnumerable<RankedCandidate> ranked, int maxItems) => ranked
-        .Where(item => item.Eligible)
-        .OrderByDescending(item => item.Score).ThenByDescending(item => item.Candidate.Source.PublishedAt)
-        .ThenBy(item => item.Candidate.EventId.ToString(), StringComparer.Ordinal)
-        .Take(maxItems).ToArray();
+    // Один сюжет — одно место в ленте (склейка пересказов при разборе выключена). Событие пропускается, если оно одного сюжета
+    // с уже отобранным или уже пропущенным: так статьи об одном решении собираются в один сюжет и через промежуточную статью.
+    public static IReadOnlyList<RankedCandidate> Select(IEnumerable<RankedCandidate> ranked, int maxItems, SameStoryRule? sameStory = null)
+    {
+        var selected = new List<RankedCandidate>();
+        var seen = new List<FeedCandidate>();
+        foreach (var item in ranked.Where(item => item.Eligible)
+                     .OrderByDescending(item => item.Score).ThenByDescending(item => item.Candidate.Source.PublishedAt)
+                     .ThenBy(item => item.Candidate.EventId.ToString(), StringComparer.Ordinal))
+        {
+            if (selected.Count == maxItems)
+                break;
+            var duplicate = sameStory is not null && seen.Any(other => sameStory.Matches(item.Candidate, other));
+            seen.Add(item.Candidate);
+            if (!duplicate)
+                selected.Add(item);
+        }
+        return selected;
+    }
+
+    public static double Cosine(float[] left, float[] right)
+    {
+        if (left.Length != right.Length)
+            return 0;
+        double dot = 0, leftNorm = 0, rightNorm = 0;
+        for (var index = 0; index < left.Length; index++)
+        {
+            dot += left[index] * (double)right[index];
+            leftNorm += left[index] * (double)left[index];
+            rightNorm += right[index] * (double)right[index];
+        }
+        return leftNorm == 0 || rightNorm == 0 ? 0 : dot / Math.Sqrt(leftNorm * rightNorm);
+    }
 
     public static RankedCandidate Rank(FeedCandidate candidate, CompanyProfile company, IReadOnlyList<CompanyProfile> groupMembers,
         RankingTaxonomy taxonomy, RankingOptions options, DateTimeOffset asOf)

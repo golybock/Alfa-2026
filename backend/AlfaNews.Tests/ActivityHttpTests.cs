@@ -8,13 +8,130 @@ using AlfaNews.Contracts;
 using AlfaNews.Contracts.Api;
 using AlfaNews.Contracts.Domain;
 using AlfaNews.Api.Access;
+using Microsoft.EntityFrameworkCore;
 
 namespace AlfaNews.Tests;
 
 public sealed class ActivityHttpTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
+    private const string Origin = "https://bank.example";
+
     [PostgresFact]
-    public async Task EndpointEnforcesSessionOriginAccessAndStrictInput()
+    public Task EndpointEnforcesSessionOriginAccessAndStrictInput() => RunApiAsync(async client =>
+    {
+        var path = $"/api/insights/{fixture.InsightId}/activity";
+        var options = new JsonSerializerOptions();
+        ContractJson.Configure(options);
+        var request = new UserActivityRequest(Guid.NewGuid().ToString(), UserActivityType.InsightOpened, null, null);
+        var json = JsonSerializer.Serialize(request, options);
+        Assert.Equal(HttpStatusCode.Unauthorized, await SendAsync(client, path, json, null, Origin));
+        Assert.Equal(HttpStatusCode.Forbidden, await SendAsync(client, path, json, fixture.Token, "https://foreign.example"));
+        Assert.Equal(HttpStatusCode.Forbidden, await SendAsync(client, path, json, fixture.Token, null));
+        Assert.Equal(HttpStatusCode.NoContent, await SendAsync(client, path, json, fixture.Token, Origin));
+        Assert.Equal(HttpStatusCode.NoContent, await SendAsync(client, path, json, fixture.Token, Origin));
+        Assert.Equal(HttpStatusCode.Forbidden, await SendAsync(client, $"/api/insights/{fixture.ForeignInsightId}/activity", json, fixture.Token, Origin));
+        Assert.Equal(HttpStatusCode.BadRequest, await SendAsync(client, path, json.Replace("insight_opened", "chat_question_accepted"), fixture.Token, Origin));
+        Assert.Equal(HttpStatusCode.BadRequest, await SendAsync(client, path, json.Replace("\"action_id\":null", "\"action_id\":null,\"user_id\":\"forged\""), fixture.Token, Origin));
+    });
+
+    [PostgresFact]
+    public Task ChatFeedbackAndEvidenceFollowContract() => RunApiAsync(async client =>
+    {
+        var chat = $"/api/insights/{fixture.InsightId}/chat";
+        Assert.Equal(HttpStatusCode.BadRequest, await SendAsync(client, chat, Question("   "), fixture.Token, Origin));
+        Assert.Equal(HttpStatusCode.BadRequest, await SendAsync(client, chat, Question(new string('я', 1001)), fixture.Token, Origin));
+        Assert.Equal(HttpStatusCode.Forbidden, await SendAsync(client, $"/api/insights/{fixture.ForeignInsightId}/chat", Question("Почему?"), fixture.Token, Origin));
+        var first = await PostJsonAsync(client, chat, Question(" Почему это важно? "), fixture.Token);
+        Assert.Equal(HttpStatusCode.Accepted, first.Status);
+        var again = await PostJsonAsync(client, chat, Question("Почему это важно?"), fixture.Token);
+        Assert.Equal(HttpStatusCode.Accepted, again.Status);
+        Assert.Equal(first.Body.GetProperty("job_id").GetString(), again.Body.GetProperty("job_id").GetString());
+        Assert.Equal(HttpStatusCode.TooManyRequests, await SendAsync(client, chat, Question("Другой вопрос"), fixture.Token, Origin));
+        await FailQuestionsAsync();
+        await using (var db = fixture.CreateDb())
+            Assert.Equal(1, await db.UserActivityRows.CountAsync(row => row.UserId == fixture.UserId && row.Kind == "chat_question_accepted"));
+        for (var question = 2; question <= 10; question++)
+        {
+            Assert.Equal(HttpStatusCode.Accepted, await SendAsync(client, chat, Question($"Вопрос {question}"), fixture.Token, Origin));
+            await FailQuestionsAsync();
+        }
+        Assert.Equal(HttpStatusCode.TooManyRequests, await SendAsync(client, chat, Question("Одиннадцатый"), fixture.Token, Origin));
+        var history = await GetJsonAsync(client, chat, fixture.Token);
+        Assert.Equal(10, history.GetProperty("items").GetArrayLength());
+        Assert.All(history.GetProperty("items").EnumerateArray(), item =>
+        {
+            Assert.Equal("refusal", item.GetProperty("answer").GetProperty("status").GetString());
+            Assert.Equal(0, item.GetProperty("answer").GetProperty("questions_remaining").GetInt32());
+        });
+        Assert.Equal(0, (await GetJsonAsync(client, chat, fixture.OtherToken)).GetProperty("items").GetArrayLength());
+
+        await SetInsightStatusAsync("processing");
+        Assert.Equal(HttpStatusCode.Conflict, await SendAsync(client, chat, Question("Почему?"), fixture.OtherToken, Origin));
+        await SetInsightStatusAsync("ready");
+
+        var evidence = await GetJsonAsync(client, $"/api/insights/{fixture.InsightId}/evidence/E1", fixture.Token);
+        Assert.Equal("news", evidence.GetProperty("type").GetString());
+        Assert.Equal(HttpStatusCode.NotFound, await GetAsync(client, $"/api/insights/{fixture.InsightId}/evidence/E99", fixture.Token));
+        Assert.Equal(HttpStatusCode.Forbidden, await GetAsync(client, $"/api/insights/{fixture.ForeignInsightId}/evidence/E1", fixture.Token));
+
+        var feedback = $"/api/insights/{fixture.InsightId}/feedback";
+        Assert.Equal(HttpStatusCode.BadRequest, await SendAsync(client, feedback, """{"kind":"like","reason":"obvious"}""", fixture.Token, Origin));
+        Assert.Equal(HttpStatusCode.BadRequest, await SendAsync(client, feedback, """{"kind":"star","reason":null}""", fixture.Token, Origin));
+        Assert.Equal(HttpStatusCode.Forbidden, await SendAsync(client, $"/api/insights/{fixture.ForeignInsightId}/feedback", """{"kind":"hide","reason":null}""", fixture.Token, Origin));
+        Assert.Equal(HttpStatusCode.NoContent, await SendAsync(client, feedback, """{"kind":"dislike","reason":"obvious"}""", fixture.Token, Origin));
+        Assert.Equal(HttpStatusCode.NoContent, await SendAsync(client, feedback, """{"kind":"hide","reason":"not_relevant"}""", fixture.Token, Origin));
+        await using (var db = fixture.CreateDb())
+        {
+            var row = await db.FeedbackRows.SingleAsync(item => item.UserId == fixture.UserId);
+            Assert.Equal(("hide", "not_relevant", "test_company_a"), (row.Kind, row.Reason, row.CompanyId));
+        }
+    });
+
+    private static string Question(string text) => JsonSerializer.Serialize(new { question = text });
+
+    // Без Worker вопрос остаётся в очереди; отказ освобождает место для следующего, но засчитывается в лимит.
+    private async Task FailQuestionsAsync()
+    {
+        await using var db = fixture.CreateDb();
+        await db.ChatMessageRows.Where(row => row.UserId == fixture.UserId)
+            .ExecuteUpdateAsync(update => update.SetProperty(row => row.Status, "failed"));
+    }
+
+    private async Task SetInsightStatusAsync(string status)
+    {
+        await using var db = fixture.CreateDb();
+        await db.InsightRows.Where(row => row.Id == fixture.InsightId)
+            .ExecuteUpdateAsync(update => update.SetProperty(row => row.Status, status));
+    }
+
+    private static async Task<(HttpStatusCode Status, JsonElement Body)> PostJsonAsync(HttpClient client, string path, string json, string token)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, path);
+        request.Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+        request.Headers.Add("Cookie", $"{SessionAuthenticationHandler.CookieName}={token}");
+        request.Headers.Add("Origin", Origin);
+        using var response = await client.SendAsync(request);
+        return (response.StatusCode, await response.Content.ReadFromJsonAsync<JsonElement>());
+    }
+
+    private static async Task<JsonElement> GetJsonAsync(HttpClient client, string path, string token)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, path);
+        request.Headers.Add("Cookie", $"{SessionAuthenticationHandler.CookieName}={token}");
+        using var response = await client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        return await response.Content.ReadFromJsonAsync<JsonElement>();
+    }
+
+    private static async Task<HttpStatusCode> GetAsync(HttpClient client, string path, string token)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, path);
+        request.Headers.Add("Cookie", $"{SessionAuthenticationHandler.CookieName}={token}");
+        using var response = await client.SendAsync(request);
+        return response.StatusCode;
+    }
+
+    private async Task RunApiAsync(Func<HttpClient, Task> test)
     {
         var listener = new TcpListener(IPAddress.Loopback, 0);
         listener.Start();
@@ -48,19 +165,7 @@ public sealed class ActivityHttpTests(PostgresFixture fixture) : IClassFixture<P
         try
         {
             await WaitForApiAsync(client, process);
-            var path = $"/api/insights/{fixture.InsightId}/activity";
-            var options = new JsonSerializerOptions();
-            ContractJson.Configure(options);
-            var request = new UserActivityRequest(Guid.NewGuid().ToString(), UserActivityType.InsightOpened, null, null);
-            var json = JsonSerializer.Serialize(request, options);
-            Assert.Equal(HttpStatusCode.Unauthorized, await SendAsync(client, path, json, null, "https://bank.example"));
-            Assert.Equal(HttpStatusCode.Forbidden, await SendAsync(client, path, json, fixture.Token, "https://foreign.example"));
-            Assert.Equal(HttpStatusCode.Forbidden, await SendAsync(client, path, json, fixture.Token, null));
-            Assert.Equal(HttpStatusCode.NoContent, await SendAsync(client, path, json, fixture.Token, "https://bank.example"));
-            Assert.Equal(HttpStatusCode.NoContent, await SendAsync(client, path, json, fixture.Token, "https://bank.example"));
-            Assert.Equal(HttpStatusCode.Forbidden, await SendAsync(client, $"/api/insights/{fixture.ForeignInsightId}/activity", json, fixture.Token, "https://bank.example"));
-            Assert.Equal(HttpStatusCode.BadRequest, await SendAsync(client, path, json.Replace("insight_opened", "chat_question_accepted"), fixture.Token, "https://bank.example"));
-            Assert.Equal(HttpStatusCode.BadRequest, await SendAsync(client, path, json.Replace("\"action_id\":null", "\"action_id\":null,\"user_id\":\"forged\""), fixture.Token, "https://bank.example"));
+            await test(client);
         }
         finally
         {

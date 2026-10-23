@@ -1,3 +1,4 @@
+using System.Globalization;
 using AlfaNews.Worker;
 using AlfaNews.Core.Data;
 using AlfaNews.Core.Importing;
@@ -10,6 +11,8 @@ using AlfaNews.Core.Llm;
 using AlfaNews.Core.Documents;
 using AlfaNews.Core.Feed;
 using AlfaNews.Core.Insights;
+using AlfaNews.Core.Chat;
+using AlfaNews.Worker.Chat;
 using AlfaNews.Worker.Documents;
 using AlfaNews.Worker.Evaluation;
 using AlfaNews.Worker.Feed;
@@ -27,7 +30,12 @@ var retryCommand = args.FirstOrDefault() == "retry-job";
 var runCommand = args.FirstOrDefault() == "run-worker";
 var evaluationCommand = args.FirstOrDefault() == "llm-evaluate";
 var newsValidationCommand = args.FirstOrDefault() == "news-validate";
-var manualCommand = importCommand || profilesCommand || retryCommand || evaluationCommand || newsValidationCommand;
+var demoCommand = args.FirstOrDefault() == "precompute-demo";
+var manualCommand = importCommand || profilesCommand || retryCommand || evaluationCommand || newsValidationCommand || demoCommand;
+var demoAsOf = DateTimeOffset.UtcNow;
+if (demoCommand && (args.Length > 2 || args.Length == 2 && !DateTimeOffset.TryParse(args[1], CultureInfo.InvariantCulture,
+        DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out demoAsOf)))
+    throw new ArgumentException("Использование: precompute-demo [as_of, например 2026-10-25T09:00:00Z].");
 if (newsValidationCommand && (args.Length != 4 || !int.TryParse(args[3], out var parseLimit) || parseLimit is < 1 or > 10))
     throw new ArgumentException("Использование: news-validate <report.json> <source-id> <parse-limit:1-10>.");
 if (evaluationCommand && args.Length is not (3 or 4))
@@ -54,6 +62,10 @@ var llmOptions = new LlmOptions();
 builder.Configuration.GetSection("Llm").Bind(llmOptions);
 builder.Services.AddAlfaNewsLlm(llmOptions);
 builder.Services.AddScoped<JobQueue>();
+var queueOptions = new QueueOptions();
+builder.Configuration.GetSection("Queue").Bind(queueOptions);
+queueOptions.Validate();
+builder.Services.AddSingleton(queueOptions);
 builder.Services.AddSingleton<JobDispatcher>();
 builder.Services.AddScoped<IJobHandler, ImportCsvJobHandler>();
 builder.Services.AddScoped<IJobHandler, RebuildProfilesJobHandler>();
@@ -82,10 +94,13 @@ builder.Services.AddSingleton(rankingOptions);
 builder.Services.AddScoped<TaxonomyCatalogLoader>();
 builder.Services.AddScoped<FeedRefreshService>();
 builder.Services.AddScoped<IJobHandler, RefreshFeedJobHandler>();
+builder.Services.AddScoped<IJobHandler, PrecomputeDemoJobHandler>();
 builder.Services.AddScoped<NewsSearch>();
 builder.Services.AddScoped<AgentTools>();
 builder.Services.AddScoped<InsightAgent>();
 builder.Services.AddScoped<IJobHandler, GenerateInsightJobHandler>();
+builder.Services.AddScoped<ChatResponder>();
+builder.Services.AddScoped<IJobHandler, AnswerChatJobHandler>();
 builder.Services.AddScoped<JobSchedule>();
 builder.Services.AddHostedService<Worker>();
 builder.Services.AddHostedService<JobScheduler>();
@@ -120,6 +135,16 @@ if (manualCommand)
     {
         await scope.ServiceProvider.GetRequiredService<LlmEvaluation>().RunAsync(args[1], args[2], cancellation.Token,
             args.Length == 4 ? args[3].Split(',').ToHashSet(StringComparer.Ordinal) : null);
+        return;
+    }
+    if (demoCommand)
+    {
+        if (rankingOptions.CompanyIds.Count == 0)
+            throw new InvalidOperationException("Задайте Feed__CompanyIds для демо-снимка.");
+        var demo = await scope.ServiceProvider.GetRequiredService<JobQueue>().EnqueueAsync(
+            new PrecomputeDemoJob(rankingOptions.CompanyIds, demoAsOf), null, null, cancellation.Token);
+        scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("PrecomputeDemo")
+            .LogInformation("Поставлен демо-снимок {JobId} на {AsOf}; его выполнит запущенный Worker.", demo.Id, demoAsOf);
         return;
     }
     if (retryCommand)

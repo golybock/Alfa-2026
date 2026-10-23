@@ -11,15 +11,15 @@ public sealed class ProfileReportBuilderTests
     {
         var a = Company("U_68157", "41.20.9") with { Products = ["loan", "guarantee", "leasing"] };
         var b = Company("U_71942", "16.10") with { Products = ["deposit"], FtsCountries = ["КИТАЙ"] };
-        var extra = Company("U_12959", "62.01") with { Products = ["deposit"] };
+        var extra = Company("U_258515", "46.90") with { Products = ["loan", "leasing"] };
         CompanyProfile[] companies = [extra, Company("unselected", "46.72"), b, a];
         var groups = companies.Select(company => new GroupProfile(company.GroupId!, [company.CompanyId], 20000000000m, 1, "v1")).ToArray();
 
         var report = ProfileReportBuilder.Create("dataset", "v1", "test", companies, groups);
 
-        Assert.Equal(["41", "16", "62"], report.Sectors.Select(sector => sector.Okved2));
+        Assert.Equal(["41", "16", "46"], report.Sectors.Select(sector => sector.Okved2));
         var candidates = report.Sectors.SelectMany(sector => sector.Candidates).ToArray();
-        Assert.Equal(["U_68157", "U_71942", "U_12959"], candidates.Select(candidate => candidate.Company.CompanyId));
+        Assert.Equal(["U_68157", "U_71942", "U_258515"], candidates.Select(candidate => candidate.Company.CompanyId));
         Assert.All(candidates, candidate =>
         {
             Assert.NotNull(candidate.Group);

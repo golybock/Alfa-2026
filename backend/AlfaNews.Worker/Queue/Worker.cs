@@ -5,17 +5,8 @@ using AlfaNews.Worker.Profiles;
 
 namespace AlfaNews.Worker.Queue;
 
-public class Worker(IServiceScopeFactory scopes, JobDispatcher dispatcher, ILogger<Worker> logger) : BackgroundService
+public class Worker(IServiceScopeFactory scopes, JobDispatcher dispatcher, QueueOptions queue, ILogger<Worker> logger) : BackgroundService
 {
-    private static readonly IReadOnlyDictionary<string, int> LaneSlots = new Dictionary<string, int>
-    {
-        [JobKinds.DataLane] = 1,
-        [JobKinds.NewsLane] = 1,
-        [JobKinds.DocumentsLane] = 1,
-        [JobKinds.InsightsLane] = 1,
-        [JobKinds.ChatLane] = 2
-    };
-
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         await using (var scope = scopes.CreateAsyncScope())
@@ -32,7 +23,9 @@ public class Worker(IServiceScopeFactory scopes, JobDispatcher dispatcher, ILogg
         await using (var scope = scopes.CreateAsyncScope())
             await scope.ServiceProvider.GetRequiredService<ProfileBuildService>().BuildOnStartupAsync(stoppingToken);
 
-        await Task.WhenAll(LaneSlots.SelectMany(lane => Enumerable.Range(0, lane.Value)
+        var slots = queue.LaneSlots();
+        logger.LogInformation("Исполнители полос: {Slots}.", string.Join(", ", slots.Select(lane => lane.Key + "=" + lane.Value)));
+        await Task.WhenAll(slots.SelectMany(lane => Enumerable.Range(0, lane.Value)
             .Select(_ => Task.Run(() => RunLaneAsync(lane.Key, JobKinds.InLane(lane.Key), stoppingToken), stoppingToken))));
     }
 

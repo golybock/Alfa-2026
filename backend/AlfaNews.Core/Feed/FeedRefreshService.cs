@@ -19,7 +19,23 @@ public sealed class FeedRefreshService(AlfaNewsDbContext db, JobQueue queue, Ran
     private static readonly JsonSerializerOptions JsonOptions = CreateJsonOptions();
     private static readonly Role[] Roles = [Role.Ceo, Role.Cfo];
 
-    public async Task<JobResult> RefreshAsync(RefreshFeedJob payload, CancellationToken cancellationToken)
+    public Task<JobResult> RefreshAsync(RefreshFeedJob payload, CancellationToken cancellationToken) =>
+        RefreshAsync(payload, FeedSettings.Live, options.PrecomputeInsights, cancellationToken);
+
+    // Демо-снимок считается на зафиксированную дату и хранится рядом с живым; карточки для него ставятся всегда.
+    public async Task<JobResult> PrecomputeDemoAsync(PrecomputeDemoJob payload, CancellationToken cancellationToken)
+    {
+        if (payload.CompanyIds.Count == 0)
+            return new JobResult("rejected", ErrorCode: "invalid_payload");
+        var missing = new List<string>();
+        foreach (var companyId in payload.CompanyIds)
+            if ((await RefreshAsync(new RefreshFeedJob(companyId, payload.AsOf), FeedSettings.Demo, true, cancellationToken)).ErrorCode is not null)
+                missing.Add(companyId);
+        return missing.Count == payload.CompanyIds.Count ? new JobResult("missing", ErrorCode: "profile_not_found")
+            : new JobResult(missing.Count == 0 ? "ranked" : "partial");
+    }
+
+    private async Task<JobResult> RefreshAsync(RefreshFeedJob payload, string mode, bool precomputeInsights, CancellationToken cancellationToken)
     {
         var context = await LoadContextAsync(payload.CompanyId, cancellationToken);
         if (context is null)
@@ -28,7 +44,8 @@ public sealed class FeedRefreshService(AlfaNewsDbContext db, JobQueue queue, Ran
         var from = FeedRanking.WindowStart(asOf).ToUniversalTime();
         var candidates = await LoadCandidatesAsync(from, asOf, null, cancellationToken);
         var selected = FeedRanking.Select(candidates.Select(candidate =>
-            FeedRanking.Rank(candidate, context.Company, context.GroupMembers, context.Taxonomy, options, asOf)), options.MaxItems);
+            FeedRanking.Rank(candidate, context.Company, context.GroupMembers, context.Taxonomy, options, asOf)), options.MaxItems,
+            options.SameStory());
         var items = selected.Select((item, index) => new FeedItemDto(item.Candidate.EventId.ToString(), item.Candidate.Headline,
             item.Candidate.Summary, item.Candidate.Source, new RelevanceDto(item.Score, index + 1, item.Reasons, item.Contributions),
             item.Evidence, AnalysisStatus.Queued, null, null)).ToArray();
@@ -41,10 +58,11 @@ public sealed class FeedRefreshService(AlfaNewsDbContext db, JobQueue queue, Ran
         }));
         var collectionStartedAt = await db.NewsRawRows.AsNoTracking().MinAsync(row => (DateTimeOffset?)row.FetchedAt, cancellationToken);
         var now = clock.GetUtcNow();
-        var snapshot = await db.FeedSnapshotRows.SingleOrDefaultAsync(row => row.CompanyId == payload.CompanyId, cancellationToken);
+        var snapshot = await db.FeedSnapshotRows.SingleOrDefaultAsync(row => row.CompanyId == payload.CompanyId && row.Mode == mode,
+            cancellationToken);
         if (snapshot is null)
         {
-            snapshot = new FeedSnapshotEntity { CompanyId = payload.CompanyId };
+            snapshot = new FeedSnapshotEntity { CompanyId = payload.CompanyId, Mode = mode };
             db.FeedSnapshotRows.Add(snapshot);
         }
         snapshot.AsOf = asOf;
@@ -56,7 +74,7 @@ public sealed class FeedRefreshService(AlfaNewsDbContext db, JobQueue queue, Ran
         snapshot.CollectionStartedAt = collectionStartedAt;
         snapshot.RefreshStatus = "idle";
         await db.SaveChangesAsync(cancellationToken);
-        if (options.PrecomputeInsights)
+        if (precomputeInsights)
             await EnqueueInsightsAsync(payload.CompanyId, selected, cancellationToken);
         return new JobResult("ranked", "feed", payload.CompanyId);
     }
@@ -130,7 +148,7 @@ public sealed class FeedRefreshService(AlfaNewsDbContext db, JobQueue queue, Ran
                     join news in db.NewsRawRows.AsNoTracking() on item.NewsRawId equals news.Id
                     join source in db.SourceRows.AsNoTracking() on news.SourceId equals source.Id
                     where item.PublishedAt >= periodFrom && item.PublishedAt <= periodTo
-                    select new { item.Id, item.Headline, item.ExtractionJson, item.PublishedAt, item.InputVersion, news.CanonicalUrl, source.Name, source.Reliability };
+                    select new { item.Id, item.Headline, item.ExtractionJson, item.PublishedAt, item.InputVersion, item.Embedding, news.CanonicalUrl, source.Name, source.Reliability };
         if (eventId is { } id)
             query = query.Where(row => row.Id == id);
         var rows = await query.ToListAsync(cancellationToken);
@@ -145,7 +163,7 @@ public sealed class FeedRefreshService(AlfaNewsDbContext db, JobQueue queue, Ran
             IReadOnlySet<string> Codes(string kind) => tags[row.Id].Where(tag => tag.Kind == kind).Select(tag => tag.Code).ToHashSet(StringComparer.Ordinal);
             candidates.Add(new FeedCandidate(row.Id, row.Headline, string.Join(" ", extraction.Facts.Take(2).Select(fact => fact.Text)),
                 new SourceSummaryDto(row.Name, row.CanonicalUrl, row.PublishedAt), extraction.Facts.FirstOrDefault()?.Quote,
-                row.Reliability, row.InputVersion, Codes("factor"), Codes("okved2"), Codes("country")));
+                row.Reliability, row.InputVersion, Codes("factor"), Codes("okved2"), Codes("country"), row.Embedding?.ToArray()));
         }
         return candidates;
     }

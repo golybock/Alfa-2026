@@ -19,7 +19,7 @@ public sealed class LlmOptions
     public int TimeoutSeconds { get; set; } = 240;
     public int CriticTimeoutSeconds { get; set; } = 120;
     public int MaxInputBytes { get; set; } = 200000;
-    public int MaxParallelRequests { get; set; } = 6;
+    public int MaxParallelRequests { get; set; } = 8;
     public decimal DailyLimitRub { get; set; } = 500m;
     public decimal DeepSeekInputEstimateRubPerMillion { get; set; } = 55m;
     public decimal DeepSeekOutputEstimateRubPerMillion { get; set; } = 100m;
@@ -49,7 +49,7 @@ public sealed class LlmOptions
     {
         if (DailyLimitRub is <= 0 or > 500 || MaxOutputTokens is <= 0 or > 32000
             || ChatMaxOutputTokens is <= 0 or > 8000 || TimeoutSeconds <= 0 || CriticTimeoutSeconds <= 0
-            || MaxInputBytes <= 0 || ImageInputTokenReserve <= 0 || ReserveOutputTokens <= 0 || MaxParallelRequests is < 1 or > 10
+            || MaxInputBytes <= 0 || ImageInputTokenReserve <= 0 || ReserveOutputTokens <= 0 || MaxParallelRequests is < 1 or > 16
             || DeepSeekInputEstimateRubPerMillion < 0 || DeepSeekOutputEstimateRubPerMillion < 0
             || GlmInputEstimateRubPerMillion < 0 || GlmOutputEstimateRubPerMillion < 0
             || CriticScope is not ("all_full" or "top_only") || GlmReasoningLevel is not ("low" or "high")

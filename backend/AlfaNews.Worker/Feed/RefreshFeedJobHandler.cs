@@ -13,3 +13,11 @@ public sealed class RefreshFeedJobHandler(FeedRefreshService service) : IJobHand
     public Task<JobResult> HandleAsync(BackgroundJobEntity job, CancellationToken cancellationToken) =>
         service.RefreshAsync(job.Payload.Deserialize<RefreshFeedJob>(JobKinds.JsonOptions)!, cancellationToken);
 }
+
+public sealed class PrecomputeDemoJobHandler(FeedRefreshService service) : IJobHandler
+{
+    public string Kind => JobKinds.Name<PrecomputeDemoJob>();
+
+    public Task<JobResult> HandleAsync(BackgroundJobEntity job, CancellationToken cancellationToken) =>
+        service.PrecomputeDemoAsync(job.Payload.Deserialize<PrecomputeDemoJob>(JobKinds.JsonOptions)!, cancellationToken);
+}

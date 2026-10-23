@@ -8,7 +8,7 @@ public static class ProfileReportBuilder
         IReadOnlyList<CompanyProfile> companies, IReadOnlyList<GroupProfile> groups)
     {
         var byGroup = groups.ToDictionary(group => group.GroupId, StringComparer.Ordinal);
-        string[] demoCompanyIds = ["U_68157", "U_71942", "U_12959"];
+        string[] demoCompanyIds = ["U_68157", "U_71942", "U_258515"];
         var byCompany = companies.ToDictionary(company => company.CompanyId, StringComparer.Ordinal);
         var selected = demoCompanyIds.Where(byCompany.ContainsKey).Select(id => byCompany[id]).ToArray();
         var sectors = selected.GroupBy(company => company.Okved2)
@@ -16,7 +16,7 @@ public static class ProfileReportBuilder
             {
                 var group = company.GroupId is null ? null : byGroup.GetValueOrDefault(company.GroupId);
                 var limitations = new List<string>();
-                if (company.CompanyId == "U_12959")
+                if (company.CompanyId == "U_258515")
                     limitations.Add("Дополнительная демо-компания; основные — U_68157 и U_71942.");
                 if (company.Revenue is null)
                     limitations.Add("Выручка компании неизвестна.");
@@ -64,7 +64,7 @@ public static class ProfileReportBuilder
                 "Флаг продукта не определяет общий долг, валюту, ставку договора или инвестиционные планы компании.",
                 "Страны ФТС не определяют направление торговли; неизвестные названия сохраняются без выдуманных ISO-кодов.",
                 "Платёжная связь не устанавливает характер отношений компаний.",
-                "Для демо выбраны компании U_68157 и U_71942; U_12959 — дополнительная. Актуальные новости и покрытие источниками ещё нужно проверить.",
+                "Для демо выбраны компании U_68157 и U_71942; U_258515 — дополнительная. Актуальные новости и покрытие источниками ещё нужно проверить.",
                 "Черновики каналов не являются утверждённой чувствительностью; веса и знак требуют проверки K04 и утверждения Артёма."
             ]);
     }

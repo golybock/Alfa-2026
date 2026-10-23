@@ -1,5 +1,5 @@
 {
-  "pack_version": "2.3.0",
+  "pack_version": "2.4.0",
   "created_on": "2026-10-23",
   "language": "en",
   "generated_user_text_language": "ru",
@@ -13,7 +13,7 @@
       "schema": "schemas/NewsExtractionDraft.schema.json",
       "model_config_key": "deepseek",
       "max_output_tokens": 32000,
-      "prompt_version": "2.1.0",
+      "prompt_version": "2.2.0",
       "placeholders": {
         "system": [
           "OUTPUT_SCHEMA_JSON"
@@ -181,7 +181,7 @@
     "chat.user.txt": "8d866d56397233d0891bad14b5dfd12b98dab74e5bf98f853d48ed0a99a2f503",
     "critic.system.txt": "b2ccf110525d3d138b1494333e6516849af30814cc6e29e1e1b358a5a4809e0e",
     "critic.user.txt": "345c6de09cd2ed33a46baa2449a1d0f6d12664a1a258f4d0a081a91b659a8fa3",
-    "news-extract.system.txt": "8c6739db7c761e8ef8aab9d62a3586c13099ede094067038e9c3c7bed1b15ecf",
+    "news-extract.system.txt": "d90a7879aedd471e86c51c4a74bba3eeda20babbba60007158d24b2f7131a8db",
     "news-extract.user.txt": "ea33a370d15813fe3c72e34f0c9fc049f4df4e2c494754abc89a1cca60f2c3ee",
     "pdf-ocr.system.txt": "f02070ceaed421ffa9e3b6e6bf95b60918cdde5589e67c6b6a6f3279e993b872",
     "pdf-ocr.user.txt": "80b601dd923b5222f871e35fee76e3565fab73b12eaf6f777374f0f1966d62dc",

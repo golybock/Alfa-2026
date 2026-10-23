@@ -147,6 +147,55 @@ public sealed class NewsProcessingTests(PostgresFixture fixture) : IClassFixture
     }
 
     [PostgresFact]
+    public async Task ParallelExactDuplicateSavedFirstIsLinkedInsteadOfFailing()
+    {
+        await using var db = fixture.CreateDb();
+        await db.SourceRows.Where(row => row.Id == "synthetic").ExecuteUpdateAsync(update => update.SetProperty(row => row.Enabled, true));
+        var prefix = Guid.NewGuid().ToString();
+        var mine = NewRow(prefix + "mine", 1);
+        mine.Text = "Компания объявила о росте выручки на 14%. " + prefix;
+        var other = NewRow(prefix + "other", 1);
+        other.Text = mine.Text;
+        other.Status = "accepted";
+        db.NewsRawRows.AddRange(mine, other);
+        await db.SaveChangesAsync();
+        var competing = Guid.NewGuid();
+        // Второй исполнитель сохраняет то же событие, пока первый ждёт ответ модели.
+        var client = new ExtractClient(() =>
+        {
+            using var parallel = fixture.CreateDb();
+            parallel.EventRows.Add(new EventEntity
+            {
+                Id = competing,
+                NewsRawId = other.Id,
+                ContentSha256 = TextNormalizer.Sha256(TextNormalizer.Normalize(mine.Text)),
+                Headline = "Параллельный разбор",
+                PublishedAt = other.PublishedAt!.Value,
+                ExtractionJson = JsonSerializer.SerializeToElement(new NewsExtraction("Параллельный разбор", null, [], [], new NewsTags([], [], [], [], [])),
+                    LlmOutputValidator.JsonOptions),
+                InputVersion = "parallel",
+                CreatedAt = DateTimeOffset.UtcNow,
+                SearchText = NpgsqlTypes.NpgsqlTsVector.Empty
+            });
+            parallel.SaveChanges();
+        });
+        var options = new LlmOptions();
+        using var services = new ServiceCollection().AddAlfaNewsData(fixture.ConnectionString!).BuildServiceProvider();
+        using var budget = new LlmBudget(services.GetRequiredService<IServiceScopeFactory>(), TimeProvider.System, options);
+        var gateway = new LlmGateway(db, options, new LlmPromptCatalog(), client, budget, TimeProvider.System, NullLogger<LlmGateway>.Instance);
+        using var http = new HttpClient(new EmbedHandler());
+        var processing = new NewsProcessing(db, gateway, new NewsEmbeddings(http, new ConfigurationBuilder().Build()), new NewsSearch(db, new ConfigurationBuilder().Build()),
+            new FeedRefreshService(db, new JobQueue(db, TimeProvider.System), new RankingOptions(), TimeProvider.System), TimeProvider.System);
+        var result = await processing.ProcessAsync(await NewJobAsync(db), mine.Id, CancellationToken.None);
+        Assert.Equal("duplicate", result.Stage);
+        Assert.Null(result.ErrorCode);
+        var saved = await db.NewsRawRows.AsNoTracking().SingleAsync(row => row.Id == mine.Id);
+        Assert.Equal(("duplicate", "exact_content_duplicate"), (saved.Status, saved.RejectionReason));
+        Assert.True(await db.EventSourceRows.AnyAsync(link => link.EventId == competing && link.NewsRawId == mine.Id));
+        Assert.False(await db.EventRows.AnyAsync(row => row.NewsRawId == mine.Id));
+    }
+
+    [PostgresFact]
     public async Task UnavailableEmbeddingsSkipE5AndStillExtract()
     {
         await using var db = fixture.CreateDb();
@@ -219,7 +268,10 @@ public sealed class NewsProcessingTests(PostgresFixture fixture) : IClassFixture
         var gateway = new LlmGateway(db, options, new LlmPromptCatalog(), client, budget, TimeProvider.System, NullLogger<LlmGateway>.Instance);
         using var http = new HttpClient(new EmbedHandler());
         var embeddings = new NewsEmbeddings(http, new ConfigurationBuilder().Build());
-        var search = new NewsSearch(db, new ConfigurationBuilder().Build());
+        Assert.Null(await new NewsSearch(db, new ConfigurationBuilder().Build())
+            .FindRetellingAsync(new Pgvector.Vector(new float[768]), DateTimeOffset.UtcNow, "", "", CancellationToken.None));
+        var search = new NewsSearch(db, new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["Embeddings:DuplicateMinSimilarity"] = "0.93" }).Build());
         var queue = new JobQueue(db, TimeProvider.System);
         await new NewsProcessing(db, gateway, embeddings, search, new FeedRefreshService(db, queue, new RankingOptions(), TimeProvider.System),
             TimeProvider.System).ProcessAsync(await NewJobAsync(db), original.Id, CancellationToken.None);
@@ -306,13 +358,14 @@ public sealed class NewsProcessingTests(PostgresFixture fixture) : IClassFixture
     private static LlmRequest TriageRequest() => new(Guid.NewGuid(), "triage-test", "v1", LlmTask.NewsTriage,
         new Dictionary<string, JsonElement> { ["INPUT_JSON"] = JsonSerializer.SerializeToElement(new[] { new { id = "a", title = "Налоги" }, new { id = "b", title = "Матч" } }) });
 
-    private sealed class ExtractClient : ILlmClient
+    private sealed class ExtractClient(Action? beforeResponse = null) : ILlmClient
     {
         public int Calls { get; private set; }
 
         public Task<LlmClientResponse> SendAsync(LlmPrompt prompt, LlmRoute route, LlmImage? image, CancellationToken cancellationToken)
         {
             Calls++;
+            beforeResponse?.Invoke();
             var start = prompt.User.IndexOf("<input_json>", StringComparison.Ordinal) + "<input_json>".Length;
             var end = prompt.User.IndexOf("</input_json>", StringComparison.Ordinal);
             var input = JsonSerializer.Deserialize<JsonElement>(prompt.User[start..end]);

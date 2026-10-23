@@ -82,6 +82,44 @@ public sealed class JobQueueDatabaseTests(PostgresFixture fixture) : IClassFixtu
     }
 
     [PostgresFact]
+    public async Task DeferredJobGoesBehindSamePriorityWithoutSpendingAttempt()
+    {
+        await ResetAsync();
+        var order = new List<string>();
+        var deferOnce = true;
+        await using var services = CreateServices(new TestHandler("ParseNews", (job, _) =>
+        {
+            var id = job.Payload.Deserialize<ParseNewsJob>(JobKinds.JsonOptions)!.NewsRawId;
+            order.Add(id);
+            if (id == "first" && deferOnce)
+            {
+                deferOnce = false;
+                return Task.FromResult(new JobResult("deferred", Defer: true));
+            }
+            return Task.FromResult(new JobResult());
+        }));
+        await using var db = fixture.CreateDb();
+        var queue = new JobQueue(db, TimeProvider.System);
+        var first = await queue.EnqueueAsync(new ParseNewsJob("first"), null, null, CancellationToken.None);
+        await queue.EnqueueAsync(new ParseNewsJob("second"), null, null, CancellationToken.None);
+        first.CreatedAt = DateTimeOffset.UtcNow.AddMinutes(-1);
+        await db.SaveChangesAsync();
+        var dispatcher = services.GetRequiredService<JobDispatcher>();
+        Assert.False(await dispatcher.DispatchNextAsync(CancellationToken.None));
+        await db.Entry(first).ReloadAsync();
+        Assert.Equal(("queued", "deferred", 0), (first.Status, first.Stage, first.Attempts));
+        Assert.Null(first.StartedAt);
+        Assert.True(await dispatcher.DispatchNextAsync(CancellationToken.None));
+        Assert.True(await dispatcher.DispatchNextAsync(CancellationToken.None));
+        Assert.Equal(["first", "second", "first"], order);
+        await db.Entry(first).ReloadAsync();
+        Assert.Equal(("done", 1), (first.Status, first.Attempts));
+        Assert.Throws<InvalidOperationException>(() => new QueueOptions { NewsSlots = 0 }.Validate());
+        Assert.Equal(4, new QueueOptions().LaneSlots()[JobKinds.NewsLane]);
+        Assert.Equal(1, new QueueOptions { NewsSlots = 8 }.LaneSlots()[JobKinds.DataLane]);
+    }
+
+    [PostgresFact]
     public async Task ShutdownLeavesRunningAndRestartAutomaticallyRequeuesIt()
     {
         await ResetAsync();

@@ -7,6 +7,7 @@ using AlfaNews.Core.Llm;
 using AlfaNews.Core.Processing;
 using AlfaNews.Core.Profiles;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using NpgsqlTypes;
 using Pgvector.EntityFrameworkCore;
 
@@ -111,36 +112,46 @@ public sealed class NewsProcessing(AlfaNewsDbContext db, LlmGateway gateway, New
                 new ExtractedFact(fact.Text, NewsLines.Resolve(lines, fact).Quote!, fact.Line, fact.Start, fact.End)).ToArray(),
                 draft.Participants, draft.Tags);
             var eventId = Guid.NewGuid();
-            await using (var transaction = await db.Database.BeginTransactionAsync(cancellationToken))
+            try
             {
-                db.EventRows.Add(new EventEntity
+                await using (var transaction = await db.Database.BeginTransactionAsync(cancellationToken))
                 {
-                    Id = eventId,
-                    NewsRawId = id,
-                    ContentSha256 = row.TextSha256,
-                    Headline = extraction.Headline,
-                    EventDate = extraction.EventDate,
-                    PublishedAt = row.PublishedAt!.Value,
-                    ExtractionJson = JsonSerializer.SerializeToElement(extraction, LlmOutputValidator.JsonOptions),
-                    InputVersion = version,
-                    Embedding = row.Embedding,
-                    CreatedAt = now,
-                    SearchText = NpgsqlTsVector.Empty
-                });
-                db.EventSourceRows.Add(new EventSourceEntity { EventId = eventId, NewsRawId = id });
-                foreach (var (kind, codes) in new[]
-                {
-                    ("factor", extraction.Tags.Factors), ("okved2", extraction.Tags.Okved2),
-                    ("country", extraction.Tags.Countries), ("region", extraction.Tags.Regions), ("commodity", extraction.Tags.Commodities)
-                })
-                    foreach (var code in codes.Distinct(StringComparer.Ordinal))
-                        db.EventTagRows.Add(new EventTagEntity { EventId = eventId, Kind = kind, Code = code });
-                row.Status = "accepted";
-                row.RejectionReason = null;
-                await db.SaveChangesAsync(cancellationToken);
-                var search = extraction.Headline + " " + string.Join(" ", extraction.Facts.Select(fact => fact.Text));
-                await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE event SET search_text = to_tsvector('russian', {search}) WHERE id = {eventId}", cancellationToken);
-                await transaction.CommitAsync(cancellationToken);
+                    db.EventRows.Add(new EventEntity
+                    {
+                        Id = eventId,
+                        NewsRawId = id,
+                        ContentSha256 = row.TextSha256,
+                        Headline = extraction.Headline,
+                        EventDate = extraction.EventDate,
+                        PublishedAt = row.PublishedAt!.Value,
+                        ExtractionJson = JsonSerializer.SerializeToElement(extraction, LlmOutputValidator.JsonOptions),
+                        InputVersion = version,
+                        Embedding = row.Embedding,
+                        CreatedAt = now,
+                        SearchText = NpgsqlTsVector.Empty
+                    });
+                    db.EventSourceRows.Add(new EventSourceEntity { EventId = eventId, NewsRawId = id });
+                    foreach (var (kind, codes) in new[]
+                             {
+                                 ("factor", extraction.Tags.Factors), ("okved2", extraction.Tags.Okved2),
+                                 ("country", extraction.Tags.Countries), ("region", extraction.Tags.Regions), ("commodity", extraction.Tags.Commodities)
+                             })
+                        foreach (var code in codes.Distinct(StringComparer.Ordinal))
+                            db.EventTagRows.Add(new EventTagEntity { EventId = eventId, Kind = kind, Code = code });
+                    row.Status = "accepted";
+                    row.RejectionReason = null;
+                    await db.SaveChangesAsync(cancellationToken);
+                    var search = extraction.Headline + " " + string.Join(" ", extraction.Facts.Select(fact => fact.Text));
+                    await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE event SET search_text = to_tsvector('russian', {search}) WHERE id = {eventId}", cancellationToken);
+                    await transaction.CommitAsync(cancellationToken);
+                }
+            }
+            // Тот же текст из другого источника разобран параллельно и сохранён раньше: это точный дубль, а не сбой.
+            catch (DbUpdateException exception) when (exception.InnerException is PostgresException
+            { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: "event_content_sha256_key" })
+            {
+                db.ChangeTracker.Clear();
+                return await LinkDuplicateAsync(id, cancellationToken);
             }
             await feed.EnqueueForEventAsync(eventId, cancellationToken);
             return new JobResult("accepted");
@@ -164,6 +175,19 @@ public sealed class NewsProcessing(AlfaNewsDbContext db, LlmGateway gateway, New
                     exception is LlmException ? ((LlmException)exception).Code : "news_processing_failed"), cancellationToken);
             throw;
         }
+    }
+
+    private async Task<JobResult> LinkDuplicateAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var row = await db.NewsRawRows.SingleAsync(item => item.Id == id, cancellationToken);
+        var duplicate = await db.EventRows.AsNoTracking().SingleAsync(item => item.ContentSha256 == row.TextSha256, cancellationToken);
+        if (!await db.EventSourceRows.AnyAsync(link => link.EventId == duplicate.Id && link.NewsRawId == id, cancellationToken))
+            db.EventSourceRows.Add(new EventSourceEntity { EventId = duplicate.Id, NewsRawId = id });
+        row.Status = "duplicate";
+        row.RejectionReason = "exact_content_duplicate";
+        row.FilterJson = JsonSerializer.SerializeToElement(new { stage = "exact_duplicate", event_id = duplicate.Id });
+        await db.SaveChangesAsync(cancellationToken);
+        return new JobResult("duplicate");
     }
 
     private async Task<JobResult> RejectAsync(NewsRawEntity row, string reason, CancellationToken cancellationToken)

@@ -22,7 +22,7 @@ public sealed class NewsSearch(AlfaNewsDbContext db, IConfiguration configuratio
     public async Task<IReadOnlyList<SimilarNewsHit>> SearchAsync(string query, Guid eventId, DateTimeOffset periodFrom,
         DateTimeOffset periodTo, int limit, CancellationToken cancellationToken)
     {
-        var minSimilarity = Threshold("Embeddings:SimilarNewsMinSimilarity", 0.84);
+        var minSimilarity = Threshold("Embeddings:SimilarNewsMinSimilarity", 0.86);
         var tags = await db.EventTagRows.AsNoTracking().Where(tag => tag.EventId == eventId && SharedTagKinds.Contains(tag.Kind))
             .Select(tag => tag.Kind + ":" + tag.Code).ToListAsync(cancellationToken);
         var vector = await db.EventRows.AsNoTracking().Where(row => row.Id == eventId).Select(row => row.Embedding).SingleOrDefaultAsync(cancellationToken);
@@ -65,7 +65,11 @@ public sealed class NewsSearch(AlfaNewsDbContext db, IConfiguration configuratio
     public async Task<DuplicateEvent?> FindRetellingAsync(Pgvector.Vector vector, DateTimeOffset publishedAt, string title, string text,
         CancellationToken cancellationToken)
     {
-        var maxDistance = 1 - Threshold("Embeddings:DuplicateMinSimilarity", 0.93);
+        // По калибровке 23.10 косинус e5 не отличает пересказ от обновления сюжета, поэтому склейка по умолчанию выключена (порог 1).
+        var minSimilarity = Threshold("Embeddings:DuplicateMinSimilarity", 1);
+        if (minSimilarity >= 1)
+            return null;
+        var maxDistance = 1 - minSimilarity;
         var from = publishedAt.AddDays(-2);
         var to = publishedAt.AddDays(1);
         var nearest = await db.EventRows.AsNoTracking()

@@ -96,6 +96,15 @@ public static class DocumentEndpoints
                         chunk.ChartData.Deserialize<ReviewableChartDto[]>(JobKinds.JsonOptions)!)).ToArray(),
                     page.LastError is null ? null : "Не удалось распознать страницу. Требуется повтор задания.")).ToArray());
         });
+        group.MapPost("/{id:guid}/pages/{pageNo:int}/review", async (Guid id, int pageNo, PageReviewRequest request, HttpContext http,
+            AccessService access, ResearchReview review, CancellationToken cancellationToken) =>
+        {
+            var user = SessionAuthenticationHandler.CurrentUser(http.User);
+            await access.RequireOperatorAsync(user, cancellationToken);
+            var ifMatch = http.Request.Headers.IfMatch.ToString();
+            var result = await review.ApplyAsync(user, id, pageNo, ifMatch.Length > 0 ? ifMatch : null, request, cancellationToken);
+            return Results.Json(result.Response, statusCode: StatusCodes.Status202Accepted);
+        });
         app.MapGet("/api/research/{id:guid}/pages/{pageNo:int}", async (Guid id, int pageNo, HttpContext http, AccessService access,
             AlfaNewsDbContext db, PdfOptions options, PdfTools tools, CancellationToken cancellationToken) =>
         {

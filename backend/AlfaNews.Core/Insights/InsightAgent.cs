@@ -38,6 +38,8 @@ public sealed class InsightAgent(AlfaNewsDbContext db, LlmGateway gateway, Agent
             && row.Role == roleName && row.InputVersion == payload.InputVersion, cancellationToken);
         if (insight?.Status == "ready")
             return new JobResult("ready", "insight", insight.Id.ToString());
+        if (await OtherRoleRunningAsync(job, payload, cancellationToken))
+            return new JobResult("deferred", Defer: true);
         var now = clock.GetUtcNow();
         if (insight is null)
         {
@@ -101,8 +103,11 @@ public sealed class InsightAgent(AlfaNewsDbContext db, LlmGateway gateway, Agent
     {
         var steps = new StepWriter(db, run.Id);
         var news = eventRow.ExtractionJson.Deserialize<NewsExtraction>(LlmOutputValidator.JsonOptions)!;
-        var snapshot = await db.FeedSnapshotRows.AsNoTracking().SingleOrDefaultAsync(row => row.CompanyId == payload.CompanyId, cancellationToken);
-        var feedItem = snapshot?.ItemsJson.Deserialize<List<FeedItemDto>>(AgentTools.JsonOptions)?.SingleOrDefault(item => item.EventId == payload.EventId);
+        // Карточка берёт дату и причины из того снимка (живого или демо), где есть событие; живой — в приоритете.
+        var snapshots = await db.FeedSnapshotRows.AsNoTracking().Where(row => row.CompanyId == payload.CompanyId).ToListAsync(cancellationToken);
+        var (snapshot, feedItem) = snapshots.OrderBy(row => row.Mode == FeedSettings.Live ? 0 : 1)
+            .Select(row => ((FeedSnapshotEntity?)row, row.ItemsJson.Deserialize<List<FeedItemDto>>(AgentTools.JsonOptions)?.SingleOrDefault(item => item.EventId == payload.EventId)))
+            .FirstOrDefault(pair => pair.Item2 is not null);
         var asOf = snapshot is not null && feedItem is not null ? snapshot.AsOf : clock.GetUtcNow();
         var ranked = await ranking.RankEventAsync(payload.CompanyId, eventRow.Id, asOf, cancellationToken)
             ?? throw new InvalidOperationException("Событие недоступно для ранжирования.");
@@ -298,6 +303,19 @@ public sealed class InsightAgent(AlfaNewsDbContext db, LlmGateway gateway, Agent
             limitations = result.Limitations
         }), result.EvidenceIds, result.Summary, started, cancellationToken);
         return result;
+    }
+
+    // План общий для CEO и CFO: пока идёт карточка другой роли по тому же событию, ждём её и берём план из кэша шлюза.
+    // Ждёт задание, захваченное позже (при равенстве — с большим ID), чтобы две роли не откладывали друг друга по кругу.
+    private async Task<bool> OtherRoleRunningAsync(BackgroundJobEntity job, GenerateInsightJob payload, CancellationToken cancellationToken)
+    {
+        var kind = JobKinds.Name<GenerateInsightJob>();
+        var running = await db.BackgroundJobRows.AsNoTracking()
+            .Where(row => row.Kind == kind && row.Status == "running" && row.Id != job.Id && row.CompanyId == payload.CompanyId)
+            .Select(row => new { row.Id, row.StartedAt, row.Payload }).ToListAsync(cancellationToken);
+        return running.Any(other => other.Payload.Deserialize<GenerateInsightJob>(JobKinds.JsonOptions) is { } peer
+            && peer.EventId == payload.EventId && peer.InputVersion == payload.InputVersion && peer.Role != payload.Role
+            && (other.StartedAt < job.StartedAt || other.StartedAt == job.StartedAt && other.Id.CompareTo(job.Id) < 0));
     }
 
     private Task<int> RepairCountAsync(Guid runId, CancellationToken cancellationToken) => db.LlmUsageRows.AsNoTracking()

@@ -19,6 +19,7 @@ public sealed class JobDispatcher(IServiceScopeFactory scopes, TimeProvider time
         var job = await ClaimAsync(db, kinds, cancellationToken);
         if (job is null)
             return false;
+        var deferred = false;
         try
         {
             var payloadType = JobKinds.PayloadType(job.Kind);
@@ -41,7 +42,8 @@ public sealed class JobDispatcher(IServiceScopeFactory scopes, TimeProvider time
                 else
                 {
                     var result = await handler.HandleAsync(job, cancellationToken);
-                    job.Status = result.ErrorCode is null ? "done" : "failed";
+                    deferred = result.Defer && result.ErrorCode is null;
+                    job.Status = deferred ? "queued" : result.ErrorCode is null ? "done" : "failed";
                     job.Stage = result.Stage;
                     job.LastError = result.ErrorCode;
                     if (result.ErrorCode is null)
@@ -69,9 +71,16 @@ public sealed class JobDispatcher(IServiceScopeFactory scopes, TimeProvider time
         }
         if (job.Status == "failed")
             job.Stage = "failed";
-        job.FinishedAt = timeProvider.GetUtcNow();
+        if (deferred)
+        {
+            job.StartedAt = null;
+            job.Attempts--;
+            job.CreatedAt = timeProvider.GetUtcNow();
+        }
+        else
+            job.FinishedAt = timeProvider.GetUtcNow();
         await db.SaveChangesAsync(cancellationToken);
-        return true;
+        return !deferred;
     }
 
     private async Task<BackgroundJobEntity?> ClaimAsync(AlfaNewsDbContext db, IReadOnlyCollection<string>? kinds,

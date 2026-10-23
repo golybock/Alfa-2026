@@ -7,6 +7,7 @@ namespace AlfaNews.Core.Data.Entities;
 public sealed class FeedSnapshotEntity
 {
     public string CompanyId { get; set; } = string.Empty;
+    public string Mode { get; set; } = "live";
     public DateTimeOffset AsOf { get; set; }
     public DateTimeOffset NewsPeriodFrom { get; set; }
     public DateTimeOffset NewsPeriodTo { get; set; }
