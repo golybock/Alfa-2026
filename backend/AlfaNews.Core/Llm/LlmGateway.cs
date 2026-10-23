@@ -96,8 +96,10 @@ public sealed class LlmGateway(AlfaNewsDbContext db, LlmOptions options, LlmProm
         var originalStage = LlmBudget.Stage(request.Task);
         var originalPrompt = prompts.Render(request, request.Task);
         var originalCacheKey = CacheKey(request, request.Task, originalPrompt, options.Route(request.Task, request.Task));
-        var initialCount = await db.LlmUsageRows.CountAsync(row => row.RequestKey == requestKey
-            && row.Attempt > 0 && (row.Stage == originalStage || row.Stage == "repair"), cancellationToken);
+        var since = await db.BackgroundJobRows.AsNoTracking().Where(row => row.Id == request.JobId)
+            .Select(row => row.StartedAt).SingleOrDefaultAsync(cancellationToken) ?? DateTimeOffset.MinValue;
+        var initialCount = await db.LlmUsageRows.CountAsync(row => row.RequestKey == requestKey && row.Attempt > 0
+            && row.CreatedAt >= since && (row.Stage == originalStage || row.Stage == "repair"), cancellationToken);
         for (var attempt = 1; attempt <= Math.Max(1, 4 - initialCount); attempt++)
         {
             var route = options.Route(task, request.Task);
@@ -152,7 +154,7 @@ public sealed class LlmGateway(AlfaNewsDbContext db, LlmOptions options, LlmProm
                 try
                 {
                     entry = await budget.StartAsync(runId, request, task, route, requestKey,
-                        initialCount + attempt, reserve, cancellationToken, configVersion);
+                        initialCount + attempt, reserve, cancellationToken, configVersion, since);
                 }
                 catch (LlmException exception) when (diagnostics is { Count: > 0 })
                 {
@@ -178,9 +180,9 @@ public sealed class LlmGateway(AlfaNewsDbContext db, LlmOptions options, LlmProm
                     errors.Count > 0 ? "invalid_output" : null, cancellationToken);
                 if (response.Error == "llm_key_required")
                     budget.RejectKey();
-                logger.LogInformation("LLM {RunId} {Stage} {Model}: {Error}, HTTP {HttpStatus}, finish {FinishReason}.",
+                logger.LogInformation("LLM {RunId} {Stage} {Model}: {Error}, HTTP {HttpStatus}, finish {FinishReason}, diagnostics {Diagnostics}.",
                     runId, LlmBudget.Stage(task), route.Model, response.Error ?? (errors.Count > 0 ? "invalid_output" : "done"),
-                    response.HttpStatus, response.FinishReason);
+                    response.HttpStatus, response.FinishReason, string.Join(",", errors));
             }
             finally
             {

@@ -25,7 +25,7 @@ public sealed class SourceCatalogLoader(AlfaNewsDbContext db)
 {
     private static readonly JsonSerializerOptions JsonOptions = CreateJsonOptions();
 
-    public async Task<int> LoadAsync(string path, CancellationToken cancellationToken)
+    public async Task<int> LoadAsync(string path, CancellationToken cancellationToken, bool? isSpecialized = null)
     {
         var entries = JsonSerializer.Deserialize<List<SourceCatalogEntry>>(
             await File.ReadAllTextAsync(path, cancellationToken), JsonOptions)
@@ -43,7 +43,8 @@ public sealed class SourceCatalogLoader(AlfaNewsDbContext db)
             row.Kind = entry.Kind;
             row.AllowedHosts = JsonSerializer.SerializeToElement(entry.AllowedHosts);
             row.Enabled = entry.Enabled && entry.ValidationStatus == "checked";
-            row.PollSeconds = entry.PollSeconds;
+            row.IsSpecialized = isSpecialized ?? Path.GetFileName(path).Equals("sources-specialized.json", StringComparison.OrdinalIgnoreCase);
+            row.PollSeconds = row.IsSpecialized ? 900 : 3600;
             row.Reliability = entry.Reliability;
             row.ValidationStatus = entry.ValidationStatus;
         }

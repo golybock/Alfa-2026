@@ -97,12 +97,13 @@ CREATE TABLE source (
     kind text NOT NULL CHECK (kind IN ('official','media')),
     allowed_hosts jsonb NOT NULL,
     enabled boolean NOT NULL DEFAULT false,
-    poll_seconds integer NOT NULL DEFAULT 120 CHECK (poll_seconds >= 60),
+    poll_seconds integer NOT NULL DEFAULT 3600 CHECK (poll_seconds >= 60),
     reliability numeric(3,2) NOT NULL CHECK (reliability BETWEEN 0 AND 1),
     validation_status text NOT NULL,
     last_checked_at timestamptz,
     last_success_at timestamptz,
-    last_error text
+    last_error text,
+    is_specialized boolean NOT NULL DEFAULT false
 );
 CREATE TABLE news_raw (
     id uuid PRIMARY KEY,
@@ -115,8 +116,12 @@ CREATE TABLE news_raw (
     fetched_at timestamptz NOT NULL,
     status text NOT NULL CHECK (status IN ('queued','processing','accepted','duplicate','rejected','failed')),
     rejection_reason text,
-    last_error text
+    last_error text,
+    embedding vector(768),
+    filter_json jsonb,
+    importance integer CHECK (importance IS NULL OR importance BETWEEN 1 AND 3)
 );
+CREATE INDEX news_pending_idx ON news_raw(status, importance, fetched_at);
 CREATE INDEX news_hash_idx ON news_raw(text_sha256);
 CREATE INDEX news_date_idx ON news_raw(published_at DESC);
 CREATE TABLE event (
@@ -193,7 +198,7 @@ CREATE TABLE research_chunk (
 CREATE INDEX research_fts_idx ON research_chunk USING gin(search_text);
 
 CREATE TABLE feed_snapshot (
-    company_id text PRIMARY KEY REFERENCES company(id),
+    company_id text NOT NULL REFERENCES company(id),
     as_of timestamptz NOT NULL,
     news_period_from timestamptz NOT NULL,
     news_period_to timestamptz NOT NULL,
@@ -201,7 +206,9 @@ CREATE TABLE feed_snapshot (
     items_json jsonb NOT NULL,
     last_updated_at timestamptz NOT NULL,
     collection_started_at timestamptz,
-    refresh_status text NOT NULL
+    refresh_status text NOT NULL,
+    mode text NOT NULL DEFAULT 'live' CHECK (mode IN ('live','demo')),
+    PRIMARY KEY (company_id, mode)
 );
 CREATE TABLE insight (
     id uuid PRIMARY KEY,
@@ -272,6 +279,8 @@ CREATE TABLE agent_step (
     evidence_refs jsonb NOT NULL DEFAULT '[]',
     summary text NOT NULL,
     duration_ms bigint NOT NULL,
+    arguments_json jsonb,
+    result_json jsonb,
     UNIQUE (run_id, ordinal)
 );
 CREATE TABLE llm_usage (
@@ -291,7 +300,9 @@ CREATE TABLE llm_usage (
     error text,
     created_at timestamptz NOT NULL,
     request_key text NOT NULL DEFAULT '',
-    reserved_cost_rub numeric(18,8) NOT NULL DEFAULT 0.0
+    reserved_cost_rub numeric(18,8) NOT NULL DEFAULT 0.0,
+    finish_reason text,
+    http_status integer
 );
 CREATE INDEX usage_date_idx ON llm_usage(created_at);
 CREATE INDEX usage_request_stage_idx ON llm_usage(request_key, stage);

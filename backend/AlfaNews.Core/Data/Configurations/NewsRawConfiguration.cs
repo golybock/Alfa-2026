@@ -10,6 +10,7 @@ public sealed class NewsRawConfiguration : IEntityTypeConfiguration<NewsRawEntit
     {
         builder.ToTable("news_raw", table =>
         {
+            table.HasCheckConstraint("news_raw_importance_check", "importance IS NULL OR importance BETWEEN 1 AND 3");
             table.HasCheckConstraint("news_raw_1_check", "status IN ('queued','processing','accepted','duplicate','rejected','failed')");
         });
         builder.HasKey(entity => entity.Id).HasName("news_raw_pkey");
@@ -24,6 +25,10 @@ public sealed class NewsRawConfiguration : IEntityTypeConfiguration<NewsRawEntit
         builder.Property(entity => entity.FetchedAt).HasColumnName("fetched_at").HasColumnType("timestamptz").IsRequired();
         builder.Property(entity => entity.Status).HasColumnName("status").HasColumnType("text").IsRequired();
         builder.Property(entity => entity.RejectionReason).HasColumnName("rejection_reason").HasColumnType("text");
+        builder.Property(entity => entity.Importance).HasColumnName("importance");
+        builder.Property(entity => entity.FilterJson).HasColumnName("filter_json").HasColumnType("jsonb");
+        builder.Property(entity => entity.Embedding).HasColumnName("embedding").HasColumnType("vector(768)");
+        builder.HasIndex(entity => new { entity.Status, entity.Importance, entity.FetchedAt }).HasDatabaseName("news_pending_idx");
         builder.Property(entity => entity.LastError).HasColumnName("last_error").HasColumnType("text");
         builder.HasAlternateKey(entity => entity.CanonicalUrl).HasName("news_raw_canonical_url_key");
         builder.HasIndex(entity => entity.TextSha256).HasDatabaseName("news_hash_idx");

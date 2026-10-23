@@ -16,6 +16,8 @@ public sealed class AgentStepConfiguration : IEntityTypeConfiguration<AgentStepE
         builder.Property(entity => entity.Ordinal).HasColumnName("ordinal").HasColumnType("integer").IsRequired();
         builder.Property(entity => entity.Stage).HasColumnName("stage").HasColumnType("text").IsRequired();
         builder.Property(entity => entity.ToolName).HasColumnName("tool_name").HasColumnType("text");
+        builder.Property(entity => entity.ArgumentsJson).HasColumnName("arguments_json").HasColumnType("jsonb");
+        builder.Property(entity => entity.ResultJson).HasColumnName("result_json").HasColumnType("jsonb");
         builder.Property(entity => entity.EvidenceRefs).HasColumnName("evidence_refs").HasColumnType("jsonb").IsRequired().HasDefaultValueSql("'[]'::jsonb");
         builder.Property(entity => entity.Summary).HasColumnName("summary").HasColumnType("text").IsRequired();
         builder.Property(entity => entity.DurationMs).HasColumnName("duration_ms").HasColumnType("bigint").IsRequired();

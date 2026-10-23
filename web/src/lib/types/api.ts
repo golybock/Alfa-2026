@@ -183,7 +183,7 @@ export interface EvidenceDto {
 export type EvidenceType = "news" | "bank_research" | "company_feature" | "payment_aggregate" | "group_feature";
 
 export interface FeatureContribution {
-  readonly code: string;
+  readonly code: RankingFeatureCode;
   readonly value: number;
   readonly weight: number;
   readonly contribution: number;
@@ -336,6 +336,8 @@ export interface PendingInsightResponse {
   readonly status: AnalysisStatus;
   readonly job_id: string | null;
 }
+
+export type RankingFeatureCode = "okved" | "factor" | "product" | "country" | "cp" | "group";
 
 export type RefreshStatus = "idle" | "queued" | "processing" | "failed";
 

@@ -1,6 +1,6 @@
 ﻿FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
 RUN sed -i -e 's|http://|https://|g' -e 's/^Components:.*/Components: main/' /etc/apt/sources.list.d/ubuntu.sources \
-    && apt-get -o Acquire::Retries=3 update && apt-get -o Acquire::Retries=3 install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/* \
+    && apt-get -o Acquire::Retries=3 update && apt-get -o Acquire::Retries=3 install -y --no-install-recommends curl poppler-utils && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /var/lib/alfanews/research && chown "$APP_UID:$APP_UID" /var/lib/alfanews/research
 USER $APP_UID
 WORKDIR /app

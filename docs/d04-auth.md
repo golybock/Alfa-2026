@@ -15,7 +15,7 @@
 - Токен — 32 случайных байта, в базе только SHA-256 (`auth_session.token_hash`). Пароль — bcrypt (`app_user.password_hash`).
 - Cookie: `HttpOnly`, `SameSite=Lax`, `Secure` при HTTPS (в том числе `X-Forwarded-Proto: https` за reverse proxy), срок равен сроку сессии.
 - Срок сессии: `Auth:SessionHours`, по умолчанию 12.
-- Изменяющие запросы проверяются по `Origin` из `Auth:AllowedOrigins`. В Development разрешён `http://localhost:3000`; за reverse proxy задайте внешний origin явно (`Auth__AllowedOrigins__0`).
+- Изменяющие запросы проверяются по `Origin` из `Auth:AllowedOrigins`. В Development разрешён `http://localhost:3000`; за reverse proxy задайте внешний origin явно (`Auth__AllowedOrigins__0`). В Compose API принимает `PUBLIC_ORIGIN` из `.env` (по умолчанию `http://localhost:HTTP_PORT`) и `http://127.0.0.1:HTTP_PORT`: без этого вход через шлюз отклонялся как `invalid_origin`.
 
 ## Демо-учётки
 
@@ -40,7 +40,7 @@ Seed__CompanyIds=ID1,ID2 Seed__UserPassword=... Seed__OperatorPassword=... dotne
 
 | Логин | Кто | Доступ |
 | --- | --- | --- |
-| `demo` | ЛПР | компании из `Seed__CompanyIds` (сейчас `U_12959`, `U_68157`, `U_71942`), у каждой роли CEO и CFO через `user_company_access`; после входа выбирает организацию и роль |
+| `demo` | ЛПР | компании из `Seed__CompanyIds` (сейчас `U_68157`, `U_71942`, `U_258515`), у каждой роли CEO и CFO через `user_company_access`; после входа выбирает организацию и роль |
 | `operator` | админ, `is_operator = true` | без доступа к данным компаний, только операторские endpoints (задания, PDF) |
 
 Каждая из трёх компаний `demo` принадлежит своей группе (`group_134462_sb`, `group_134546_sb`, `group_134530_sb`); доступ выдаётся к самим компаниям, а не ко всем участникам группы.

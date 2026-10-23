@@ -14,6 +14,8 @@ public static class CountryNames
          "ТУНИС|ТУРКМЕНИСТАН|ТУРЦИЯ|УЗБЕКИСТАН|ФИНЛЯНДИЯ|ФРАНЦИЯ|ЧЕХИЯ|ЧИЛИ|ШВЕЙЦАРИЯ|ШВЕЦИЯ|" +
          "ШРИ-ЛАНКА|ЭКВАДОР|ЭСТОНИЯ|ЭФИОПИЯ|ЮЖНАЯ КОРЕЯ|ЮЖНАЯ ОСЕТИЯ|ЯПОНИЯ").Split('|'), StringComparer.Ordinal);
 
+    public static IReadOnlyList<string> Values => KnownNames.Order(StringComparer.Ordinal).ToArray();
+
     public static string Normalize(string name) =>
         string.Join(' ', name.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)).ToUpperInvariant();
 

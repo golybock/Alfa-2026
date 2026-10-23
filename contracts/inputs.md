@@ -59,9 +59,10 @@ ReviewableChartDto добавляет серверный review_status; моде
 K04 не сочиняет веса самостоятельно: получает от A04 кандидатов двух отраслей и черновик Артёма из A01/A04, проверяет обоснование и заносит замечания. Утверждает Артём.
 
 ```text
-data/taxonomy/factors.json: [{code,name,description,keywords,version}]
-data/taxonomy/sensitivity.csv: okved2,factor_code,weight,sign,channel,reviewed_by,reviewed_at,version
-data/rules/product_factors.csv: product_code,factor_code,channel,version
+data/taxonomy.json: {version,reviewed_by,reviewed_at,
+  factors: [{code,name,description,keywords}],
+  product_rules: [{product,factor,channel}],
+  sector_sensitivity: [{okved2,factor,weight,sign,channel}]}
 data/eval/relevance.csv: company_id,event_id,label,channel,comment,reviewed_by
 data/eval/chat.csv: question,expected,reason
 data/eval/card-review.csv: insight_id,claim_id,refs_ok,numbers_ok,company_link_ok,decision_specific,comment

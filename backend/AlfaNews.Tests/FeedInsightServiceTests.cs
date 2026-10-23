@@ -116,7 +116,7 @@ public sealed class FeedInsightServiceTests(PostgresFixture fixture) : IClassFix
     }
 
     private FeedService CreateFeed(Core.Data.AlfaNewsDbContext db) =>
-        new(db, new AccessService(db, TimeProvider.System), new JobQueue(db, TimeProvider.System), TimeProvider.System);
+        new(db, new AccessService(db, TimeProvider.System), new JobQueue(db, TimeProvider.System), new Core.Feed.FeedSettings(), TimeProvider.System);
 
     private InsightService CreateInsights(Core.Data.AlfaNewsDbContext db) =>
         new(db, new AccessService(db, TimeProvider.System), new JobQueue(db, TimeProvider.System));

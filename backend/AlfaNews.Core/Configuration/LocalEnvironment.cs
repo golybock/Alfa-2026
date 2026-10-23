@@ -102,7 +102,14 @@ public static partial class LocalEnvironment
         ["LLM_GLM_OUTPUT_ESTIMATE_RUB_PER_MILLION"] = "Llm__GlmOutputEstimateRubPerMillion",
         ["CRITIC_ENABLED"] = "Llm__CriticEnabled",
         ["CRITIC_SCOPE"] = "Llm__CriticScope",
-        ["FEED_COMPANY_IDS"] = "Feed__CompanyIds"
+        ["FEED_COMPANY_IDS"] = "Feed__CompanyIds",
+        ["FEED_MODE"] = "Feed__Mode",
+        ["QUEUE_NEWS_SLOTS"] = "Queue__NewsSlots",
+        ["QUEUE_DOCUMENTS_SLOTS"] = "Queue__DocumentsSlots",
+        ["QUEUE_INSIGHTS_SLOTS"] = "Queue__InsightsSlots",
+        ["QUEUE_CHAT_SLOTS"] = "Queue__ChatSlots",
+        ["LLM_MAX_PARALLEL_REQUESTS"] = "Llm__MaxParallelRequests",
+        ["LLM_DAILY_LIMIT_RUB"] = "Llm__DailyLimitRub"
     };
 
     [GeneratedRegex("^[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.CultureInvariant)]

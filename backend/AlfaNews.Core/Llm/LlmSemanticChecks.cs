@@ -1,36 +1,35 @@
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using AlfaNews.Contracts.Processing;
+using AlfaNews.Core.Ingest;
 using Json.Schema;
 
 namespace AlfaNews.Core.Llm;
 
 public static class LlmSemanticChecks
 {
-    public const string Version = "v3";
+    public const string Version = "v4";
 
     public static IReadOnlyList<string> Validate(JsonElement value, LlmRequest request)
     {
         var errors = new List<string>();
+        if (request.Task == LlmTask.NewsTriage)
+        {
+            var expected = request.Values["INPUT_JSON"].EnumerateArray().Select(item => item.GetProperty("id").GetString()).ToHashSet();
+            var actual = value.GetProperty("decisions").EnumerateArray().Select(item => item.GetProperty("id").GetString()).ToArray();
+            if (actual.Length != expected.Count || !expected.SetEquals(actual))
+                errors.Add("triage:ids_must_match_exactly_once");
+        }
         if (request.Task == LlmTask.NewsExtract)
         {
-            var input = request.Values["INPUT_JSON"];
-            var body = Property(input, "text").GetString() ?? Property(input, "body").GetString() ?? "";
-            var normalizedBody = NormalizeQuote(body);
+            var lines = NewsLines.Read(request.Values["INPUT_JSON"]);
             var facts = value.GetProperty("facts");
-            if (string.IsNullOrWhiteSpace(body) || facts.GetArrayLength() == 0)
+            if (lines.Count == 0 || facts.GetArrayLength() == 0)
                 errors.Add("news:missing_facts");
-            foreach (var fact in facts.EnumerateArray())
-            {
-                var quote = NormalizeQuote(fact.GetProperty("quote").GetString() ?? "");
-                if (quote.Length == 0 || !normalizedBody.Contains(quote, StringComparison.Ordinal))
-                    errors.Add("news:quote_not_in_body");
-                var quotedNumbers = Numbers(fact.GetProperty("quote").GetString()!);
-                if (Numbers(fact.GetProperty("text").GetString()!).Except(quotedNumbers).Any())
-                    errors.Add("news:number_not_in_quote");
-            }
+            foreach (var fact in facts.Deserialize<FactReference[]>(LlmOutputValidator.JsonOptions)!)
+                if (NewsLines.Resolve(lines, fact).Error is { } error)
+                    errors.Add(error);
             Tags(value.GetProperty("tags"), request, errors);
         }
         if (request.Task == LlmTask.PdfOcr)
@@ -154,25 +153,4 @@ public static class LlmSemanticChecks
 
     private static HashSet<string> Numbers(string text) => Regex.Matches(text, @"\d+(?:[,.]\d+)?", RegexOptions.CultureInvariant)
         .Select(match => match.Value.Replace(',', '.')).ToHashSet(StringComparer.Ordinal);
-
-    private static string NormalizeQuote(string text)
-    {
-        var result = new StringBuilder(text.Length);
-        var space = false;
-        foreach (var character in text)
-        {
-            if (character is '\u200B' or '\uFEFF' or '\u2060' or '\u00AD')
-                continue;
-            if (char.IsWhiteSpace(character))
-            {
-                space = result.Length > 0;
-                continue;
-            }
-            if (space)
-                result.Append(' ');
-            result.Append(character);
-            space = false;
-        }
-        return result.ToString();
-    }
 }

@@ -6,7 +6,7 @@ from pathlib import Path
 root = Path(__file__).resolve().parent
 manifest = json.loads((root / "versions.json").read_text(encoding="utf-8"))
 assert manifest["language"] == "en"
-assert set(manifest["tasks"]) == {"NewsExtract", "Plan", "Draft", "Repair", "PdfOcr", "Critic", "Chat", "ScopeGate"}
+assert set(manifest["tasks"]) == {"NewsTriage", "NewsExtract", "Plan", "Draft", "Repair", "PdfOcr", "Critic", "Chat", "ScopeGate"}
 def resolve(name):
     path = root / name
     return path if path.is_file() else root.parents[2] / "contracts" / name

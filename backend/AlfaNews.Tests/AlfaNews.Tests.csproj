@@ -28,6 +28,7 @@
         <None Include="..\..\contracts\examples\*.json" Link="Examples\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
         <None Include="Fixtures\ingest\*" Link="Fixtures\ingest\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
         <None Include="..\..\contracts\database.sql" Link="database.sql" CopyToOutputDirectory="PreserveNewest" />
+        <None Include="..\..\data\taxonomy.json" Link="taxonomy.json" CopyToOutputDirectory="PreserveNewest" />
     </ItemGroup>
 
 </Project>

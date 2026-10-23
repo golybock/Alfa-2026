@@ -6,22 +6,29 @@ namespace AlfaNews.Core.Processing;
 
 public static class JobKinds
 {
-    private static readonly IReadOnlyDictionary<Type, int> Priorities = new Dictionary<Type, int>
+    public const string DataLane = "data";
+    public const string NewsLane = "news";
+    public const string DocumentsLane = "documents";
+    public const string InsightsLane = "insights";
+    public const string ChatLane = "chat";
+
+    private static readonly IReadOnlyDictionary<Type, (int Priority, string Lane)> Kinds = new Dictionary<Type, (int, string)>
     {
-        [typeof(ImportCsvJob)] = 100,
-        [typeof(RebuildProfilesJob)] = 90,
-        [typeof(CollectNewsJob)] = 80,
-        [typeof(CollectManualNewsJob)] = 80,
-        [typeof(ParseNewsJob)] = 80,
-        [typeof(RefreshFeedJob)] = 70,
-        [typeof(GenerateInsightJob)] = 60,
-        [typeof(AnswerChatJob)] = 60,
-        [typeof(FinalizePdfJob)] = 30,
-        [typeof(IndexPdfJob)] = 30,
-        [typeof(EmbedContentJob)] = 20,
-        [typeof(PrecomputeDemoJob)] = 10,
-        [typeof(OcrPdfPageJob)] = 0,
-        [typeof(ConsoleMessageJob)] = -10
+        [typeof(ImportCsvJob)] = (100, DataLane),
+        [typeof(RebuildProfilesJob)] = (90, DataLane),
+        [typeof(CollectNewsJob)] = (80, NewsLane),
+        [typeof(CollectManualNewsJob)] = (80, NewsLane),
+        [typeof(ParseNewsJob)] = (83, NewsLane),
+        [typeof(TriageNewsJob)] = (82, NewsLane),
+        [typeof(RefreshFeedJob)] = (70, DataLane),
+        [typeof(GenerateInsightJob)] = (60, InsightsLane),
+        [typeof(AnswerChatJob)] = (60, ChatLane),
+        [typeof(FinalizePdfJob)] = (30, DocumentsLane),
+        [typeof(IndexPdfJob)] = (30, DocumentsLane),
+        [typeof(EmbedContentJob)] = (20, DocumentsLane),
+        [typeof(PrecomputeDemoJob)] = (10, InsightsLane),
+        [typeof(OcrPdfPageJob)] = (0, DocumentsLane),
+        [typeof(ConsoleMessageJob)] = (-10, DataLane)
     };
 
     public static JsonSerializerOptions JsonOptions { get; } = CreateJsonOptions();
@@ -30,14 +37,16 @@ public static class JobKinds
 
     public static string Name(Type type)
     {
-        if (!Priorities.ContainsKey(type))
+        if (!Kinds.ContainsKey(type))
             throw new ArgumentException("Неизвестный тип фонового задания.", nameof(type));
         return type.Name[..^3];
     }
 
-    public static int Priority<T>() where T : class => Priorities[typeof(T)];
+    public static int Priority<T>() where T : class => Kinds[typeof(T)].Priority;
 
-    public static Type? PayloadType(string kind) => Priorities.Keys.SingleOrDefault(type => Name(type) == kind);
+    public static Type? PayloadType(string kind) => Kinds.Keys.SingleOrDefault(type => Name(type) == kind);
+
+    public static string[] InLane(string lane) => Kinds.Where(pair => pair.Value.Lane == lane).Select(pair => Name(pair.Key)).ToArray();
 
     private static JsonSerializerOptions CreateJsonOptions()
     {
