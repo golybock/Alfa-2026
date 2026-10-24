@@ -72,5 +72,6 @@
       ],
       "error": null
     }
-  ]
+  ],
+  "llm_key_required": false
 }

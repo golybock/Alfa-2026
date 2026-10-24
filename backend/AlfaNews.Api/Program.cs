@@ -13,6 +13,7 @@ using AlfaNews.Core.Configuration;
 using AlfaNews.Core.Data;
 using AlfaNews.Core.Documents;
 using AlfaNews.Core.Feed;
+using AlfaNews.Core.Ingest;
 using AlfaNews.Core.Insights;
 using AlfaNews.Core.Processing;
 using Microsoft.AspNetCore.Authentication;
@@ -34,6 +35,7 @@ pdfOptions.InputPath = builder.Configuration["Data:InputPath"] ?? pdfOptions.Inp
 builder.Services.AddSingleton(pdfOptions);
 builder.Services.AddScoped<PdfTools>();
 builder.Services.AddScoped<PdfRegistration>();
+builder.Services.AddScoped<ManualNewsService>();
 builder.Services.AddScoped<ResearchReview>();
 builder.Services.Configure<FormOptions>(options => options.MultipartBodyLengthLimit = 52L * 1024 * 1024);
 builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 52L * 1024 * 1024);

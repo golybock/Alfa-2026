@@ -167,6 +167,7 @@ export interface DocumentResponse {
   readonly ocr_status: OcrStatus;
   readonly review_status: ReviewStatus;
   readonly pages: ReadonlyArray<DocumentPageDto>;
+  readonly llm_key_required: boolean;
 }
 
 export interface DocumentSummaryDto {
@@ -177,6 +178,9 @@ export interface DocumentSummaryDto {
   readonly version: string;
   readonly ocr_status: OcrStatus;
   readonly review_status: ReviewStatus;
+  readonly uploaded_at: string;
+  readonly uploaded_by_me: boolean;
+  readonly llm_key_required: boolean;
 }
 
 export interface EvidenceDto {
@@ -323,7 +327,7 @@ export interface LoginRequest {
 }
 
 export interface ManualNewsRequest {
-  readonly source_id: string;
+  readonly source_id: string | null;
   readonly url: string | null;
   readonly title: string | null;
   readonly text: string | null;
@@ -335,6 +339,7 @@ export interface MeResponse {
   readonly display_name: string;
   readonly is_operator: boolean;
   readonly companies: ReadonlyArray<CompanyAccessDto>;
+  readonly can_add_materials: boolean;
 }
 
 export interface ModelConfigResponse {

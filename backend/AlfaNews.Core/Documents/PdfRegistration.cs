@@ -98,6 +98,9 @@ public sealed class PdfRegistration(AlfaNewsDbContext db, JobQueue queue, PdfOpt
             .OrderByDescending(row => row.CreatedAt).FirstOrDefaultAsync(cancellationToken);
         if (job is null)
         {
+            var pages = await db.ResearchPageRows.AsNoTracking().Where(row => row.DocumentId == document.Id)
+                .Select(row => new { row.OcrStatus, row.LastError }).ToArrayAsync(cancellationToken);
+            var keyRequired = DocumentStatuses.WaitsForKey(document.OcrStatus, pages.Select(row => (row.OcrStatus, row.LastError)).ToArray());
             job = new BackgroundJobEntity
             {
                 Id = Guid.NewGuid(),
@@ -110,7 +113,7 @@ public sealed class PdfRegistration(AlfaNewsDbContext db, JobQueue queue, PdfOpt
                 FinishedAt = time.GetUtcNow(),
                 ResultType = "document",
                 ResultId = document.Id.ToString(),
-                LastError = document.OcrStatus == "failed" ? "processing_failed" : null
+                LastError = keyRequired ? DocumentStatuses.KeyRequired : document.OcrStatus == "failed" ? "processing_failed" : null
             };
             db.BackgroundJobRows.Add(job);
             await db.SaveChangesAsync(cancellationToken);

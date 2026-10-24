@@ -9,5 +9,8 @@ public sealed record DocumentSummaryDto(
 	int PageCount,
 	string Version,
 	OcrStatus OcrStatus,
-	ReviewStatus ReviewStatus
+	ReviewStatus ReviewStatus,
+	DateTimeOffset UploadedAt,
+	bool UploadedByMe,
+	bool LlmKeyRequired
 );
