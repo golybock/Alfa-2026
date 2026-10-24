@@ -224,6 +224,9 @@
         "headline": {
           "type": "string"
         },
+        "why_you": {
+          "type": "string"
+        },
         "what_happened": {
           "type": "array",
           "items": {
@@ -282,6 +285,7 @@
       },
       "required": [
         "headline",
+        "why_you",
         "what_happened",
         "why_it_matters",
         "consequences",

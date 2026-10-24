@@ -1,0 +1,16 @@
+{
+  "items": [
+    {
+      "id": "spec-kommersant-economics",
+      "name": "Коммерсантъ: Экономика",
+      "feed_url": "https://www.kommersant.ru/RSS/section-economics.xml",
+      "is_specialized": true
+    },
+    {
+      "id": "rbc-economy",
+      "name": "РБК",
+      "feed_url": "https://rssexport.rbc.ru/rbcnews/news/30/full.rss",
+      "is_specialized": false
+    }
+  ]
+}

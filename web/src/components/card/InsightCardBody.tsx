@@ -126,6 +126,7 @@ export default function InsightCardBody({ insight, onOpenWhy }: InsightCardBodyP
           </button>
         </div>
         <div className="min-w-0 flex-1">
+          {insight.why_you ? <p className="mb-3 text-sm font-medium text-zinc-900">{insight.why_you}</p> : null}
           <ClaimList ids={insight.why_it_matters} claims={claims} evidence={insight.evidence} />
           {features.length > 0 ? (
             <ul className="mt-3 flex flex-wrap gap-2">

@@ -5,6 +5,7 @@ namespace AlfaNews.Contracts.Processing;
 
 public sealed record InsightDraft(
 	string Headline,
+	string WhyYou,
 	IReadOnlyList<string> WhatHappened,
 	IReadOnlyList<string> WhyItMatters,
 	IReadOnlyList<ConsequenceDto> Consequences,

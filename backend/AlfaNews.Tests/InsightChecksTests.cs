@@ -87,10 +87,19 @@ public sealed class InsightChecksTests
     }
 
     [Fact]
+    public void WhyYouIsShownOnlyWhenItIsOneShortPhrase()
+    {
+        Assert.Equal("У компании кредит в банке.", InsightChecks.WhyYou("  У компании кредит в банке. "));
+        Assert.Null(InsightChecks.WhyYou(" "));
+        Assert.Null(InsightChecks.WhyYou(null));
+        Assert.Null(InsightChecks.WhyYou(new string('а', InsightChecks.MaxWhyYouLength + 1)));
+    }
+
+    [Fact]
     public void TrimKeepsScreenLimitsAndDropsOrphanClaims()
     {
         DraftClaim Claim(int index) => new("C" + index, "Утверждение " + index, Origin.AiInference, ["E2"], null);
-        var draft = new InsightDraft("Заголовок", ["C1", "C2", "C3"], ["C4"],
+        var draft = new InsightDraft("Заголовок", "Почему касается компании.", ["C1", "C2", "C3"], ["C4"],
             [new(ConsequenceType.Risk, ["C5"]), new(ConsequenceType.Opportunity, ["C6"]), new(ConsequenceType.Risk, ["C7"]), new(ConsequenceType.Risk, ["C8"])],
             ["C9", "C10", "C11", "C12"], new BankViewDto(BankViewStatus.NotFound, []), Enumerable.Range(1, 12).Select(Claim).ToArray(),
             ["Л1", "Л2", "Л3", "Л4"], []);

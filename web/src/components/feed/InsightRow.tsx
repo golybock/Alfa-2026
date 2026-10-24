@@ -11,6 +11,8 @@ export default function InsightRow({ item, companyId, role }: InsightRowProps) {
   const significance = item.relevance.significance ?? null;
   const direction = item.direction ?? null;
   const insightHeadline = item.insight_headline ?? null;
+  const whyYou =
+    item.insight_why_you ?? (item.relevance.reasons.map((reason) => reason.label).filter(Boolean).join(" · ") || null);
 
   return (
     <li className="flex items-stretch justify-between gap-6 rounded-2xl bg-white px-5 py-4 transition-shadow duration-150 hover:shadow-md">
@@ -22,12 +24,9 @@ export default function InsightRow({ item, companyId, role }: InsightRowProps) {
           </div>
         ) : null}
         <h2 className="mt-3 line-clamp-2 text-base font-semibold">{insightHeadline ?? item.headline}</h2>
-        {item.relevance.reasons.length > 0 ? (
-          <p className="mt-2 text-xs text-zinc-500">
-            Почему вы:{" "}
-            <em className="not-italic text-zinc-700">
-              {item.relevance.reasons.map((reason) => reason.text).join(" ")}
-            </em>
+        {whyYou ? (
+          <p className="mt-2 line-clamp-2 text-xs text-zinc-500">
+            Почему вы: <em className="not-italic text-zinc-700">{whyYou}</em>
           </p>
         ) : null}
       </div>

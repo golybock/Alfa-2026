@@ -65,5 +65,12 @@ public sealed class ManualNewsService(AlfaNewsDbContext db, JobQueue queue)
         }).ToArray());
     }
 
+    // Включённые источники для страницы материалов: с их сайтов принимаются ссылки. Список берётся из каталога в базе,
+    // а не дублируется на фронте.
+    public async Task<NewsSourcesResponse> SourcesAsync(CancellationToken cancellationToken) =>
+        new((await db.SourceRows.AsNoTracking().Where(row => row.Enabled)
+                .OrderByDescending(row => row.IsSpecialized).ThenBy(row => row.Name).ToArrayAsync(cancellationToken))
+            .Select(row => new NewsSourceDto(row.Id, row.Name, row.FeedUrl, row.IsSpecialized)).ToArray());
+
     public static string[] Hosts(SourceEntity source) => source.AllowedHosts.Deserialize<string[]>() ?? [];
 }

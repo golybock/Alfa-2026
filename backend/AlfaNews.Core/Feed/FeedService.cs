@@ -80,6 +80,7 @@ public sealed class FeedService(AlfaNewsDbContext db, AccessService access, JobQ
                     AnalysisStatus = AnalysisStatus.Ready,
                     InsightId = insight.Id.ToString(),
                     InsightHeadline = body.Headline,
+                    InsightWhyYou = body.WhyYou,
                     Direction = DirectionOf(body)
                 };
             }

@@ -15,6 +15,7 @@ import type {
   JobResponse,
   LoginRequest,
   MeResponse,
+  NewsSourcesResponse,
   PageReviewRequest,
   PendingInsightResponse,
   ReviewAcceptedResponse,
@@ -42,6 +43,7 @@ export type Api = {
   getInsightSteps(insightId: string): Promise<InsightStepsResponse>;
   recordActivity(insightId: string, request: UserActivityRequest): Promise<void>;
   addNews(url: string): Promise<AcceptedResponse>;
+  listNewsSources(): Promise<NewsSourcesResponse>;
   uploadDocument(upload: DocumentUpload, onProgress: (fraction: number) => void): Promise<DocumentAcceptedResponse>;
   listDocuments(): Promise<DocumentListResponse>;
   getDocument(documentId: string): Promise<DocumentResponse>;

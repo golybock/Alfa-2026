@@ -145,6 +145,7 @@ public sealed class LlmSalvageTests
     private static string Draft(string headline, params (string Id, string Text)[] claims) => JsonSerializer.Serialize(new
     {
         headline,
+        why_you = "Компания зависит от стоимости кредита.",
         what_happened = new[] { claims[0].Id },
         why_it_matters = new[] { claims[1].Id },
         consequences = claims.Length > 2 ? new[] { new { type = "risk", claim_ids = new[] { claims[1].Id, claims[2].Id } } } : [],

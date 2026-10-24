@@ -10,6 +10,12 @@ public static partial class InsightChecks
 {
     public const string Version = "insight-checks-v5";
     public const int MaxHeadlineLength = 200;
+    public const int MaxWhyYouLength = 200;
+
+    // «Почему вы» — одна фраза модели рядом с заголовком. Её ошибки не стоят починки всей карточки: пустую или слишком
+    // длинную код не показывает, фронт тогда остаётся без фразы.
+    public static string? WhyYou(string? text) =>
+        text?.Trim() is { Length: > 0 and <= MaxWhyYouLength } value ? value : null;
     public const int MaxClaimLength = 400;
     public const int MaxWhatHappened = 2;
     public const int MaxConsequences = 3;
