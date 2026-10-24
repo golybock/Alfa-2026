@@ -4,5 +4,6 @@ public sealed record RelevanceReasonDto(
 	string Code,
 	string Text,
 	IReadOnlyList<string> ClaimIds,
-	IReadOnlyList<string> EvidenceRefs
+	IReadOnlyList<string> EvidenceRefs,
+	string? Label = null
 );

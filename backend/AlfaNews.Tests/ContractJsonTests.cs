@@ -18,6 +18,8 @@ public sealed class ContractJsonTests
         { "me.json", typeof(MeResponse) },
         { "feed-ready.json", typeof(FeedResponse) },
         { "feed-pending.json", typeof(FeedResponse) },
+        { "feed-failed.json", typeof(FeedResponse) },
+        { "insight-steps.json", typeof(InsightStepsResponse) },
         { "feed-empty.json", typeof(FeedResponse) },
         { "feed-company-b.json", typeof(FeedResponse) },
         { "insight.json", typeof(InsightDto) },

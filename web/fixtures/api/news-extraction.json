@@ -19,5 +19,6 @@
     "countries": [],
     "regions": [],
     "commodities": []
-  }
+  },
+  "commentary": false
 }

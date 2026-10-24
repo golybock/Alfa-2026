@@ -3,6 +3,7 @@ using AlfaNews.Contracts;
 using AlfaNews.Contracts.Domain;
 using AlfaNews.Core.Data;
 using AlfaNews.Core.Data.Entities;
+using AlfaNews.Core.Feed;
 using Microsoft.EntityFrameworkCore;
 
 namespace AlfaNews.Core.Access;
@@ -120,8 +121,10 @@ public sealed class AccessService(AlfaNewsDbContext db, TimeProvider timeProvide
     {
         if (insight.Status != "ready" || insight.BodyJson is null)
             throw new AccessException(409, "insight_not_prepared", "Карточка ещё не готова.");
-        return insight.BodyJson.Value.Deserialize<InsightDto>(JsonOptions)
+        var body = insight.BodyJson.Value.Deserialize<InsightDto>(JsonOptions)
             ?? throw new InvalidOperationException("Сохранённая карточка не содержит данных.");
+        // Значимость считается кодом по base и у карточек, сохранённых до появления поля.
+        return body with { Relevance = body.Relevance with { Significance = FeedRanking.SignificanceOf(body.Relevance) } };
     }
 
     public static string RoleName(Role role) => role switch

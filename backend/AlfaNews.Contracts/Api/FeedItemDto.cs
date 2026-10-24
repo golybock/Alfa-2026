@@ -11,5 +11,9 @@ public sealed record FeedItemDto(
 	IReadOnlyDictionary<string, EvidenceDto> Evidence,
 	AnalysisStatus AnalysisStatus,
 	string? InsightId,
-	string? JobId
+	string? JobId,
+	string? InsightHeadline = null,
+	ConsequenceType? Direction = null,
+	DateTimeOffset? QueuedAt = null,
+	bool RetryAvailable = false
 );

@@ -5,5 +5,6 @@ public sealed record NewsExtraction(
 	DateOnly? EventDate,
 	IReadOnlyList<ExtractedFact> Facts,
 	IReadOnlyList<string> Participants,
-	NewsTags Tags
+	NewsTags Tags,
+	bool Commentary = false
 );

@@ -625,6 +625,16 @@
           "items": {
             "$ref": "#/$defs/FeatureContribution"
           }
+        },
+        "significance": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Significance"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
@@ -655,6 +665,16 @@
           "items": {
             "type": "string"
           }
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
@@ -678,6 +698,14 @@
       "enum": [
         "ceo",
         "cfo"
+      ]
+    },
+    "Significance": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high"
       ]
     },
     "VerificationDto": {

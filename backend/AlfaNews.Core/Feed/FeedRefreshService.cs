@@ -47,7 +47,8 @@ public sealed class FeedRefreshService(AlfaNewsDbContext db, JobQueue queue, Ran
             FeedRanking.Rank(candidate, context.Company, context.GroupMembers, context.Taxonomy, options, asOf)), options.MaxItems,
             options.SameStory());
         var items = selected.Select((item, index) => new FeedItemDto(item.Candidate.EventId.ToString(), item.Candidate.Headline,
-            item.Candidate.Summary, item.Candidate.Source, new RelevanceDto(item.Score, index + 1, item.Reasons, item.Contributions),
+            item.Candidate.Summary, item.Candidate.Source, new RelevanceDto(item.Score, index + 1, item.Reasons, item.Contributions,
+                FeedRanking.SignificanceOf(item.Base)),
             item.Evidence, AnalysisStatus.Queued, null, null)).ToArray();
         var inputVersion = LlmPromptCatalog.Hash(JsonSerializer.Serialize(new
         {
@@ -163,7 +164,8 @@ public sealed class FeedRefreshService(AlfaNewsDbContext db, JobQueue queue, Ran
             IReadOnlySet<string> Codes(string kind) => tags[row.Id].Where(tag => tag.Kind == kind).Select(tag => tag.Code).ToHashSet(StringComparer.Ordinal);
             candidates.Add(new FeedCandidate(row.Id, row.Headline, string.Join(" ", extraction.Facts.Take(2).Select(fact => fact.Text)),
                 new SourceSummaryDto(row.Name, row.CanonicalUrl, row.PublishedAt), extraction.Facts.FirstOrDefault()?.Quote,
-                row.Reliability, row.InputVersion, Codes("factor"), Codes("okved2"), Codes("country"), row.Embedding?.ToArray()));
+                row.Reliability, row.InputVersion, Codes("factor"), Codes("okved2"), Codes("country"), row.Embedding?.ToArray(),
+                extraction.Commentary));
         }
         return candidates;
     }
@@ -180,9 +182,10 @@ public sealed class FeedRefreshService(AlfaNewsDbContext db, JobQueue queue, Ran
         }
     }
 
+    // Карточки ставятся от свежей публикации к старой: при равном приоритете очередь берёт задания в порядке постановки.
     private async Task EnqueueInsightsAsync(string companyId, IReadOnlyList<RankedCandidate> selected, CancellationToken cancellationToken)
     {
-        foreach (var item in selected)
+        foreach (var item in selected.OrderByDescending(item => item.Candidate.Source.PublishedAt).ThenByDescending(item => item.Score))
             foreach (var role in Roles)
             {
                 var roleName = AccessService.RoleName(role);

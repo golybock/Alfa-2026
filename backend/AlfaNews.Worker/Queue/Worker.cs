@@ -1,3 +1,5 @@
+using AlfaNews.Core.Access;
+using AlfaNews.Core.Feed;
 using AlfaNews.Core.Llm;
 using AlfaNews.Core.Processing;
 using AlfaNews.Worker.Importing;
@@ -5,7 +7,8 @@ using AlfaNews.Worker.Profiles;
 
 namespace AlfaNews.Worker.Queue;
 
-public class Worker(IServiceScopeFactory scopes, JobDispatcher dispatcher, QueueOptions queue, ILogger<Worker> logger) : BackgroundService
+public class Worker(IServiceScopeFactory scopes, JobDispatcher dispatcher, QueueOptions queue, RankingOptions ranking,
+    ILogger<Worker> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -19,6 +22,15 @@ public class Worker(IServiceScopeFactory scopes, JobDispatcher dispatcher, Queue
 
         await using (var scope = scopes.CreateAsyncScope())
             await scope.ServiceProvider.GetRequiredService<CsvImportService>().ImportOnStartupAsync(stoppingToken);
+
+        await using (var scope = scopes.CreateAsyncScope())
+        {
+            var seeded = await scope.ServiceProvider.GetRequiredService<UserSeedService>().SeedAsync(ranking.CompanyIds, stoppingToken);
+            logger.LogInformation("Демо-учётки обновлены: {Logins}.", string.Join(", ", seeded.Logins));
+            if (seeded.MissingCompanies.Count > 0)
+                logger.LogWarning("Компании CLIENT из Feed__CompanyIds не найдены, учётки для них не созданы: {Companies}.",
+                    string.Join(", ", seeded.MissingCompanies));
+        }
 
         await using (var scope = scopes.CreateAsyncScope())
             await scope.ServiceProvider.GetRequiredService<ProfileBuildService>().BuildOnStartupAsync(stoppingToken);

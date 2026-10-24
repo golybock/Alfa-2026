@@ -48,7 +48,8 @@
         "reasons_opened",
         "chat_question_accepted",
         "source_opened",
-        "action_interacted"
+        "action_interacted",
+        "manager_contact_requested"
       ]
     }
   }

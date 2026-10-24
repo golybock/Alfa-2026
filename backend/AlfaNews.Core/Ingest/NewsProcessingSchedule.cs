@@ -6,6 +6,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AlfaNews.Core.Ingest;
 
+// Свежие публикации разбираются первыми: после запуска лента заполняется новостями, ближайшими к текущему времени,
+// а не произвольной частью недельного запаса источников.
 public sealed class NewsProcessingSchedule(AlfaNewsDbContext db, JobQueue queue, TimeProvider clock)
 {
     public const int BatchSize = 50;
@@ -13,8 +15,10 @@ public sealed class NewsProcessingSchedule(AlfaNewsDbContext db, JobQueue queue,
     public async Task EnqueueAsync(CancellationToken cancellationToken)
     {
         var now = clock.GetUtcNow();
+        var from = await NewsWindow.StartAsync(db, now, cancellationToken);
+        var to = NewsWindow.End(now);
         await db.NewsRawRows.Where(row => row.Status == "queued"
-                && (row.PublishedAt == null || row.PublishedAt < now.AddDays(-7) || row.PublishedAt > now.AddDays(1)))
+                && (row.PublishedAt == null || row.PublishedAt < from || row.PublishedAt > to))
             .ExecuteUpdateAsync(update => update.SetProperty(row => row.Status, "rejected")
                 .SetProperty(row => row.RejectionReason, row => row.PublishedAt == null ? "no_published_date" : "outside_window"), cancellationToken);
         var active = await db.BackgroundJobRows.AsNoTracking()
@@ -25,7 +29,7 @@ public sealed class NewsProcessingSchedule(AlfaNewsDbContext db, JobQueue queue,
         if (triageBusy.Count == 0)
         {
             var uncheckedIds = await db.NewsRawRows.AsNoTracking().Where(row => row.Status == "queued" && row.Importance == null)
-                .OrderBy(row => row.FetchedAt).ThenBy(row => row.Id).Select(row => row.Id).Take(BatchSize).ToArrayAsync(cancellationToken);
+                .OrderByDescending(row => row.PublishedAt).ThenBy(row => row.Id).Select(row => row.Id).Take(BatchSize).ToArrayAsync(cancellationToken);
             if (uncheckedIds.Length > 0)
                 await queue.EnqueueAsync(new TriageNewsJob(uncheckedIds.Select(id => id.ToString()).ToArray()), null, null, cancellationToken);
         }
@@ -36,7 +40,7 @@ public sealed class NewsProcessingSchedule(AlfaNewsDbContext db, JobQueue queue,
             return;
         var ids = await db.NewsRawRows.AsNoTracking().Where(row => row.Status == "queued"
                 && (row.Importance == 1 || row.Importance == 2) && !parseBusy.Contains(row.Id))
-            .OrderBy(row => row.Importance).ThenBy(row => row.FetchedAt).ThenBy(row => row.Id)
+            .OrderBy(row => row.Importance).ThenByDescending(row => row.PublishedAt).ThenBy(row => row.Id)
             .Select(row => new { row.Id, row.Importance }).Take(slots).ToArrayAsync(cancellationToken);
         foreach (var row in ids)
         {

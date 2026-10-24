@@ -6,7 +6,7 @@ DTO: [Api](../backend/AlfaNews.Contracts/Api), [api.ts](api.ts); общие по
 
 | Метод / путь | Вход | Успешный ответ | Ошибки / права | Владелец |
 | --- | --- | --- | --- | --- |
-| POST /auth/login | LoginRequest | 200 MeResponse + cookie | 400/401/429 | D04 |
+| POST /auth/login | LoginRequest | 200 MeResponse + cookie | 400/401/429/503 | D04 |
 | POST /auth/logout | без тела | 204, отзыв cookie/session | 401 | D04 |
 | GET /me | — | 200 MeResponse | 401 | D04 |
 | GET /companies/{companyId}/feed?role=cfo | role=ceo/cfo; параметров периода и фильтров нет | 200 FeedResponse | 401/403 | D09 |
@@ -19,6 +19,7 @@ DTO: [Api](../backend/AlfaNews.Contracts/Api), [api.ts](api.ts); общие по
 | GET /insights/{id}/chat | — | 200 ChatHistoryResponse: только история текущего пользователя | 401/403 | D09 |
 | POST /insights/{id}/feedback | FeedbackRequest | 204 | 400/401/403 | D12 |
 | POST /insights/{id}/activity | UserActivityRequest | 204, включая точный повтор | 400/401/403/404/409; доступ к карточке | A02 |
+| GET /insights/{id}/steps | без тела | 200 InsightStepsResponse | 401/403/404; 409 insight_not_prepared | ALF-59 |
 | GET /jobs/{id} | — | 200 JobResponse | 401/403/404; только владелец либо оператор | D09 |
 | POST /admin/documents | multipart: file PDF; title string; published_on YYYY-MM-DD или пусто; source_url URL или пусто | 202 DocumentAcceptedResponse | 400/401/403/413/415 | D10 |
 | GET /admin/documents | — | 200 DocumentListResponse, включая стартовые 9 документов | 401/403 | D10 |
@@ -26,13 +27,15 @@ DTO: [Api](../backend/AlfaNews.Contracts/Api), [api.ts](api.ts); общие по
 | POST /admin/documents/{id}/pages/{pageNo}/review | PageReviewRequest | 202 ReviewAcceptedResponse | 400/401/403/404/409 | D10 |
 | POST /admin/jobs/{id}/retry | без тела | 202 AcceptedResponse | 400/401/403/404/409 | D10 |
 
-`200` означает готовый результат. `202` означает принятую работу, не готовый анализ. `GET` не ставит новые LLM-задания; если карточки нет, возвращается 404 `insight_not_prepared`, сайт может вызвать POST один раз по действию пользователя. При failed POST возвращает 409 `analysis_failed`, повтор запускает оператор через retry. Нет бесконечного автоматического перезапуска из GET/рендера.
+`200` означает готовый результат. `202` означает принятую работу, не готовый анализ. `GET` не ставит новые LLM-задания; если карточки нет, возвращается 404 `insight_not_prepared`, сайт может вызвать POST один раз по действию пользователя. При failed POST ставит повтор (202), всего не больше трёх попыток на карточку (первая и два повтора), дальше 409 `analysis_failed`; `feed.items[].retry_available` говорит, показывать ли кнопку «Повторить». GET для failed по-прежнему отвечает 409 `analysis_failed`. Нет бесконечного автоматического перезапуска из GET/рендера.
 
 В AcceptedResponse status_url=`/api/jobs/{job_id}`. После done JobResponse.result_type: `feed / insight / chat / document / document_review`, result_id — соответствующий ID. Для chat result_id — chat_message.id, сайт обновляет GET chat. Для feed — company_id, сайт обновляет GET feed. По job ответа модели и секретов не выдаём. Для общих сборов создаётся безопасная пользовательская job-обёртка либо отдельная refresh-job, без передачи доступа к чужой job.
 
 Feed.role — только выбор готовности/ID нужного варианта карточки; порядок/score общий. При отсутствии snapshot 200 с items=[], last_updated_at=null и refresh_status=idle, кнопка refresh доступна. Источник со сбоем не стирает последний валидный snapshot. Период сервера виден даже в пустом состоянии. refresh_status: idle/queued/processing/failed; завершённый сбор → idle. Done refresh-job не обещает, что весь полный анализ уже готов: смотрим analysis_status каждого элемента.
 
-Опрос feed: при открытии, каждые 120 секунд и по кнопке. Опрос конкретной job: каждые 3 секунды до done/failed; при уходе со страницы выключить. Повторный POST для уже активной карточки возвращает тот же job_id. Нет SSE/WebSocket/пушей/показа внутренних шагов. Все ошибки — ApiError, без traceback и промптов. Полезные коды: unauthorized, forbidden_company, forbidden_role, not_found, insight_not_prepared, analysis_failed, invalid_input, question_limit, rate_limited, budget_exhausted, source_unavailable, processing_failed, stale_review.
+Поля строки ленты (ALF-59), все считает код, модель их не пишет: `relevance.significance` — low/medium/high по base (ниже 0,40 — одна связь с компанией, 0,40–0,50 — две, от 0,50 — три; есть и в InsightDto); `relevance.reasons[].label` — короткая метка до 40 знаков (тема, продукт, страна), полный текст остаётся в `text`; `insight_headline` — заголовок готовой карточки выбранной роли, `headline` — заголовок новости; `direction` — risk/opportunity/neutral по последствиям готовой карточки (знак первого из рисков и возможностей; без них neutral), null без карточки; `queued_at` — когда карточка поставлена в очередь, null у готовой и у непоставленной; `retry_available` — у failed, пока не исчерпаны попытки. `feed.last_collected_at` — последний успешный сбор любого источника; `feed.collection_failed` — у всех включённых источников последняя проверка закончилась ошибкой (это не refresh_status: тот про пересчёт ленты). Шаги карточки: `GET /insights/{id}/steps` — название шага, итог, статус done/skipped/failed и длительность, без аргументов, результатов и промптов.
+
+Опрос feed: при открытии, каждые 120 секунд и по кнопке. Опрос конкретной job: каждые 3 секунды до done/failed; при уходе со страницы выключить. Повторный POST для уже активной карточки возвращает тот же job_id. Нет SSE/WebSocket/пушей; внутренние шаги — только сводка /steps. Все ошибки — ApiError, без traceback и промптов. Полезные коды: unauthorized, data_not_ready (вход до импорта компаний), forbidden_company, forbidden_role, not_found, insight_not_prepared, analysis_failed, invalid_input, question_limit, rate_limited, budget_exhausted, source_unavailable, processing_failed, stale_review.
 
 Чат доступен только у ready insight. question: 1–1000 символов после trim; до 10 принятых вопросов на user × insight, включая queued и отказы. Неудачный технический повтор той же job не расходует ещё один вопрос. Сайт блокирует повторную отправку, пока вопрос в обработке. Невалидный JSON/ошибка бюджета не показывается как успешный ответ. Status ChatAnswerDto: answer/refusal; у refusal claims=[] и refusal_reason, у answer refusal_reason=null. История ограничена текущей карточкой и пользователем.
 
@@ -46,7 +49,7 @@ Review: только существующие chunk_id/chart local_id данно
 
 ## Журнал действий пользователя
 
-`POST /api/insights/{id}/activity` принимает только `event_id` (UUID), `type`, `evidence_id`, `action_id`. Все четыре поля обязательны; неиспользуемые ссылки равны null. Разрешённые браузерные типы: insight_opened, reasons_opened, source_opened, action_interacted. Компания определяется по карточке, пользователь — по сессии, время — сервером. Для source_opened ссылка должна существовать в evidence; для action_interacted — в actions. Нет действия в интерфейсе — нет события.
+`POST /api/insights/{id}/activity` принимает только `event_id` (UUID), `type`, `evidence_id`, `action_id`. Все четыре поля обязательны; неиспользуемые ссылки равны null. Разрешённые браузерные типы: insight_opened, reasons_opened, source_opened, action_interacted, manager_contact_requested (кнопка «Связаться с менеджером»: только запись действия, заявка никуда не отправляется). Компания определяется по карточке, пользователь — по сессии, время — сервером. Для source_opened ссылка должна существовать в evidence; для action_interacted — в actions. Нет действия в интерфейсе — нет события.
 
 Точный повтор event_id и содержимого возвращает 204 без повторного подсчёта. Другой payload с тем же ID — 409 event_conflict. Чужая карточка — 403; неизвестная — 404; неготовая — 409 insight_not_prepared. Неизвестные поля, произвольный текст, поддельный user/company/time, недействительные ссылки и браузерный chat_question_accepted отклоняются. Последний тип пишет только серверный UserActivityService после принятия вопроса; D09/A13 подключают его в транзакцию сохранения chat_message. Endpoint не подтверждает фактическое открытие внешнего сайта, а фиксирует заявленный UI переход.
 

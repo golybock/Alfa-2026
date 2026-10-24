@@ -1404,7 +1404,7 @@ namespace AlfaNews.Core.Data.Migrations
 
                     b.ToTable("user_activity", null, t =>
                         {
-                            t.HasCheckConstraint("user_activity_1_check", "kind IN ('insight_opened','reasons_opened','chat_question_accepted','source_opened','action_interacted')");
+                            t.HasCheckConstraint("user_activity_1_check", "kind IN ('insight_opened','reasons_opened','chat_question_accepted','source_opened','action_interacted','manager_contact_requested')");
 
                             t.HasCheckConstraint("user_activity_2_check", "(kind = 'source_opened') = (evidence_id IS NOT NULL)");
 

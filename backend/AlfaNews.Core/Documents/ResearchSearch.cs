@@ -99,16 +99,36 @@ public sealed class ResearchSearch(AlfaNewsDbContext db, NewsEmbeddings embeddin
     public async Task<IReadOnlySet<Guid>> MatchingFactorsAsync(IReadOnlyCollection<Guid> chunkIds, IReadOnlyCollection<string> factors,
         CancellationToken cancellationToken)
     {
+        var query = await TopicQueryAsync(factors, cancellationToken);
+        if (query is null || chunkIds.Count == 0)
+            return new HashSet<Guid>();
+        return (await db.ResearchChunkRows.AsNoTracking()
+            .Where(row => chunkIds.Contains(row.Id) && row.SearchText.Matches(EF.Functions.WebSearchToTsQuery("russian", query)))
+            .Select(row => row.Id).ToListAsync(cancellationToken)).ToHashSet();
+    }
+
+    // Есть ли обзор банка на ту же тему, опубликованный позже даты и не позже asOf: тогда более старая оценка устарела.
+    public async Task<bool> LaterOnTopicAsync(DateOnly after, DateOnly asOf, IReadOnlyCollection<string> factors,
+        CancellationToken cancellationToken)
+    {
+        var query = await TopicQueryAsync(factors, cancellationToken);
+        if (query is null)
+            return false;
+        return await (from chunk in db.ResearchChunkRows.AsNoTracking()
+                      join page in db.ResearchPageRows.AsNoTracking() on chunk.PageId equals page.Id
+                      join document in db.ResearchDocRows.AsNoTracking() on page.DocumentId equals document.Id
+                      where document.PublishedOn > after && document.PublishedOn <= asOf
+                          && chunk.SearchText.Matches(EF.Functions.WebSearchToTsQuery("russian", query))
+                      select chunk.Id).AnyAsync(cancellationToken);
+    }
+
+    private async Task<string?> TopicQueryAsync(IReadOnlyCollection<string> factors, CancellationToken cancellationToken)
+    {
         var phrases = (await db.FactorRows.AsNoTracking().Where(row => factors.Contains(row.Code))
                 .Select(row => new { row.Name, row.Keywords }).ToListAsync(cancellationToken))
             .SelectMany(factor => (factor.Keywords.Deserialize<string[]>() ?? []).Append(factor.Name))
             .Select(phrase => "\"" + phrase.Replace("\"", "", StringComparison.Ordinal) + "\"").Distinct(StringComparer.Ordinal).ToArray();
-        if (phrases.Length == 0 || chunkIds.Count == 0)
-            return new HashSet<Guid>();
-        var query = string.Join(" OR ", phrases);
-        return (await db.ResearchChunkRows.AsNoTracking()
-            .Where(row => chunkIds.Contains(row.Id) && row.SearchText.Matches(EF.Functions.WebSearchToTsQuery("russian", query)))
-            .Select(row => row.Id).ToListAsync(cancellationToken)).ToHashSet();
+        return phrases.Length == 0 ? null : string.Join(" OR ", phrases);
     }
 
     private async Task<Pgvector.Vector?> QueryVectorAsync(string text, CancellationToken cancellationToken)

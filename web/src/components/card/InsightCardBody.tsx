@@ -22,6 +22,33 @@ function evidenceOf(
     .filter((entry): entry is EvidenceEntry => entry.item !== undefined && entry.item.type === type);
 }
 
+// Агент цитирует одну статью несколькими доказательствами; в списке источников статья показывается одной строкой.
+type SourceGroup = { ids: string[]; source: string; url: string };
+
+function groupByUrl(entries: EvidenceEntry[]): SourceGroup[] {
+  const groups = new Map<string, SourceGroup>();
+  for (const { id, item } of entries) {
+    if (!item.url) continue;
+    const group = groups.get(item.url) ?? { ids: [], source: item.source, url: item.url };
+    group.ids.push(id);
+    groups.set(item.url, group);
+  }
+  return [...groups.values()];
+}
+
+// E1, E6, E7, E8 → «E1, E6–E8».
+function idRanges(ids: string[]): string {
+  const numbers = ids.map((id) => Number(id.slice(1))).sort((a, b) => a - b);
+  const parts: string[] = [];
+  for (let start = 0; start < numbers.length; ) {
+    let end = start;
+    while (end + 1 < numbers.length && numbers[end + 1] === numbers[end] + 1) end++;
+    parts.push(end > start ? `E${numbers[start]}–E${numbers[end]}` : `E${numbers[start]}`);
+    start = end + 1;
+  }
+  return parts.join(", ");
+}
+
 type InsightCardBodyProps = { insight: InsightDto };
 
 export default function InsightCardBody({ insight }: InsightCardBodyProps) {
@@ -38,13 +65,13 @@ export default function InsightCardBody({ insight }: InsightCardBodyProps) {
         <div className="flex flex-col gap-4">
           <CardBlock number={numberOf("what")} title="Что произошло">
             <ClaimList ids={insight.what_happened} claims={claims} evidence={insight.evidence} />
-            {news.length === 0 ? (
-              <p className="mt-3 text-xs text-zinc-500">Ссылка на источник: данных нет</p>
-            ) : (
-              news.map(({ id, item }) =>
-                item.url ? <SourceLinkRow key={id} title={`${id} · ${item.source}`} url={item.url} /> : null,
-              )
-            )}
+			  {news.length === 0 ? (
+				  <p className="mt-3 text-xs text-zinc-500">Ссылка на источник: данных нет</p>
+			  ) : (
+				  groupByUrl(news).map((group) => (
+					  <SourceLinkRow key={group.url} title={`${idRanges(group.ids)} · ${group.source}`} url={group.url} />
+				  ))
+			  )}
           </CardBlock>
           <CardBlock number={numberOf("why")} title="Почему это важно именно вам">
             <ClaimList ids={insight.why_it_matters} claims={claims} evidence={insight.evidence} />

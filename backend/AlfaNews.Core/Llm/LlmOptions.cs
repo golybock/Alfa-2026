@@ -13,6 +13,9 @@ public sealed class LlmOptions
     public string GlmReasoningLevel { get; set; } = "low";
     public bool DeepSeekThinkingEnabled { get; set; } = true;
     public bool TriageUseGlm { get; set; }
+    // Разбор новостей — основной расход; модель и рассуждения для него выбираются отдельно от карточек.
+    public string ExtractModel { get; set; } = "deepseek";
+    public bool ExtractThinkingEnabled { get; set; } = true;
     public bool StructuredOutput { get; set; } = true;
     public int MaxOutputTokens { get; set; } = 32000;
     public int ChatMaxOutputTokens { get; set; } = 8000;
@@ -34,7 +37,8 @@ public sealed class LlmOptions
     public LlmRoute Route(LlmTask task, LlmTask originalTask)
     {
         var triage = originalTask == LlmTask.NewsTriage;
-        var glm = task is LlmTask.PdfOcr or LlmTask.Critic || triage && TriageUseGlm;
+        var extract = originalTask == LlmTask.NewsExtract;
+        var glm = task is LlmTask.PdfOcr or LlmTask.Critic || triage && TriageUseGlm || extract && ExtractModel == "glm";
         var chat = originalTask is LlmTask.Chat or LlmTask.ScopeGate;
         return new LlmRoute(glm ? GlmModel : DeepSeekModel,
             glm ? GlmReasoningLevel : DeepSeekReasoningLevel,
@@ -42,7 +46,7 @@ public sealed class LlmOptions
             task == LlmTask.Critic ? CriticTimeoutSeconds : TimeoutSeconds,
             glm ? GlmInputEstimateRubPerMillion : DeepSeekInputEstimateRubPerMillion,
             glm ? GlmOutputEstimateRubPerMillion : DeepSeekOutputEstimateRubPerMillion,
-            glm || !triage && DeepSeekThinkingEnabled);
+            glm || !triage && DeepSeekThinkingEnabled && (!extract || ExtractThinkingEnabled));
     }
 
     public void Validate()
@@ -52,7 +56,7 @@ public sealed class LlmOptions
             || MaxInputBytes <= 0 || ImageInputTokenReserve <= 0 || ReserveOutputTokens <= 0 || MaxParallelRequests is < 1 or > 16
             || DeepSeekInputEstimateRubPerMillion < 0 || DeepSeekOutputEstimateRubPerMillion < 0
             || GlmInputEstimateRubPerMillion < 0 || GlmOutputEstimateRubPerMillion < 0
-            || CriticScope is not ("all_full" or "top_only") || GlmReasoningLevel is not ("low" or "high")
+            || CriticScope is not ("all_full" or "top_only") || GlmReasoningLevel is not ("low" or "high") || ExtractModel is not ("deepseek" or "glm")
             || string.IsNullOrWhiteSpace(ConfigVersion))
             throw new InvalidOperationException("Некорректные лимиты Llm.");
         if (DeepSeekModel != "deepseek/deepseek-v4.1-flash" || GlmModel != "z-ai/glm-5.3-flash")

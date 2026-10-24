@@ -15,6 +15,9 @@ public sealed record InsightEnsureResult(InsightDto? Insight, AcceptedResponse? 
 
 public sealed class InsightService(AlfaNewsDbContext db, AccessService access, JobQueue jobs)
 {
+    // Первая попытка и два повтора по кнопке «Повторить»: дальше событие, скорее всего, падает по одной и той же причине.
+    public const int MaxRuns = 3;
+
     public async Task<InsightReadResult> GetAsync(UserContext user, string companyId, string eventId, Role role,
         CancellationToken cancellationToken)
     {
@@ -45,7 +48,7 @@ public sealed class InsightService(AlfaNewsDbContext db, AccessService access, J
         if (current?.Status == "ready")
             return new InsightEnsureResult(AccessService.ReadReadyInsight(current), null);
         if (current?.Status == "failed")
-            throw AnalysisFailed();
+            await PrepareRetryAsync(current, cancellationToken);
         var inputVersion = current?.InputVersion ?? await EventInputVersionAsync(eventGuid, cancellationToken);
         var job = await jobs.EnqueueAsync(new GenerateInsightJob(companyId, eventId, role, inputVersion), user.UserId,
             companyId, cancellationToken);
@@ -78,6 +81,28 @@ public sealed class InsightService(AlfaNewsDbContext db, AccessService access, J
         jobs.FindActiveAsync(new GenerateInsightJob(companyId, eventId.ToString(), role, inputVersion), user.UserId,
             companyId, cancellationToken);
 
+    public async Task<InsightStepsResponse> StepsAsync(UserContext user, Guid insightId, CancellationToken cancellationToken)
+    {
+        var insight = await access.RequireInsightAsync(user, insightId, cancellationToken);
+        AccessService.ReadReadyInsight(insight);
+        var run = await db.AgentRunRows.AsNoTracking().Where(row => row.InsightId == insight.Id && row.Status == "done")
+            .OrderByDescending(row => row.FinishedAt).FirstOrDefaultAsync(cancellationToken)
+            ?? throw new AccessException(404, "not_found", "Шаги подготовки карточки не найдены.");
+        var steps = await db.AgentStepRows.AsNoTracking().Where(row => row.RunId == run.Id).OrderBy(row => row.Ordinal)
+            .ToListAsync(cancellationToken);
+        var items = steps.Select(AgentStepView.ToDto).ToArray();
+        return new InsightStepsResponse(insight.Id.ToString(), items.Sum(item => item.DurationMs), items);
+    }
+
+    private async Task PrepareRetryAsync(InsightEntity insight, CancellationToken cancellationToken)
+    {
+        var runs = await db.AgentRunRows.AsNoTracking().CountAsync(row => row.InsightId == insight.Id, cancellationToken);
+        if (runs >= MaxRuns)
+            throw new AccessException(409, "analysis_failed", "Подготовка карточки не удалась, повторы исчерпаны.");
+        await db.InsightRows.Where(row => row.Id == insight.Id && row.Status == "failed")
+            .ExecuteUpdateAsync(update => update.SetProperty(row => row.Status, "queued"), cancellationToken);
+    }
+
     private static AccessException AnalysisFailed() =>
-        new(409, "analysis_failed", "Подготовка карточки не удалась. Повтор запускает оператор.");
+        new(409, "analysis_failed", "Подготовка карточки не удалась. Её можно запустить повторно.");
 }

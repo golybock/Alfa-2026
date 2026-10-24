@@ -30,7 +30,7 @@ public sealed class NewsProcessing(AlfaNewsDbContext db, LlmGateway gateway, New
         var now = clock.GetUtcNow();
         var reason = source is null || !source.Enabled ? "source_disabled"
             : row.PublishedAt is null ? "no_published_date"
-            : row.PublishedAt < now.AddDays(-7) || row.PublishedAt > now.AddDays(1) ? "outside_window"
+            : row.PublishedAt < await NewsWindow.StartAsync(db, now, cancellationToken) || row.PublishedAt > NewsWindow.End(now) ? "outside_window"
             : ArticleExtractor.IsBoilerplateOnly(row.Text) ? "boilerplate_body"
             : string.IsNullOrWhiteSpace(row.Text) ? "empty_body"
             : row.Importance == 3 ? "headline_irrelevant" : null;
@@ -110,7 +110,7 @@ public sealed class NewsProcessing(AlfaNewsDbContext db, LlmGateway gateway, New
             var draft = result.Value;
             var extraction = new NewsExtraction(draft.Headline, draft.EventDate, draft.Facts.Select(fact =>
                 new ExtractedFact(fact.Text, NewsLines.Resolve(lines, fact).Quote!, fact.Line, fact.Start, fact.End)).ToArray(),
-                draft.Participants, draft.Tags);
+                draft.Participants, draft.Tags, draft.Commentary);
             var eventId = Guid.NewGuid();
             try
             {

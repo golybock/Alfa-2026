@@ -321,7 +321,7 @@ CREATE TABLE user_activity (
     user_id uuid NOT NULL REFERENCES app_user(id),
     company_id text NOT NULL REFERENCES company(id),
     insight_id uuid NOT NULL REFERENCES insight(id),
-    kind text NOT NULL CHECK (kind IN ('insight_opened','reasons_opened','chat_question_accepted','source_opened','action_interacted')),
+    kind text NOT NULL CHECK (kind IN ('insight_opened','reasons_opened','chat_question_accepted','source_opened','action_interacted','manager_contact_requested')),
     evidence_id text,
     action_id text,
     CHECK ((kind = 'source_opened') = (evidence_id IS NOT NULL)),

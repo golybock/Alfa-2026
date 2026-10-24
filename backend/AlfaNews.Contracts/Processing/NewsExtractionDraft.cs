@@ -5,5 +5,6 @@ public sealed record NewsExtractionDraft(
 	DateOnly? EventDate,
 	IReadOnlyList<FactReference> Facts,
 	IReadOnlyList<string> Participants,
-	NewsTags Tags
+	NewsTags Tags,
+	bool Commentary
 );
