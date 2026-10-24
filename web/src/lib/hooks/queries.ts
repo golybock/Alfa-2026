@@ -15,6 +15,7 @@ export const queryKeys = {
   chat: (insightId: string) => ["chat", insightId] as const,
   steps: (insightId: string) => ["steps", insightId] as const,
   documents: ["documents"] as const,
+  news: ["manual-news"] as const,
   document: (documentId: string) => ["document", documentId] as const,
 };
 
@@ -145,7 +146,19 @@ export function useUploadDocument() {
 }
 
 export function useAddNews() {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (url: string) => api.addNews(url),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.news }),
+  });
+}
+
+export function useNewsList(enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.news,
+    enabled,
+    queryFn: () => api.listNews(),
+    refetchInterval: (query) =>
+      query.state.data?.items.some((item) => item.status === "queued" || item.status === "running") ? JOB_POLL_MS : false,
   });
 }

@@ -5,9 +5,9 @@ import type { FormEvent } from "react";
 import { describeError } from "../../lib/api/client";
 import { useAddNews } from "../../lib/hooks/queries";
 
-type NewsLinkFormProps = { disabled: boolean; onAdded: (url: string, jobId: string) => void };
+type NewsLinkFormProps = { disabled: boolean };
 
-export default function NewsLinkForm({ disabled, onAdded }: NewsLinkFormProps) {
+export default function NewsLinkForm({ disabled }: NewsLinkFormProps) {
   const [url, setUrl] = useState("");
   const add = useAddNews();
 
@@ -17,12 +17,7 @@ export default function NewsLinkForm({ disabled, onAdded }: NewsLinkFormProps) {
     if (!value) {
       return;
     }
-    add.mutate(value, {
-      onSuccess: (accepted) => {
-        onAdded(value, accepted.job_id);
-        setUrl("");
-      },
-    });
+    add.mutate(value, { onSuccess: () => setUrl("") });
   };
 
   return (

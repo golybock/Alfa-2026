@@ -13,6 +13,7 @@ import insightCompanyBJson from "../../../fixtures/api/insight-company-b.json";
 import insightNoBankJson from "../../../fixtures/api/insight-no-bank.json";
 import insightStepsJson from "../../../fixtures/api/insight-steps.json";
 import insightJson from "../../../fixtures/api/insight.json";
+import manualNewsListJson from "../../../fixtures/api/manual-news-list.json";
 import jobDoneJson from "../../../fixtures/api/job-done.json";
 import jobFailedJson from "../../../fixtures/api/job-failed.json";
 import jobQueuedJson from "../../../fixtures/api/job-queued.json";
@@ -24,6 +25,7 @@ import type {
   ChatTurnDto,
   DocumentAcceptedResponse,
   DocumentListResponse,
+  ManualNewsListResponse,
   DocumentResponse,
   EvidenceDto,
   FeedResponse,
@@ -281,6 +283,10 @@ export const mockApi: Api = {
   addNews: async () => {
     requireSession();
     return acceptedJob();
+  },
+  listNews: async () => {
+    requireSession();
+    return manualNewsListJson as ManualNewsListResponse;
   },
   uploadDocument: async (_upload, onProgress) => {
     requireSession();
