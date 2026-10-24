@@ -278,6 +278,10 @@ export const mockApi: Api = {
   recordActivity: async (insightId) => {
     findInsightById(insightId);
   },
+  addNews: async () => {
+    requireSession();
+    return acceptedJob();
+  },
   uploadDocument: async (_upload, onProgress) => {
     requireSession();
     for (let step = 1; step <= 5; step += 1) {

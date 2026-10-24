@@ -10,9 +10,9 @@ import UploadProgressBar from "./UploadProgressBar";
 
 const MAX_FILE_BYTES = 50 * 1024 * 1024;
 
-type UploadCardProps = { disabled: boolean };
+type UploadCardProps = { disabled: boolean; onNewsAdded: (url: string, jobId: string) => void };
 
-export default function UploadCard({ disabled }: UploadCardProps) {
+export default function UploadCard({ disabled, onNewsAdded }: UploadCardProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const upload = useUploadDocument();
   const [dragging, setDragging] = useState(false);
@@ -115,7 +115,7 @@ export default function UploadCard({ disabled }: UploadCardProps) {
           Файл принят и поставлен в обработку.
         </p>
       ) : null}
-      <NewsLinkForm />
+      <NewsLinkForm disabled={disabled} onAdded={onNewsAdded} />
     </section>
   );
 }

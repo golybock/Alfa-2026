@@ -1,6 +1,6 @@
 "use client";
 
-import { formatDate } from "../../lib/dates";
+import { formatTime } from "../../lib/dates";
 import { useDocumentProgress } from "../../lib/hooks/queries";
 import type { DocumentSummaryDto } from "../../lib/types/api";
 import Icon from "../ui/Icon";
@@ -23,13 +23,17 @@ export default function UploadRow({ document }: UploadRowProps) {
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium">{document.title}</p>
           <p className="text-xs text-zinc-500">
-            PDF · {document.page_count} стр.
-            {document.published_on ? ` · ${formatDate(document.published_on)}` : ""}
+            PDF · {document.page_count} стр. · добавлено {formatTime(document.uploaded_at)}
           </p>
         </div>
-        <UploadStatusBadge status={document.ocr_status} />
+        <UploadStatusBadge status={document.llm_key_required ? "waiting_key" : document.ocr_status} />
       </div>
-      {inProgress ? (
+      {document.llm_key_required ? (
+        <p className="text-xs text-orange-700">
+          Материал принят и стоит в очереди. Обработка начнётся, когда ключ модели станет доступен.
+        </p>
+      ) : null}
+      {inProgress && !document.llm_key_required ? (
         <UploadProgressBar
           fraction={document.page_count > 0 ? recognized / document.page_count : 0}
           label={`Распознаём страницы: ${recognized} из ${document.page_count}`}

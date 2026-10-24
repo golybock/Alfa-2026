@@ -143,3 +143,9 @@ export function useUploadDocument() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.documents }),
   });
 }
+
+export function useAddNews() {
+  return useMutation({
+    mutationFn: (url: string) => api.addNews(url),
+  });
+}
