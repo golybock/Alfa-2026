@@ -13,10 +13,9 @@ export default function RoleSwitch() {
   return (
     <div
       role="group"
-      aria-label="Демо: роль"
+      aria-label="Роль"
       className="flex h-11 items-center gap-1 rounded-xl border border-dashed border-blue-600 px-2"
     >
-      <p className="px-1 text-xs text-blue-700">Демо · роль</p>
       {active.company.roles.map((role) => (
         <button
           key={role}
