@@ -5,6 +5,17 @@ export interface AcceptedResponse {
   readonly status_url: string;
 }
 
+export interface AgentStepDto {
+  readonly ordinal: number;
+  readonly stage: string;
+  readonly title: string;
+  readonly summary: string;
+  readonly status: AgentStepStatus;
+  readonly duration_ms: number;
+}
+
+export type AgentStepStatus = "done" | "skipped" | "failed";
+
 export type AnalysisStatus = "queued" | "processing" | "ready" | "failed";
 
 export interface ApiError {
@@ -201,6 +212,10 @@ export interface FeedItemDto {
   readonly analysis_status: AnalysisStatus;
   readonly insight_id: string | null;
   readonly job_id: string | null;
+  readonly insight_headline?: string | null;
+  readonly direction?: ConsequenceType | null;
+  readonly queued_at?: string | null;
+  readonly retry_available?: boolean;
 }
 
 export interface FeedResponse {
@@ -212,6 +227,8 @@ export interface FeedResponse {
   readonly collection_started_at: string | null;
   readonly refresh_status: RefreshStatus;
   readonly items: ReadonlyArray<FeedItemDto>;
+  readonly last_collected_at?: string | null;
+  readonly collection_failed?: boolean;
 }
 
 export type FeedbackKind = "like" | "dislike" | "hide";
@@ -270,6 +287,12 @@ export interface InsightDto {
 
 export interface InsightRequest {
   readonly role: Role;
+}
+
+export interface InsightStepsResponse {
+  readonly insight_id: string;
+  readonly total_duration_ms: number;
+  readonly steps: ReadonlyArray<AgentStepDto>;
 }
 
 export interface JobResponse {
@@ -346,6 +369,7 @@ export interface RelevanceDto {
   readonly rank: number;
   readonly reasons: ReadonlyArray<RelevanceReasonDto>;
   readonly contributions: ReadonlyArray<FeatureContribution>;
+  readonly significance?: Significance | null;
 }
 
 export interface RelevanceReasonDto {
@@ -353,6 +377,7 @@ export interface RelevanceReasonDto {
   readonly text: string;
   readonly claim_ids: ReadonlyArray<string>;
   readonly evidence_refs: ReadonlyArray<string>;
+  readonly label?: string | null;
 }
 
 export type ResearchBlockKind = "fact" | "bank_view" | "forecast" | "disclaimer";
@@ -380,6 +405,8 @@ export interface ReviewableChunkDto {
 }
 
 export type Role = "ceo" | "cfo";
+
+export type Significance = "low" | "medium" | "high";
 
 export interface SourceHealthDto {
   readonly id: string;
@@ -420,7 +447,7 @@ export interface UserActivityRequest {
   readonly action_id: string | null;
 }
 
-export type UserActivityType = "insight_opened" | "reasons_opened" | "chat_question_accepted" | "source_opened" | "action_interacted";
+export type UserActivityType = "insight_opened" | "reasons_opened" | "chat_question_accepted" | "source_opened" | "action_interacted" | "manager_contact_requested";
 
 export interface VerificationDto {
   readonly code_status: CodeStatus;

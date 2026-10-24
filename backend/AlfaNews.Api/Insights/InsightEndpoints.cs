@@ -29,5 +29,10 @@ public static class InsightEndpoints
                 ? Results.Ok(result.Insight)
                 : Results.Json(result.Accepted, statusCode: StatusCodes.Status202Accepted);
         });
+
+        app.MapGet("/api/insights/{id:guid}/steps", async (Guid id, HttpContext http, InsightService insights,
+            CancellationToken cancellationToken) =>
+            Results.Ok(await insights.StepsAsync(SessionAuthenticationHandler.CurrentUser(http.User), id, cancellationToken)))
+            .RequireAuthorization();
     }
 }

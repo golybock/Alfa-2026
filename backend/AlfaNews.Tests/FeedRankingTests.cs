@@ -18,7 +18,29 @@ public sealed class FeedRankingTests
         Assert.Equal(Enum.GetValues<RankingFeatureCode>(), ranked.Contributions.Select(item => item.Code));
         Assert.Contains(ranked.Reasons, reason => reason.Code == "product_loan");
         Assert.All(ranked.Reasons, reason => Assert.All(reason.EvidenceRefs, reference => Assert.True(ranked.Evidence.ContainsKey(reference))));
+        Assert.All(ranked.Reasons, reason => Assert.InRange(reason.Label?.Length ?? 0, 1, FeedRanking.LabelMaxLength));
+        Assert.Equal("Ваш продукт: кредит", ranked.Reasons.Single(reason => reason.Code == "product_loan").Label);
+        Assert.Equal(Significance.Low, FeedRanking.SignificanceOf(ranked.Base));
     }
+
+    [Fact]
+    public void CommentaryWithoutDecisionWeighsHalfOfTheSectorFactor()
+    {
+        var decision = FeedRanking.Rank(Candidate(factors: ["key_rate"]), Company(products: ["loan"]), [], Taxonomy(), new RankingOptions(), AsOf);
+        var remark = FeedRanking.Rank(Candidate(factors: ["key_rate"]) with { Commentary = true }, Company(products: ["loan"]), [], Taxonomy(),
+            new RankingOptions(), AsOf);
+        var factor = decision.Contributions.Single(item => item.Code == RankingFeatureCode.Factor).Contribution;
+        Assert.Equal(decision.Base - factor / 2, remark.Base);
+        Assert.Contains("комментарий", remark.Reasons.Single(reason => reason.Code.StartsWith("factor_", StringComparison.Ordinal)).Text);
+    }
+
+    [Theory]
+    [InlineData(0.35, Significance.Low)]
+    [InlineData(0.40, Significance.Medium)]
+    [InlineData(0.4999, Significance.Medium)]
+    [InlineData(0.50, Significance.High)]
+    public void SignificanceBandsFollowBase(double baseScore, Significance expected) =>
+        Assert.Equal(expected, FeedRanking.SignificanceOf((decimal)baseScore));
 
     [Fact]
     public void ProductWithoutSectorFactorStaysBelowThresholdAndUnknownFeaturesStayUnknown()
@@ -124,8 +146,10 @@ public sealed class FeedRankingTests
 
         // Транзитивность: B похоже на A, C — на B, но не на A; C всё равно пропускается.
         var bridge = Item(0.95, 1);
-        var chained = FeedRanking.Rank(Candidate(factors: ["key_rate"], age: TimeSpan.FromHours(2)) with
-            { Embedding = [(float)(0.95 * 0.95 - Math.Sqrt(1 - 0.95 * 0.95) * Math.Sqrt(1 - 0.95 * 0.95)), (float)(2 * 0.95 * Math.Sqrt(1 - 0.95 * 0.95)), 0] },
+        // Поворот на двойной угол пересказа: косинус к A = 0,95² − sin², к B = 0,95.
+        var sine = Math.Sqrt(1 - 0.95 * 0.95);
+        float[] twice = [(float)(0.95 * 0.95 - sine * sine), (float)(2 * 0.95 * sine), 0];
+        var chained = FeedRanking.Rank(Candidate(factors: ["key_rate"], age: TimeSpan.FromHours(2)) with { Embedding = twice },
             company, [], Taxonomy(), options, AsOf);
         Assert.False(new SameStoryRule(0.93, 1.01, TimeSpan.Zero).Matches(rate.Candidate, chained.Candidate));
         Assert.Equal([rate.Candidate.EventId],

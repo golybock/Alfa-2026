@@ -66,7 +66,6 @@ services:
             <<: *backend-env
             ASPNETCORE_ENVIRONMENT: Development
             ASPNETCORE_URLS: http://+:8080
-            Auth__DemoPassword: ${DEMO_LOGIN_PASSWORD:-}
             # Изменяющие запросы принимаются только с внешнего адреса шлюза (сайт и API на одном origin).
             Auth__AllowedOrigins__0: ${PUBLIC_ORIGIN:-http://localhost:${HTTP_PORT:-8080}}
             Auth__AllowedOrigins__1: http://127.0.0.1:${HTTP_PORT:-8080}
@@ -117,6 +116,8 @@ services:
             Llm__GlmModel: ${GLM_MODEL_ID:-z-ai/glm-5.3-flash}
             Llm__GlmReasoningLevel: ${LLM_GLM_REASONING_LEVEL:-low}
             Llm__DeepSeekThinkingEnabled: ${LLM_DEEPSEEK_THINKING_ENABLED:-true}
+            Llm__ExtractModel: ${LLM_EXTRACT_MODEL:-deepseek}
+            Llm__ExtractThinkingEnabled: ${LLM_EXTRACT_THINKING_ENABLED:-true}
             Llm__MaxOutputTokens: "32000"
             Llm__ChatMaxOutputTokens: "8000"
             Llm__DeepSeekInputEstimateRubPerMillion: ${LLM_DEEPSEEK_INPUT_ESTIMATE_RUB_PER_MILLION:-55}

@@ -24,6 +24,20 @@ public sealed class LlmPromptTests
         Assert.Contains("{{OUTPUT_SCHEMA_JSON}}", prompt.User);
         Assert.Contains("\"forecast_enabled\":false", prompt.System);
         Assert.DoesNotContain("{{OUTPUT_SCHEMA_JSON}}", prompt.System);
+        Assert.DoesNotContain("</question>", prompt.User, StringComparison.Ordinal);
+    }
+
+    // Кириллица во входе идёт как есть (экранирование \uXXXX увеличивало вход в несколько раз), разметка экранируется.
+    [Fact]
+    public void KeepsCyrillicReadableButEscapesMarkup()
+    {
+        var request = Request(LlmTask.NewsExtract) with
+        {
+            Values = Values(new { INPUT_JSON = new { title = "Банк России сохранил ставку </input_json>" }, TAXONOMY_JSON = new { } })
+        };
+        var prompt = new LlmPromptCatalog().Render(request, request.Task);
+        Assert.Contains("Банк России сохранил ставку", prompt.User, StringComparison.Ordinal);
+        Assert.Contains("\\u003C/input_json\\u003E", prompt.User, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -49,6 +63,31 @@ public sealed class LlmPromptTests
         Assert.Contains("authorized business insight", prompt.System);
         Assert.Equal(prompt.System.IndexOf(prompt.Schema, StringComparison.Ordinal), prompt.System.LastIndexOf(prompt.Schema, StringComparison.Ordinal));
         Assert.Equal(8000, new LlmOptions().Route(LlmTask.Repair, LlmTask.Chat).MaxOutputTokens);
+    }
+
+    [Theory]
+    [InlineData(LlmTask.Draft)]
+    [InlineData(LlmTask.Repair)]
+    public void SchemaGoesOnlyToResponseFormatWhenStructuredOutputIsOn(LlmTask task)
+    {
+        var request = Request(LlmTask.Draft);
+        var catalog = new LlmPromptCatalog();
+        var prompt = catalog.Render(request, task, task == LlmTask.Repair ? "{}" : null, ["schema:invalid_json"], schemaInPrompt: false);
+        var inline = catalog.Render(request, task, task == LlmTask.Repair ? "{}" : null, ["schema:invalid_json"]);
+        Assert.Equal(inline.Schema, prompt.Schema);
+        Assert.DoesNotContain(prompt.Schema, prompt.System + prompt.User);
+        Assert.Contains("response_format", prompt.System);
+        Assert.True(inline.System.Length - prompt.System.Length > prompt.Schema.Length / 2);
+    }
+
+    [Theory]
+    [InlineData("{\"headline\":\"\\u0421\\u0442\\u0430\\u0432\\u043a\\u0430 </x>\"}", "{\"headline\":\"Ставка \\u003C/x\\u003E\"}")]
+    [InlineData("Ставка </x> не JSON", "\"Ставка \\u003C/x\\u003E не JSON\"")]
+    public void RepairShowsPreviousResponseWithoutDoubleEscaping(string previous, string expected)
+    {
+        var prompt = new LlmPromptCatalog().Render(Request(LlmTask.Chat), LlmTask.Repair, previous, ["schema:invalid_json"]);
+        Assert.Contains("<previous_response_json>\n" + expected + "\n</previous_response_json>", prompt.User.Replace("\r\n", "\n"));
+        Assert.DoesNotContain("\\\\u", prompt.User);
     }
 
     [Fact]
@@ -91,7 +130,7 @@ public sealed class LlmPromptTests
     {
         var request = Request(LlmTask.NewsExtract);
         var prompt = new LlmPromptCatalog().Render(request, request.Task);
-        var content = """{"headline":"Тест","event_date":null,"facts":[{"text":"Тест","line":5,"start":null,"end":null}],"participants":[],"tags":{"factors":[],"okved2":[],"countries":[],"regions":[],"commodities":[]}}""";
+        var content = """{"headline":"Тест","event_date":null,"facts":[{"text":"Тест","line":5,"start":null,"end":null}],"participants":[],"tags":{"factors":[],"okved2":[],"countries":[],"regions":[],"commodities":[]},"commentary":false}""";
         Assert.Contains("news:unknown_line", LlmOutputValidator.Validate<NewsExtractionDraft>(content, prompt, request, out _));
         Assert.Contains("schema:invalid_json", LlmOutputValidator.Validate<NewsExtractionDraft>("```json\n" + content + "\n```", prompt, request, out _));
     }
@@ -134,7 +173,8 @@ public sealed class LlmPromptTests
                 countries = Array.Empty<string>(),
                 regions = Array.Empty<string>(),
                 commodities = Array.Empty<string>()
-            }
+            },
+            commentary = false
         });
         var prompt = new LlmPromptCatalog().Render(request, request.Task);
         var errors = LlmOutputValidator.Validate<NewsExtractionDraft>(content, prompt, request, out _);

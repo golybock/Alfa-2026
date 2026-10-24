@@ -12,6 +12,14 @@
         "failed"
       ]
     },
+    "ConsequenceType": {
+      "type": "string",
+      "enum": [
+        "risk",
+        "opportunity",
+        "neutral"
+      ]
+    },
     "EvidenceDto": {
       "type": "object",
       "properties": {
@@ -254,6 +262,40 @@
               "type": "null"
             }
           ]
+        },
+        "insight_headline": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "direction": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ConsequenceType"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "queued_at": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "retry_available": {
+          "type": "boolean"
         }
       },
       "required": [
@@ -317,6 +359,20 @@
           "items": {
             "$ref": "#/$defs/FeedItemDto"
           }
+        },
+        "last_collected_at": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "collection_failed": {
+          "type": "boolean"
         }
       },
       "required": [
@@ -371,6 +427,16 @@
           "items": {
             "$ref": "#/$defs/FeatureContribution"
           }
+        },
+        "significance": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Significance"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
@@ -401,6 +467,16 @@
           "items": {
             "type": "string"
           }
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
@@ -417,6 +493,14 @@
         "not_reviewed",
         "partially_reviewed",
         "reviewed"
+      ]
+    },
+    "Significance": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high"
       ]
     },
     "SourceSummaryDto": {

@@ -26,7 +26,8 @@
             "claim_ids": [],
             "evidence_refs": [
               "E2"
-            ]
+            ],
+            "label": "Ваш продукт: кредит"
           }
         ],
         "contributions": [
@@ -40,7 +41,8 @@
               "E2"
             ]
           }
-        ]
+        ],
+        "significance": "low"
       },
       "evidence": {
         "E1": {
@@ -80,7 +82,13 @@
       },
       "analysis_status": "processing",
       "insight_id": null,
-      "job_id": "00000000-0000-4000-8000-000000000003"
+      "job_id": "00000000-0000-4000-8000-000000000003",
+      "insight_headline": null,
+      "direction": null,
+      "queued_at": "2026-10-21T12:00:00+03:00",
+      "retry_available": false
     }
-  ]
+  ],
+  "last_collected_at": "2026-10-21T12:00:00+03:00",
+  "collection_failed": false
 }

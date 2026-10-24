@@ -21,6 +21,7 @@ public sealed class UserActivityService(AlfaNewsDbContext db, AccessService acce
             UserActivityType.ReasonsOpened => "reasons_opened",
             UserActivityType.SourceOpened => "source_opened",
             UserActivityType.ActionInteracted => "action_interacted",
+            UserActivityType.ManagerContactRequested => "manager_contact_requested",
             _ => throw InvalidInput()
         };
         if ((request.Type == UserActivityType.SourceOpened) != (request.EvidenceId is not null)

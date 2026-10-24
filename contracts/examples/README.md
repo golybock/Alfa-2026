@@ -9,6 +9,8 @@
 | Компания A: CFO/CEO, тот же факт/score | insight.json, insight-ceo.json |
 | Позиция банка отсутствует, actions скрыт | insight-no-bank.json |
 | Компания B: депозит вместо кредита, другая связь с событием | feed-company-b.json, insight-company-b.json, insight-company-b-ceo.json |
+| Компания A: карточка не удалась, повтор доступен; сбор новостей не удался | feed-failed.json |
+| Шаги подготовки карточки (GET /insights/{id}/steps) | insight-steps.json |
 | Чат: ответ/отказ | chat-answer.json, chat-refusal.json |
 | Job: queued/done/failed | job-queued.json, job-done.json, job-failed.json |
 | PDF: список, OCR готов, ручной review ещё нет | documents-list.json, document.json |

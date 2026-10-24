@@ -1,0 +1,54 @@
+{
+  "insight_id": "00000000-0000-4000-8000-000000000002",
+  "total_duration_ms": 154200,
+  "steps": [
+    {
+      "ordinal": 1,
+      "stage": "plan",
+      "title": "Составили план проверки",
+      "summary": "Дополнительные вопросы не заданы.",
+      "status": "done",
+      "duration_ms": 18300
+    },
+    {
+      "ordinal": 2,
+      "stage": "tool",
+      "title": "Посмотрели профиль компании",
+      "summary": "Профиль компании: продукты и отрасль.",
+      "status": "done",
+      "duration_ms": 40
+    },
+    {
+      "ordinal": 3,
+      "stage": "default_event",
+      "title": "Разобрали новость",
+      "summary": "Факты события и источник.",
+      "status": "done",
+      "duration_ms": 25
+    },
+    {
+      "ordinal": 4,
+      "stage": "default_search",
+      "title": "Искали позицию Альфа-Банка",
+      "summary": "Найдено фрагментов: 2.",
+      "status": "done",
+      "duration_ms": 310
+    },
+    {
+      "ordinal": 5,
+      "stage": "draft",
+      "title": "Написали карточку, числа проверены кодом",
+      "summary": "Черновик карточки прошёл проверки кодом.",
+      "status": "done",
+      "duration_ms": 96500
+    },
+    {
+      "ordinal": 6,
+      "stage": "critic",
+      "title": "Проверка критиком",
+      "summary": "Замечаний критика: 0.",
+      "status": "done",
+      "duration_ms": 39025
+    }
+  ]
+}

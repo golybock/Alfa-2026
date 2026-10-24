@@ -140,16 +140,16 @@
   {
     "id": "cbr-press",
     "name": "Банк России (пресс-релизы)",
-    "feed_url": "https://www.cbr.ru/RSSMain/",
+    "feed_url": "https://www.cbr.ru/rss/RssPress",
     "kind": "official",
     "allowed_hosts": [
       "www.cbr.ru",
       "cbr.ru"
     ],
-    "enabled": false,
+    "enabled": true,
     "poll_seconds": 3600,
     "reliability": 1,
-    "validation_status": "rejected",
+    "validation_status": "checked",
     "is_specialized": false
   },
   {

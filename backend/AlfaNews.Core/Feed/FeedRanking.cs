@@ -27,7 +27,8 @@ public sealed record FeedCandidate(
     IReadOnlySet<string> Factors,
     IReadOnlySet<string> Okved2,
     IReadOnlySet<string> Countries,
-    float[]? Embedding = null);
+    float[]? Embedding = null,
+    bool Commentary = false);
 
 public sealed record RankedCandidate(
     FeedCandidate Candidate,
@@ -143,7 +144,9 @@ public static class FeedRanking
         if (okvedKnown && candidate.Okved2.Contains(company.Okved2))
         {
             var refs = new[] { "E1", Add(EvidenceType.CompanyFeature, "okved2", company.Okved2) };
-            reasons.Add(new RelevanceReasonDto("okved", $"Событие касается вашей отрасли: ОКВЭД {company.Okved2} — {Okved2Names.Find(company.Okved2) ?? company.IndustryName}.", [], refs));
+            var industry = Okved2Names.Find(company.Okved2) ?? company.IndustryName;
+            reasons.Add(new RelevanceReasonDto("okved", $"Событие касается вашей отрасли: ОКВЭД {company.Okved2} — {industry}.", [], refs,
+                Label(string.IsNullOrWhiteSpace(industry) ? "Ваша отрасль" : industry)));
             Feature(RankingFeatureCode.Okved, 1, options.OkvedWeight, true, refs);
         }
         else
@@ -154,9 +157,13 @@ public static class FeedRanking
         if (factorMatch is not null)
         {
             var refs = new[] { "E1", Add(EvidenceType.CompanyFeature, "okved2", company.Okved2) };
+            // Реплика без решения, данных или правила (например, комментарий о ставке после заседания) весит меньше самого решения.
+            var weight = candidate.Commentary ? factorMatch.Weight * options.CommentaryFactorShare : factorMatch.Weight;
             reasons.Add(new RelevanceReasonDto("factor_" + factorMatch.Factor,
-                $"Фактор «{FactorName(taxonomy, factorMatch.Factor)}» значим для отрасли ОКВЭД {company.Okved2} (вес {factorMatch.Weight.ToString("0.##", Russian)}): {factorMatch.Channel}", [], refs));
-            Feature(RankingFeatureCode.Factor, factorMatch.Weight, options.FactorWeight, true, refs);
+                $"Фактор «{FactorName(taxonomy, factorMatch.Factor)}» значим для отрасли ОКВЭД {company.Okved2} (вес {factorMatch.Weight.ToString("0.##", Russian)}): {factorMatch.Channel}"
+                + (candidate.Commentary ? " Событие — комментарий без нового решения или данных, поэтому вес фактора снижен." : ""), [], refs,
+                Label(FactorName(taxonomy, factorMatch.Factor))));
+            Feature(RankingFeatureCode.Factor, weight, options.FactorWeight, true, refs);
         }
         else
             Feature(RankingFeatureCode.Factor, 0, options.FactorWeight, sectorRows.Length > 0, []);
@@ -171,7 +178,8 @@ public static class FeedRanking
                 var reference = Add(EvidenceType.CompanyFeature, "products", rule.Product);
                 refs.Add(reference);
                 reasons.Add(new RelevanceReasonDto("product_" + rule.Product,
-                    $"У компании есть продукт «{ProductNames.GetValueOrDefault(rule.Product, rule.Product)}» в Альфа-Банке, событие касается фактора «{FactorName(taxonomy, rule.Factor)}». {rule.Channel}", [], ["E1", reference]));
+                    $"У компании есть продукт «{ProductNames.GetValueOrDefault(rule.Product, rule.Product)}» в Альфа-Банке, событие касается фактора «{FactorName(taxonomy, rule.Factor)}». {rule.Channel}", [], ["E1", reference],
+                    Label("Ваш продукт: " + ProductNames.GetValueOrDefault(rule.Product, rule.Product))));
             }
             Feature(RankingFeatureCode.Product, 1, options.ProductWeight, true, refs);
         }
@@ -183,7 +191,8 @@ public static class FeedRanking
         {
             var refs = new[] { "E1", Add(EvidenceType.CompanyFeature, "fts_countries", countries) };
             reasons.Add(new RelevanceReasonDto("country",
-                $"Событие касается страны {string.Join(", ", countries)}, которая указана в данных ФТС компании. Это не подтверждает объём или направление внешней торговли.", [], refs));
+                $"Событие касается страны {string.Join(", ", countries)}, которая указана в данных ФТС компании. Это не подтверждает объём или направление внешней торговли.", [], refs,
+                Label(string.Join(", ", countries.Select(Title)))));
             Feature(RankingFeatureCode.Country, 1, options.CountryWeight, true, refs);
         }
         else
@@ -201,7 +210,8 @@ public static class FeedRanking
             var refs = new[] { "E1", Add(EvidenceType.PaymentAggregate, $"{exposure.Direction}.sector_shares.{exposure.Code}",
                 new { direction = exposure.Direction, okved2 = exposure.Code, share, coverage = Math.Round(exposure.Exposure.Coverage, 6) }) };
             reasons.Add(new RelevanceReasonDto("cp",
-                $"{Percent(share)} наблюдаемого внешнего {(exposure.Direction == "incoming" ? "входящего" : "исходящего")} платёжного оборота приходится на компании отрасли ОКВЭД {exposure.Code}; покрытие профилями {Percent(exposure.Exposure.Coverage)}. Платежи не подтверждают поставки или тип отношений.", [], refs));
+                $"{Percent(share)} наблюдаемого внешнего {(exposure.Direction == "incoming" ? "входящего" : "исходящего")} платёжного оборота приходится на компании отрасли ОКВЭД {exposure.Code}; покрытие профилями {Percent(exposure.Exposure.Coverage)}. Платежи не подтверждают поставки или тип отношений.", [], refs,
+                Label(exposure.Direction == "incoming" ? "Ваши покупатели" : "Ваши поставщики")));
             Feature(RankingFeatureCode.Cp, share, options.CpWeight, true, refs);
         }
         else
@@ -221,7 +231,8 @@ public static class FeedRanking
         {
             var refs = new[] { "E1", Add(EvidenceType.GroupFeature, "group_member_okved2", member.Okved2) };
             reasons.Add(new RelevanceReasonDto("group",
-                $"Событие затрагивает факторы, значимые для другой компании вашей группы (ОКВЭД {member.Okved2}).", [], refs));
+                $"Событие затрагивает факторы, значимые для другой компании вашей группы (ОКВЭД {member.Okved2}).", [], refs,
+                Label("Компания вашей группы")));
             Feature(RankingFeatureCode.Group, member.Value, options.GroupWeight, true, refs);
         }
         else
@@ -235,6 +246,28 @@ public static class FeedRanking
             && candidate.Source.PublishedAt >= WindowStart(asOf) && candidate.Source.PublishedAt <= asOf;
         return new RankedCandidate(candidate, baseScore, recency, score, eligible, contributions, reasons, evidence);
     }
+
+    // Полосы значимости по base, считает код. По 63 событиям × 3 компании 24.10 (порог ленты 0,30) base в ленте — 0,35 (одна связь:
+    // фактор отрасли с весом 1 и группа), 0,39–0,46 (фактор и продукт), 0,63 (три связи); при границе PRD 0,35 почти всё было бы «средним».
+    public const decimal MediumSignificance = 0.40m;
+    public const decimal HighSignificance = 0.50m;
+
+    public static Significance SignificanceOf(decimal baseScore) =>
+        baseScore >= HighSignificance ? Significance.High : baseScore >= MediumSignificance ? Significance.Medium : Significance.Low;
+
+    public static Significance SignificanceOf(RelevanceDto relevance) => SignificanceOf(relevance.Contributions.Sum(item => item.Contribution));
+
+    // Короткая метка причины для строки ленты; полный текст остаётся в «Почему я это вижу».
+    public const int LabelMaxLength = 40;
+
+    private static string Label(string text)
+    {
+        var label = text.Trim();
+        return label.Length <= LabelMaxLength ? label : label[..(LabelMaxLength - 1)].TrimEnd(' ', ',', ';') + "…";
+    }
+
+    private static string Title(string value) =>
+        value.Length == 0 ? value : char.ToUpper(value[0], Russian) + value[1..].ToLower(Russian);
 
     private static string FactorName(RankingTaxonomy taxonomy, string code) => taxonomy.FactorNames.GetValueOrDefault(code, code);
 
