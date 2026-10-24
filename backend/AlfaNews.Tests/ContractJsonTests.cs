@@ -34,6 +34,7 @@ public sealed class ContractJsonTests
         { "chat-refusal.json", typeof(ChatAnswerDto) },
         { "documents-list.json", typeof(DocumentListResponse) },
         { "document.json", typeof(DocumentResponse) },
+        { "manual-news-list.json", typeof(ManualNewsListResponse) },
         { "page-review.json", typeof(PageReviewRequest) },
         { "news-extraction.json", typeof(NewsExtraction) }
     };

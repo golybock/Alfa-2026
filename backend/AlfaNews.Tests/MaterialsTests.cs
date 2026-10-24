@@ -1,5 +1,6 @@
 using System.Text.Json;
 using AlfaNews.Contracts.Api;
+using AlfaNews.Contracts.Domain;
 using AlfaNews.Core.Access;
 using AlfaNews.Core.Data.Entities;
 using AlfaNews.Core.Documents;
@@ -15,11 +16,12 @@ public sealed class MaterialsTests(PostgresFixture fixture) : IClassFixture<Post
     private const string ArticleText = "Синтетический абзац ручной новости о решении регулятора и его последствиях для компаний отрасли. ";
 
     [Fact]
-    public void MaterialsAreOpenToOperatorsAndDemoButNotToCompanyAccounts()
+    public void MaterialsAreOpenToEveryActiveAccountInDemo()
     {
         Assert.True(AccessService.CanAddMaterials(new AppUserEntity { Login = "admin", IsOperator = true }));
         Assert.True(AccessService.CanAddMaterials(new AppUserEntity { Login = UserSeedService.AllCompaniesLogin }));
-        Assert.False(AccessService.CanAddMaterials(new AppUserEntity { Login = "U_68157" }));
+        Assert.True(AccessService.CanAddMaterials(new AppUserEntity { Login = "U_68157" }));
+        Assert.False(AccessService.CanAddMaterials(new AppUserEntity { Login = "U_68157", Active = false }));
     }
 
     [Fact]
@@ -57,6 +59,18 @@ public sealed class MaterialsTests(PostgresFixture fixture) : IClassFixture<Post
         var job = await service.EnqueueAsync(Request(null, $"https://{host}/news/2"), user.Id, CancellationToken.None);
         Assert.Equal("CollectManualNews", job.Kind);
         Assert.Equal(id, job.Payload.GetProperty("request").GetProperty("source_id").GetString());
+
+        var list = await service.ListAsync(user.Id, "test", CancellationToken.None);
+        var item = Assert.Single(list.Items);
+        Assert.Equal((job.Id.ToString(), $"https://{host}/news/2", null, JobStatus.Queued), (item.JobId, item.Url, item.Title, item.Status));
+        Assert.Empty((await service.ListAsync(Guid.NewGuid(), "test", CancellationToken.None)).Items);
+    }
+
+    [Fact]
+    public void ManualNewsRequestNeedsOnlyUrlInJson()
+    {
+        var request = JsonSerializer.Deserialize<ManualNewsRequest>("""{"url":"https://www.rbc.ru/news"}""", JobKinds.JsonOptions)!;
+        Assert.Equal(new ManualNewsRequest(Url: "https://www.rbc.ru/news"), request);
     }
 
     [PostgresFact]

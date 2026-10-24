@@ -14,6 +14,7 @@ namespace AlfaNews.Core.Ingest;
 public sealed class ManualNewsService(AlfaNewsDbContext db, JobQueue queue)
 {
     public const int MaxUrlLength = 2000;
+    public const int MaxListItems = 50;
 
     public async Task<BackgroundJobEntity> EnqueueAsync(ManualNewsRequest request, Guid userId, CancellationToken cancellationToken)
     {
@@ -42,6 +43,26 @@ public sealed class ManualNewsService(AlfaNewsDbContext db, JobQueue queue)
             throw new AccessException(400, "invalid_input", $"Ссылка не с сайта подключённого источника. Можно добавить новость с сайтов: {string.Join(", ", sites)}.");
         }
         return (source.Id, url.ToString());
+    }
+
+    // Ссылки, которые пользователь отправил сам, новые сверху; заголовок — из собранной статьи, если она уже есть в базе.
+    public async Task<ManualNewsListResponse> ListAsync(Guid userId, string requestId, CancellationToken cancellationToken)
+    {
+        var kind = JobKinds.Name<CollectManualNewsJob>();
+        var jobs = await db.BackgroundJobRows.AsNoTracking().Where(row => row.Kind == kind && row.OwnerUserId == userId)
+            .OrderByDescending(row => row.CreatedAt).Take(MaxListItems).ToArrayAsync(cancellationToken);
+        var urls = jobs.Select(job => (Job: job, Url: job.Payload.Deserialize<CollectManualNewsJob>(JobKinds.JsonOptions)!.Request.Url ?? string.Empty))
+            .Select(item => (item.Job, item.Url, Canonical: Uri.TryCreate(item.Url, UriKind.Absolute, out var uri) ? TextNormalizer.CanonicalUrl(uri) : item.Url))
+            .ToArray();
+        var canonical = urls.Select(item => item.Canonical).ToArray();
+        var titles = await db.NewsRawRows.AsNoTracking().Where(row => canonical.Contains(row.CanonicalUrl))
+            .ToDictionaryAsync(row => row.CanonicalUrl, row => row.Title, cancellationToken);
+        return new ManualNewsListResponse(urls.Select(item =>
+        {
+            var job = JobQueue.ToResponse(item.Job, requestId);
+            return new ManualNewsItemDto(item.Job.Id.ToString(), item.Url, titles.GetValueOrDefault(item.Canonical), job.Status, job.Stage,
+                job.Error, item.Job.CreatedAt);
+        }).ToArray());
     }
 
     public static string[] Hosts(SourceEntity source) => source.AllowedHosts.Deserialize<string[]>() ?? [];

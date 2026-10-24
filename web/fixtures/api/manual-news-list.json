@@ -1,0 +1,26 @@
+{
+  "items": [
+    {
+      "job_id": "00000000-0000-4000-8000-000000000011",
+      "url": "https://www.rbc.ru/economics/24/10/2026/example",
+      "title": "Синтетическая новость по ссылке",
+      "status": "done",
+      "stage": "collected",
+      "error": null,
+      "created_at": "2026-10-25T08:30:00+00:00"
+    },
+    {
+      "job_id": "00000000-0000-4000-8000-000000000012",
+      "url": "https://www.cbr.ru/press/event/?id=1",
+      "title": null,
+      "status": "failed",
+      "stage": "rejected",
+      "error": {
+        "code": "news_outside_window",
+        "message": "Новость старше семи дней и не попадёт в ленту.",
+        "request_id": "fixture"
+      },
+      "created_at": "2026-10-25T08:20:00+00:00"
+    }
+  ]
+}
