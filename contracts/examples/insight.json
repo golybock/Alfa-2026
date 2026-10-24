@@ -195,5 +195,21 @@
       "reason": "Синтетический пример пропуска по бюджету"
     },
     "repair_count": 0
-  }
+  },
+  "direction": "risk",
+  "news_period_from": "2026-10-15T00:00:00+03:00",
+  "news_period_to": "2026-10-21T12:00:00+03:00",
+  "company_traits": [
+    {
+      "code": "product_loan",
+      "label": "Кредит в банке",
+      "amount_rub": null
+    },
+    {
+      "code": "group",
+      "label": "Группа · 26,0 млрд ₽",
+      "amount_rub": 26000000000
+    }
+  ],
+  "bank_data_as_of": "2026-10-21"
 }

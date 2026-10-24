@@ -116,6 +116,12 @@ export interface CompanyAccessDto {
   readonly roles: ReadonlyArray<Role>;
 }
 
+export interface CompanyTraitDto {
+  readonly code: string;
+  readonly label: string;
+  readonly amount_rub?: number | null;
+}
+
 export type Confidence = "low" | "medium" | "high";
 
 export interface ConsequenceDto {
@@ -283,6 +289,11 @@ export interface InsightDto {
   readonly trace_id: string;
   readonly verification: VerificationDto;
   readonly forecast?: ForecastDto;
+  readonly direction?: ConsequenceType | null;
+  readonly news_period_from?: string | null;
+  readonly news_period_to?: string | null;
+  readonly company_traits?: ReadonlyArray<CompanyTraitDto> | null;
+  readonly bank_data_as_of?: string | null;
 }
 
 export interface InsightRequest {
