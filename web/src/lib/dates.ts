@@ -42,6 +42,23 @@ export function formatDateTimeWithYear(value: string): string {
   return `${dateFormat.format(date).replace(" г.", "")}, ${timeFormat.format(date)}`;
 }
 
+export function formatDuration(ms: number): string {
+  const totalSeconds = Math.round(ms / 1000);
+  if (totalSeconds < 1) {
+    return "меньше секунды";
+  }
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes === 0) {
+    return `${seconds} с`;
+  }
+  return seconds === 0 ? `${minutes} мин` : `${minutes} мин ${seconds} с`;
+}
+
+export function formatTime(value: string): string {
+  return timeFormat.format(new Date(value));
+}
+
 export function formatDayMonthNumeric(value: string): string {
   return dayMonthNumericFormat.format(new Date(value));
 }

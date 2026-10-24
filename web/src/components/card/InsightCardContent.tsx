@@ -5,6 +5,7 @@ import { ApiRequestError, describeError } from "../../lib/api/client";
 import { useInsight } from "../../lib/hooks/queries";
 import { ANALYTICS_HREF } from "../../lib/navigation";
 import type { Role } from "../../lib/types/api";
+import CardSkeleton from "./CardSkeleton";
 import InsightCardBody from "./InsightCardBody";
 import EvidenceViewerProvider from "./EvidenceViewerProvider";
 import InsightCardHeader from "./InsightCardHeader";
@@ -24,7 +25,7 @@ export default function InsightCardContent({ companyId, eventId, role }: Insight
   const insight = useInsight(companyId, eventId, role);
 
   if (insight.isPending) {
-    return <p className="rounded-2xl bg-white p-5 text-sm text-zinc-500">Загружаем карточку…</p>;
+    return <CardSkeleton />;
   }
 
   if (insight.isError || insight.data.state === "waiting") {

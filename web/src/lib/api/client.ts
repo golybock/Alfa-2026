@@ -10,6 +10,7 @@ import type {
   FeedbackRequest,
   FeedResponse,
   InsightDto,
+  InsightStepsResponse,
   JobResponse,
   LoginRequest,
   MeResponse,
@@ -17,6 +18,7 @@ import type {
   PendingInsightResponse,
   ReviewAcceptedResponse,
   Role,
+  UserActivityRequest,
 } from "../types/api";
 
 export type Outcome<TReady, TWaiting> = { state: "ready"; data: TReady } | { state: "waiting"; data: TWaiting };
@@ -34,6 +36,8 @@ export type Api = {
   getChatHistory(insightId: string): Promise<ChatHistoryResponse>;
   askQuestion(insightId: string, request: ChatRequest): Promise<Outcome<ChatAnswerDto, AcceptedResponse>>;
   sendFeedback(insightId: string, request: FeedbackRequest): Promise<void>;
+  getInsightSteps(insightId: string): Promise<InsightStepsResponse>;
+  recordActivity(insightId: string, request: UserActivityRequest): Promise<void>;
   listDocuments(): Promise<DocumentListResponse>;
   getDocument(documentId: string): Promise<DocumentResponse>;
   reviewPage(
