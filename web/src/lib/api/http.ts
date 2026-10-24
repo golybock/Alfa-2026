@@ -42,6 +42,8 @@ export const httpApi: Api = {
   sendFeedback: (insightId, request) => postEmpty(`/insights/${segment(insightId)}/feedback`, request),
   getInsightSteps: (insightId) => getJson<InsightStepsResponse>(`/insights/${segment(insightId)}/steps`),
   recordActivity: (insightId, request) => postEmpty(`/insights/${segment(insightId)}/activity`, request),
+  addNews: (url) =>
+    postAccepted("/admin/news", { source_id: null, url, title: null, text: null, published_at: null }),
   uploadDocument: ({ file, title, publishedOn }, onProgress) => {
     const form = new FormData();
     form.append("file", file);

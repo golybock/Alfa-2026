@@ -41,6 +41,7 @@ export type Api = {
   sendFeedback(insightId: string, request: FeedbackRequest): Promise<void>;
   getInsightSteps(insightId: string): Promise<InsightStepsResponse>;
   recordActivity(insightId: string, request: UserActivityRequest): Promise<void>;
+  addNews(url: string): Promise<AcceptedResponse>;
   uploadDocument(upload: DocumentUpload, onProgress: (fraction: number) => void): Promise<DocumentAcceptedResponse>;
   listDocuments(): Promise<DocumentListResponse>;
   getDocument(documentId: string): Promise<DocumentResponse>;
