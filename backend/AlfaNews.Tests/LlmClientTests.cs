@@ -42,6 +42,48 @@ public sealed class LlmClientTests
         Assert.Null(result.ActualCostRub);
     }
 
+    [Theory]
+    [InlineData(400, """{"error":{"message":"Budget has been exceeded! Current cost: 500.1, Max budget: 500.0","type":"budget_exceeded"}}""")]
+    [InlineData(429, "ExceededBudget: budget exceeded for key")]
+    public async Task GatewayBudgetRejectionIsBudgetExhaustedNotRetried(int status, string body)
+    {
+        using var http = new HttpClient(new TestTransport(_ => Task.FromResult(Reply(body, status))));
+        var result = await new OpenAiApiClient(http, Options()).SendAsync(Prompt(), Route(), null, CancellationToken.None);
+        Assert.Equal("budget_exhausted", result.Error);
+        Assert.False(result.Transient);
+    }
+
+    [Fact]
+    public async Task ReadsSharedKeySpendFromGatewayRootAndCachesIt()
+    {
+        var requests = new List<string>();
+        using var http = new HttpClient(new TestTransport(request =>
+        {
+            requests.Add(request.Method + " " + request.RequestUri);
+            Assert.Equal("synthetic", request.Headers.Authorization!.Parameter);
+            return Task.FromResult(Reply("""{"key":"hash","info":{"spend":235.5,"total_spend":816.0,"max_budget":500.0,"budget_duration":"1d"}}"""));
+        }));
+        using var client = new OpenAiApiClient(http, Options());
+
+        var first = await client.KeySpendAsync(CancellationToken.None);
+        var second = await client.KeySpendAsync(CancellationToken.None);
+
+        Assert.Equal(235.5m, first!.Spend);
+        Assert.Equal(500m, first.MaxBudget);
+        Assert.Same(first, second);
+        Assert.Equal(["GET https://example.org/key/info"], requests);
+    }
+
+    [Theory]
+    [InlineData(404, """{"detail":"Not Found"}""")]
+    [InlineData(200, """{"info":{"spend":10.0,"max_budget":null}}""")]
+    public async Task MissingKeyBudgetFallsBackToLocalLimit(int status, string body)
+    {
+        using var http = new HttpClient(new TestTransport(_ => Task.FromResult(Reply(body, status))));
+        using var client = new OpenAiApiClient(http, Options());
+        Assert.Null(await client.KeySpendAsync(CancellationToken.None));
+    }
+
     [Fact]
     public async Task PreservesUnknownCostAndHeaderCostOnMalformedEnvelope()
     {

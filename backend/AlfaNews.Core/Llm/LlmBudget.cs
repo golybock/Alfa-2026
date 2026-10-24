@@ -45,7 +45,7 @@ public sealed class LlmBudget(IServiceScopeFactory scopes, TimeProvider timeProv
 
     public async Task<LlmUsageEntity> StartAsync(Guid runId, LlmRequest request, LlmTask task, LlmRoute route,
         string requestKey, int attempt, decimal reserve, CancellationToken cancellationToken, string? configVersion = null,
-        DateTimeOffset? since = null)
+        DateTimeOffset? since = null, LlmKeySpend? keySpend = null)
     {
         await gate.WaitAsync(cancellationToken);
         try
@@ -80,6 +80,22 @@ public sealed class LlmBudget(IServiceScopeFactory scopes, TimeProvider timeProv
                     throw new LlmException("budget_exhausted");
                 if (balance.HasUnknownCost)
                     throw new LlmException("budget_unknown_cost");
+                // Ключ общий на команду: шлюз знает расход всех участников, но не видит запросы в полёте
+                // и завершившиеся после его ответа — их добавляем из своей базы.
+                if (keySpend is not null)
+                {
+                    var fetched = keySpend.FetchedAt.ToUniversalTime();
+                    var running = fetched.AddSeconds(-Math.Max(options.TimeoutSeconds, options.CriticTimeoutSeconds));
+                    var unseen = await db.Database.SqlQuery<decimal>($"""
+                        SELECT COALESCE(SUM(COALESCE(actual_cost_rub, reserved_cost_rub)), 0) AS "Value"
+                        FROM llm_usage
+                        WHERE created_at >= {fetched}
+                           OR created_at + duration_ms * interval '1 millisecond' >= {fetched}
+                           OR (error = 'request_started' AND created_at >= {running})
+                        """).SingleAsync(cancellationToken);
+                    if (keySpend.Spend + unseen + reserve > keySpend.MaxBudget)
+                        throw new LlmException("budget_exhausted");
+                }
             }
             var entry = new LlmUsageEntity
             {

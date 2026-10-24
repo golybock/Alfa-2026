@@ -8,6 +8,11 @@ namespace AlfaNews.Core.Llm;
 
 public sealed class OpenAiApiClient(HttpClient http, LlmOptions options) : ILlmClient, IDisposable
 {
+    private static readonly TimeSpan KeySpendTtl = TimeSpan.FromSeconds(30);
+    private readonly SemaphoreSlim keyGate = new(1, 1);
+    private LlmKeySpend? keySpend;
+    private DateTimeOffset keyCheckedAt = DateTimeOffset.MinValue;
+
     public async Task<LlmClientResponse> SendAsync(LlmPrompt prompt, LlmRoute route, LlmImage? image,
         CancellationToken cancellationToken)
     {
@@ -69,8 +74,8 @@ public sealed class OpenAiApiClient(HttpClient http, LlmOptions options) : ILlmC
             }
             catch (JsonException)
             {
-                return new LlmClientResponse(Error: response.IsSuccessStatusCode ? "invalid_envelope" : Error(status.Value),
-                    Transient: status == 429 || status >= 500, ActualCostRub: headerCost, HttpStatus: status);
+                return new LlmClientResponse(Error: response.IsSuccessStatusCode ? "invalid_envelope" : Error(status.Value, raw),
+                    Transient: !BudgetExceeded(raw) && (status == 429 || status >= 500), ActualCostRub: headerCost, HttpStatus: status);
             }
             var usage = Property(envelope, "usage");
             var actualCost = Decimal(usage, "cost") ?? headerCost;
@@ -78,7 +83,7 @@ public sealed class OpenAiApiClient(HttpClient http, LlmOptions options) : ILlmC
             var outputTokens = Long(usage, "completion_tokens") ?? 0;
             var reasoningTokens = Long(Property(usage, "completion_tokens_details"), "reasoning_tokens");
             if (!response.IsSuccessStatusCode)
-                return new LlmClientResponse(Error: Error(status.Value), Transient: status == 429 || status >= 500,
+                return new LlmClientResponse(Error: Error(status.Value, raw), Transient: !BudgetExceeded(raw) && (status == 429 || status >= 500),
                     InputTokens: inputTokens, OutputTokens: outputTokens, ReasoningTokens: reasoningTokens,
                     ActualCostRub: actualCost, HttpStatus: status);
             var choices = Property(envelope, "choices");
@@ -100,7 +105,55 @@ public sealed class OpenAiApiClient(HttpClient http, LlmOptions options) : ILlmC
         }
     }
 
-    private static string Error(int status) => status switch
+    public async Task<LlmKeySpend?> KeySpendAsync(CancellationToken cancellationToken)
+    {
+        await keyGate.WaitAsync(cancellationToken);
+        try
+        {
+            var now = DateTimeOffset.UtcNow;
+            if (now - keyCheckedAt >= KeySpendTtl)
+            {
+                keyCheckedAt = now;
+                keySpend = await ReadKeySpendAsync(now, cancellationToken);
+            }
+            return keySpend;
+        }
+        finally
+        {
+            keyGate.Release();
+        }
+    }
+
+    private async Task<LlmKeySpend?> ReadKeySpendAsync(DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        var root = options.BaseUrl.TrimEnd('/');
+        if (root.EndsWith("/v1", StringComparison.Ordinal))
+            root = root[..^3];
+        using var request = new HttpRequestMessage(HttpMethod.Get, root + "/key/info");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", options.ApiKey);
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(10));
+        try
+        {
+            using var response = await http.SendAsync(request, timeout.Token);
+            if (!response.IsSuccessStatusCode)
+                return null;
+            var info = Property(JsonSerializer.Deserialize<JsonElement>(await response.Content.ReadAsStringAsync(timeout.Token)), "info");
+            return Decimal(info, "spend") is { } spend && Decimal(info, "max_budget") is { } maxBudget
+                ? new LlmKeySpend(spend, maxBudget, now) : null;
+        }
+        catch (Exception exception) when (exception is HttpRequestException or JsonException
+                                              || exception is OperationCanceledException && !cancellationToken.IsCancellationRequested)
+        {
+            return null;
+        }
+    }
+
+    // LiteLLM отказывает по бюджету ключа кодом 400 (иногда 429) с типом budget_exceeded: это не временный сбой.
+    private static bool BudgetExceeded(string raw) => raw.Contains("budget_exceeded", StringComparison.OrdinalIgnoreCase)
+        || raw.Contains("budget", StringComparison.OrdinalIgnoreCase) && raw.Contains("exceeded", StringComparison.OrdinalIgnoreCase);
+
+    private static string Error(int status, string raw) => BudgetExceeded(raw) ? "budget_exhausted" : status switch
     {
         401 or 403 => "llm_key_required",
         429 => "llm_rate_limited",
@@ -120,5 +173,9 @@ public sealed class OpenAiApiClient(HttpClient http, LlmOptions options) : ILlmC
     private static decimal? Decimal(JsonElement value, string name) => Property(value, name) is { ValueKind: JsonValueKind.Number } child
         && child.TryGetDecimal(out var number) && number >= 0 ? number : null;
 
-    public void Dispose() => http.Dispose();
+    public void Dispose()
+    {
+        http.Dispose();
+        keyGate.Dispose();
+    }
 }

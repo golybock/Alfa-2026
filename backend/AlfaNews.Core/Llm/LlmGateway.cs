@@ -144,6 +144,7 @@ public sealed class LlmGateway(AlfaNewsDbContext db, LlmOptions options, LlmProm
                 throw new LlmException("llm_key_required");
             if (initialCount + attempt > 4)
                 throw new LlmException("llm_attempt_limit");
+            var keySpend = options.UseMock ? null : await client.KeySpendAsync(cancellationToken);
             await budget.HttpSlots.WaitAsync(cancellationToken);
             LlmClientResponse response;
             IReadOnlyList<string> errors = [];
@@ -156,7 +157,7 @@ public sealed class LlmGateway(AlfaNewsDbContext db, LlmOptions options, LlmProm
                 try
                 {
                     entry = await budget.StartAsync(runId, request, task, route, requestKey,
-                        initialCount + attempt, reserve, cancellationToken, configVersion, since);
+                        initialCount + attempt, reserve, cancellationToken, configVersion, since, keySpend);
                 }
                 catch (LlmException exception) when (diagnostics is { Count: > 0 })
                 {
