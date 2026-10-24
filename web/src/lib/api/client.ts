@@ -4,6 +4,7 @@ import type {
   ChatAnswerDto,
   ChatHistoryResponse,
   ChatRequest,
+  DocumentAcceptedResponse,
   DocumentListResponse,
   DocumentResponse,
   EvidenceDto,
@@ -23,6 +24,8 @@ import type {
 
 export type Outcome<TReady, TWaiting> = { state: "ready"; data: TReady } | { state: "waiting"; data: TWaiting };
 
+export type DocumentUpload = { file: File; title: string; publishedOn: string | null };
+
 export type Api = {
   login(request: LoginRequest): Promise<MeResponse>;
   logout(): Promise<void>;
@@ -38,6 +41,7 @@ export type Api = {
   sendFeedback(insightId: string, request: FeedbackRequest): Promise<void>;
   getInsightSteps(insightId: string): Promise<InsightStepsResponse>;
   recordActivity(insightId: string, request: UserActivityRequest): Promise<void>;
+  uploadDocument(upload: DocumentUpload, onProgress: (fraction: number) => void): Promise<DocumentAcceptedResponse>;
   listDocuments(): Promise<DocumentListResponse>;
   getDocument(documentId: string): Promise<DocumentResponse>;
   reviewPage(
@@ -143,6 +147,44 @@ export async function postEmpty(path: string, body?: unknown): Promise<void> {
   if (status !== 204) {
     throw unexpected(status);
   }
+}
+
+export function uploadForm<T>(path: string, form: FormData, onProgress: (fraction: number) => void): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open("POST", `${API_BASE}${path}`);
+    request.setRequestHeader("Accept", "application/json");
+    request.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        onProgress(event.loaded / event.total);
+      }
+    };
+    request.onerror = () =>
+      reject(new ApiRequestError(0, { code: "network", message: "Не удалось связаться с сервером", request_id: "" }));
+    request.onload = () => {
+      let parsed: unknown = null;
+      try {
+        parsed = JSON.parse(request.responseText);
+      } catch {
+        parsed = null;
+      }
+      if (request.status === 202) {
+        resolve(parsed as T);
+        return;
+      }
+      reject(
+        request.status >= 200 && request.status < 300
+          ? unexpected(request.status)
+          : new ApiRequestError(
+              request.status,
+              isApiError(parsed)
+                ? parsed
+                : { code: "http_error", message: `Сервер ответил ошибкой ${request.status}`, request_id: "" },
+            ),
+      );
+    };
+    request.send(form);
+  });
 }
 
 export async function getOutcome<TReady, TWaiting>(path: string): Promise<Outcome<TReady, TWaiting>> {

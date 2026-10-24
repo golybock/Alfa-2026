@@ -22,6 +22,7 @@ import type {
   AcceptedResponse,
   ChatAnswerDto,
   ChatTurnDto,
+  DocumentAcceptedResponse,
   DocumentListResponse,
   DocumentResponse,
   EvidenceDto,
@@ -276,6 +277,19 @@ export const mockApi: Api = {
   },
   recordActivity: async (insightId) => {
     findInsightById(insightId);
+  },
+  uploadDocument: async (_upload, onProgress) => {
+    requireSession();
+    for (let step = 1; step <= 5; step += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      onProgress(step / 5);
+    }
+    const accepted: DocumentAcceptedResponse = {
+      document_id: (documentJson as DocumentResponse).id,
+      job_id: jobQueued.id,
+      review_status: "not_reviewed",
+    };
+    return accepted;
   },
   listDocuments: async () => {
     requireSession();

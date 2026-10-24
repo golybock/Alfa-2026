@@ -1,4 +1,6 @@
+import Link from "next/link";
 import type { FeedMode } from "../../lib/feedMode";
+import { MATERIALS_HREF } from "../../lib/navigation";
 import RoleSwitch from "../ui/RoleSwitch";
 import ModeSwitch from "./ModeSwitch";
 
@@ -19,14 +21,22 @@ export default function FeedHeader({ subtitle, mode, snapshotDate, onModeChange,
           <h1 className="text-3xl font-semibold">Ваши бизнес-инсайты</h1>
           <ModeSwitch mode={mode} snapshotDate={snapshotDate} onChange={onModeChange} />
         </div>
-        <button
-          type="button"
-          onClick={onRefresh}
-          disabled={refreshing}
-          className="h-11 rounded-xl bg-zinc-200/60 px-5 text-sm font-medium hover:bg-zinc-200 disabled:opacity-60"
-        >
-          {refreshing ? "Запускаем обновление…" : "Обновить ленту"}
-        </button>
+        <div className="flex items-center gap-2">
+          <Link
+            href={MATERIALS_HREF}
+            className="flex h-11 items-center rounded-xl bg-zinc-200/60 px-5 text-sm font-medium hover:bg-zinc-200"
+          >
+            Добавить материал
+          </Link>
+          <button
+            type="button"
+            onClick={onRefresh}
+            disabled={refreshing}
+            className="h-11 rounded-xl bg-zinc-200/60 px-5 text-sm font-medium hover:bg-zinc-200 disabled:opacity-60"
+          >
+            {refreshing ? "Запускаем обновление…" : "Обновить ленту"}
+          </button>
+        </div>
       </div>
       <div className="mt-3 flex items-center justify-between gap-6">
         <p className="text-sm text-zinc-500">{subtitle}</p>

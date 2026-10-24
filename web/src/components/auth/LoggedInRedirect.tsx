@@ -3,7 +3,6 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useMe } from "../../lib/hooks/session";
-import { ANALYTICS_HREF } from "../../lib/navigation";
 
 export default function LoggedInRedirect() {
   const router = useRouter();
@@ -11,7 +10,7 @@ export default function LoggedInRedirect() {
 
   useEffect(() => {
     if (me.isSuccess) {
-      router.replace(ANALYTICS_HREF);
+      router.replace("/");
     }
   }, [me.isSuccess, router]);
 

@@ -57,13 +57,17 @@ export default function InsightCardBody({ insight, onOpenWhy }: InsightCardBodyP
   const news = evidenceOf(insight.what_happened, claims, insight.evidence, "news");
   const bankSources = evidenceOf(insight.bank_view.claim_ids, claims, insight.evidence, "bank_research");
   const bankFound = insight.bank_view.status === "found";
-  const features = insight.relevance.reasons.map((reason) => reason.label).filter((label): label is string => Boolean(label));
+  const features = insight.company_traits
+    ? insight.company_traits.map((trait) => trait.label)
+    : insight.relevance.reasons.map((reason) => reason.label).filter((label): label is string => Boolean(label));
   const bankDate =
+    insight.bank_data_as_of ??
     Object.values(insight.evidence)
       .filter((item) => item.type === "bank_research" && item.date)
       .map((item) => item.date as string)
       .sort()
-      .at(-1) ?? null;
+      .at(-1) ??
+    null;
   const codePassed = insight.verification.code_status === "passed";
   const criticPassed = insight.verification.critic.status === "passed";
 

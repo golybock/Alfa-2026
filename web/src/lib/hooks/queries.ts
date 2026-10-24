@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { QueryKey } from "@tanstack/react-query";
 import { api } from "../api";
+import type { DocumentUpload } from "../api/client";
 import type { ChatRequest, FeedbackRequest, Role, UserActivityRequest } from "../types/api";
 
 const FEED_POLL_MS = 120_000;
@@ -13,6 +14,8 @@ export const queryKeys = {
   insight: (companyId: string, eventId: string, role: Role) => ["insight", companyId, eventId, role] as const,
   chat: (insightId: string) => ["chat", insightId] as const,
   steps: (insightId: string) => ["steps", insightId] as const,
+  documents: ["documents"] as const,
+  document: (documentId: string) => ["document", documentId] as const,
 };
 
 export function useFeed(companyId: string, role: Role, polling = true) {
@@ -108,5 +111,35 @@ export function useRecordActivity(insightId: string) {
 export function useRetryInsight(companyId: string, eventId: string, role: Role) {
   return useMutation({
     mutationFn: () => api.ensureInsight(companyId, eventId, role),
+  });
+}
+
+const documentInProgress = (status: string) => status === "queued" || status === "processing";
+
+export function useDocuments(enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.documents,
+    enabled,
+    queryFn: () => api.listDocuments(),
+    refetchInterval: (query) =>
+      query.state.data?.items.some((item) => documentInProgress(item.ocr_status)) ? JOB_POLL_MS : false,
+  });
+}
+
+export function useDocumentProgress(documentId: string, active: boolean) {
+  return useQuery({
+    queryKey: queryKeys.document(documentId),
+    enabled: active,
+    queryFn: () => api.getDocument(documentId),
+    refetchInterval: active ? JOB_POLL_MS : false,
+  });
+}
+
+export function useUploadDocument() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ upload, onProgress }: { upload: DocumentUpload; onProgress: (fraction: number) => void }) =>
+      api.uploadDocument(upload, onProgress),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.documents }),
   });
 }

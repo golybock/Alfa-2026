@@ -7,6 +7,7 @@ export type MenuItem = {
 };
 
 export const ANALYTICS_HREF = "/analytics";
+export const MATERIALS_HREF = "/materials";
 
 export const primaryMenu: MenuItem[] = [
   { href: "/sections/services", title: "Все сервисы", icon: "grid" },

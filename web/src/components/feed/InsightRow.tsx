@@ -22,7 +22,6 @@ export default function InsightRow({ item, companyId, role }: InsightRowProps) {
           </div>
         ) : null}
         <h2 className="mt-3 line-clamp-2 text-base font-semibold">{insightHeadline ?? item.headline}</h2>
-        <p className="mt-1 line-clamp-1 text-sm text-zinc-600">{item.summary}</p>
         {item.relevance.reasons.length > 0 ? (
           <p className="mt-2 text-xs text-zinc-500">
             Почему вы:{" "}
