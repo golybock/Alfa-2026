@@ -97,7 +97,8 @@ public sealed class DatabaseAccessTests(PostgresFixture fixture) : IClassFixture
         await AssertDeniedAsync(404, () => access.RequireEvidenceAsync(fixture.User, fixture.InsightId, "foreign", CancellationToken.None));
         await AssertDeniedAsync(403, () => access.RequireInsightAsync(fixture.User, fixture.ForeignInsightId, CancellationToken.None));
         await access.RequireResearchPageAsync(fixture.User, fixture.DocumentId, 1, CancellationToken.None);
-        await AssertDeniedAsync(403, () => access.RequireResearchPageAsync(fixture.User, fixture.DocumentId, 2, CancellationToken.None));
+        // Материалы в демонстрации открыты всем вошедшим, поэтому и страницы PDF без ссылки из своей карточки.
+        await access.RequireResearchPageAsync(fixture.User, fixture.DocumentId, 2, CancellationToken.None);
         await access.RequireResearchPageAsync(fixture.Operator, fixture.DocumentId, 2, CancellationToken.None);
         await access.RequireJobAsync(fixture.User, fixture.JobId, CancellationToken.None);
         await access.RequireJobAsync(fixture.Operator, fixture.JobId, CancellationToken.None);

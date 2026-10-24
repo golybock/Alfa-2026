@@ -1,4 +1,4 @@
 namespace AlfaNews.Contracts.Api;
 
 public sealed record ManualNewsRequest(
-    string? SourceId, string? Url, string? Title, string? Text, DateTimeOffset? PublishedAt);
+    string? SourceId = null, string? Url = null, string? Title = null, string? Text = null, DateTimeOffset? PublishedAt = null);

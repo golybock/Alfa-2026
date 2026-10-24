@@ -326,12 +326,26 @@ export interface LoginRequest {
   readonly password: string;
 }
 
-export interface ManualNewsRequest {
-  readonly source_id: string | null;
-  readonly url: string | null;
+export interface ManualNewsItemDto {
+  readonly job_id: string;
+  readonly url: string;
   readonly title: string | null;
-  readonly text: string | null;
-  readonly published_at: string | null;
+  readonly status: JobStatus;
+  readonly stage: string;
+  readonly error: ApiError | null;
+  readonly created_at: string;
+}
+
+export interface ManualNewsListResponse {
+  readonly items: ReadonlyArray<ManualNewsItemDto>;
+}
+
+export interface ManualNewsRequest {
+  readonly source_id?: string | null;
+  readonly url?: string | null;
+  readonly title?: string | null;
+  readonly text?: string | null;
+  readonly published_at?: string | null;
 }
 
 export interface MeResponse {

@@ -14,7 +14,7 @@ namespace AlfaNews.Tests;
 public sealed class PdfHttpTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     [PostgresFact]
-    public async Task UploadEnforcesOperatorAndOriginAndReturnsSameDocumentForDuplicate()
+    public async Task UploadEnforcesSessionAndOriginAndReturnsSameDocumentForDuplicate()
     {
         var token = Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(32));
         await using (var db = fixture.CreateDb())
@@ -58,7 +58,8 @@ public sealed class PdfHttpTests(PostgresFixture fixture) : IClassFixture<Postgr
             }
             var bytes = PdfProcessingTests.CreatePdf(1);
             Assert.Equal(HttpStatusCode.Unauthorized, (await UploadAsync(client, bytes, null)).StatusCode);
-            Assert.Equal(HttpStatusCode.Forbidden, (await UploadAsync(client, bytes, fixture.Token)).StatusCode);
+            // В демонстрации загружать может и учётка компании: проверка доступа пройдена, отказ — только из-за не-PDF.
+            Assert.Equal(HttpStatusCode.UnsupportedMediaType, (await UploadAsync(client, "invalid"u8.ToArray(), fixture.Token)).StatusCode);
             Assert.Equal(HttpStatusCode.Forbidden, (await UploadAsync(client, bytes, token, "https://foreign.example")).StatusCode);
             Assert.Equal(HttpStatusCode.UnsupportedMediaType, (await UploadAsync(client, "invalid"u8.ToArray(), token)).StatusCode);
             using var first = await UploadAsync(client, bytes, token);
