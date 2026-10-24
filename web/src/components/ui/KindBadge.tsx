@@ -4,7 +4,7 @@ import Icon from "./Icon";
 const kinds: Record<ConsequenceType, { label: string; className: string; icon: "trendDown" | "trend" | "info" }> = {
   risk: { label: "Риск", className: "bg-red-50 text-alfa", icon: "trendDown" },
   opportunity: { label: "Возможность", className: "bg-green-50 text-green-700", icon: "trend" },
-  neutral: { label: "Нейтрально", className: "bg-gray-100 text-gray-700", icon: "info" },
+  neutral: { label: "Неопределённость", className: "bg-gray-100 text-gray-700", icon: "info" },
 };
 
 type KindBadgeProps = { kind: ConsequenceType };
