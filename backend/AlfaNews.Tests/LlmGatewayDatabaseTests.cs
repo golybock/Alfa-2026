@@ -211,6 +211,58 @@ public sealed class LlmGatewayDatabaseTests(PostgresFixture fixture) : IClassFix
     }
 
     [PostgresFact]
+    public async Task SharedKeySpendOnGatewayLimitsRequestsBeforeLocalLimit()
+    {
+        await ResetAsync();
+        var request = LlmPromptTests.Request(LlmTask.NewsExtract, fixture.JobId);
+        // Команда почти исчерпала общий ключ: своя база пуста, но запрос не уходит.
+        var exhausted = new ScriptedClient(ValidNews()) { Key = new LlmKeySpend(499.5m, 500m, DateTimeOffset.UtcNow) };
+        await using (var services = Services(exhausted))
+        {
+            var error = await Assert.ThrowsAsync<LlmException>(() => GenerateAsync<NewsExtractionDraft>(services, request));
+            Assert.Equal("budget_exhausted", error.Code);
+        }
+        Assert.Equal(0, exhausted.Calls);
+
+        // Свой запрос в полёте шлюз ещё не учёл: его резерв добавляется к расходу ключа.
+        await using var db = fixture.CreateDb();
+        var run = new AlfaNews.Core.Data.Entities.AgentRunEntity
+        {
+            Id = Guid.NewGuid(),
+            JobId = fixture.JobId,
+            InputVersion = "v1",
+            Status = "running",
+            StartedAt = DateTimeOffset.UtcNow
+        };
+        db.AgentRunRows.Add(run);
+        db.LlmUsageRows.Add(new AlfaNews.Core.Data.Entities.LlmUsageEntity
+        {
+            Id = Guid.NewGuid(),
+            RunId = run.Id,
+            Stage = "news_extract",
+            Model = "test",
+            ConfigVersion = "test",
+            RequestKey = "in-flight",
+            Attempt = 1,
+            ReservedCostRub = 50m,
+            Error = "request_started",
+            CreatedAt = DateTimeOffset.UtcNow
+        });
+        await db.SaveChangesAsync();
+        // 450 ₽ на шлюзе — запрос бы прошёл; с резервом 50 ₽ своего запроса в полёте — уже нет.
+        var busy = new ScriptedClient(ValidNews()) { Key = new LlmKeySpend(450m, 500m, DateTimeOffset.UtcNow) };
+        await using (var services = Services(busy))
+            Assert.Equal("budget_exhausted", (await Assert.ThrowsAsync<LlmException>(() =>
+                GenerateAsync<NewsExtractionDraft>(services, request with { OperationKey = "busy" }))).Code);
+        Assert.Equal(0, busy.Calls);
+
+        var free = new ScriptedClient(ValidNews()) { Key = new LlmKeySpend(100m, 500m, DateTimeOffset.UtcNow) };
+        await using (var services = Services(free))
+            await GenerateAsync<NewsExtractionDraft>(services, request with { OperationKey = "free" });
+        Assert.Equal(1, free.Calls);
+    }
+
+    [PostgresFact]
     public async Task AttemptLimitStartsOverWhenTheJobRunsAgain()
     {
         await ResetAsync();
@@ -383,6 +435,9 @@ public sealed class LlmGatewayDatabaseTests(PostgresFixture fixture) : IClassFix
     {
         public int Calls { get; private set; }
         public List<int> Limits { get; } = [];
+        public LlmKeySpend? Key { get; init; }
+
+        public Task<LlmKeySpend?> KeySpendAsync(CancellationToken cancellationToken) => Task.FromResult(Key);
 
         public Task<LlmClientResponse> SendAsync(LlmPrompt prompt, LlmRoute route, LlmImage? image, CancellationToken cancellationToken)
         {
