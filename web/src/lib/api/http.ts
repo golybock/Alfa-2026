@@ -2,6 +2,7 @@ import type {
   AcceptedResponse,
   ChatAnswerDto,
   ChatHistoryResponse,
+  DocumentAcceptedResponse,
   DocumentListResponse,
   DocumentResponse,
   EvidenceDto,
@@ -14,7 +15,7 @@ import type {
   ReviewAcceptedResponse,
 } from "../types/api";
 import type { Api } from "./client";
-import { getJson, getOutcome, postAccepted, postEmpty, postJson, postOutcome } from "./client";
+import { getJson, getOutcome, postAccepted, postEmpty, postJson, postOutcome, uploadForm } from "./client";
 
 const segment = encodeURIComponent;
 
@@ -41,6 +42,15 @@ export const httpApi: Api = {
   sendFeedback: (insightId, request) => postEmpty(`/insights/${segment(insightId)}/feedback`, request),
   getInsightSteps: (insightId) => getJson<InsightStepsResponse>(`/insights/${segment(insightId)}/steps`),
   recordActivity: (insightId, request) => postEmpty(`/insights/${segment(insightId)}/activity`, request),
+  uploadDocument: ({ file, title, publishedOn }, onProgress) => {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("title", title);
+    if (publishedOn) {
+      form.append("published_on", publishedOn);
+    }
+    return uploadForm<DocumentAcceptedResponse>("/admin/documents", form, onProgress);
+  },
   listDocuments: () => getJson<DocumentListResponse>("/admin/documents"),
   getDocument: (documentId) => getJson<DocumentResponse>(`/admin/documents/${segment(documentId)}`),
   reviewPage: (documentId, pageNo, version, request) =>
