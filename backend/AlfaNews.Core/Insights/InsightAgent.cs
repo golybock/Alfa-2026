@@ -181,7 +181,7 @@ public sealed class InsightAgent(AlfaNewsDbContext db, LlmGateway gateway, Agent
         var inapplicable = registry.Items.Where(pair => pair.Value.Type == EvidenceType.BankResearch && !applicable.Contains(pair.Key))
             .Select(pair => pair.Key).ToArray();
         if (inapplicable.Length > 0)
-            notes.Add($"Не являются позицией банка по этому событию: {string.Join(", ", inapplicable)}. У них нет даты публикации, дата старше {BankViewStaleMaxAgeDays} дней до события, тема не совпадает с факторами события или по теме есть более поздний обзор банка. Не ссылайся на них ни в одном утверждении: bank_view — not_found, а в limitations одной строкой укажи дату и тему обзора и почему он не относится к событию.");
+            notes.Add($"Не являются позицией банка по этому событию: {string.Join(", ", inapplicable)}. У них нет даты публикации, дата старше {BankViewStaleMaxAgeDays} дней до события, тема не совпадает с факторами события или по теме есть более поздний обзор банка. Не ссылайся на них ни в одном утверждении: bank_view — not_found.");
         if (dated.Count > 0)
             notes.Add("DATED: " + string.Join("; ", dated.Select(pair => $"{pair.Key} — оценка банка на {pair.Value:dd.MM.yyyy}")) +
                 $". Обзоры на тему события, старше {BankViewMaxAgeDays} дней, более поздних обзоров банка по теме нет. Их можно показать в bank_view только как оценку банка на эту дату: в утверждении назови дату («по оценке банка на 11.09.2026») и что более поздних оценок по теме нет; это не реакция банка на событие.");
@@ -265,9 +265,7 @@ public sealed class InsightAgent(AlfaNewsDbContext db, LlmGateway gateway, Agent
         }).ToArray();
         var unconfirmed = claims.Where(claim => claim.VerificationStatus == ClaimVerification.NotConfirmed).Select(claim => claim.Id)
             .ToHashSet(StringComparer.Ordinal);
-        // На экране не больше трёх ограничений: сначала отметка о неподтверждённых выводах, затем ограничения модели и инструментов.
-        string[] critical = unconfirmed.Count > 0 ? ["Часть выводов не подтверждена проверкой критика и показана с отметкой «не подтверждено»."] : [];
-        var shownLimitations = Unique(critical.Concat(draft.Limitations).Concat(limitations)).Take(InsightChecks.MaxLimitations).ToArray();
+        var shownLimitations = ShownLimitations(unconfirmed.Count > 0, claims, registry.Items, limitations);
         var requestCount = await db.LlmUsageRows.AsNoTracking().CountAsync(row => row.RunId == run.Id && row.Stage == "critic" && row.Attempt > 0,
             cancellationToken);
         return new InsightDto(insight.Id.ToString(), payload.EventId, payload.CompanyId, payload.Role, asOf, draft.Headline, relevance,
@@ -312,6 +310,22 @@ public sealed class InsightAgent(AlfaNewsDbContext db, LlmGateway gateway, Agent
         JsonValueKind.Array => value.EnumerateArray().Select(Sorted).ToArray(),
         _ => value
     };
+
+    // На экране не больше трёх ограничений, и все их формирует код: отметка о неподтверждённых выводах,
+    // о непроверенном вручную тексте обзора банка — только если утверждение на него ссылается — и ограничения инструментов.
+    // Ограничения модели не показываются.
+    public static string[] ShownLimitations(bool hasUnconfirmed, IReadOnlyList<ClaimDto> claims,
+        IReadOnlyDictionary<string, EvidenceDto> evidence, IEnumerable<string> toolLimitations)
+    {
+        string[] critical = hasUnconfirmed ? ["Часть выводов не подтверждена проверкой критика и показана с отметкой «не подтверждено»."] : [];
+        var unreviewed = claims.SelectMany(claim => claim.Refs).Distinct(StringComparer.Ordinal)
+            .Select(reference => evidence.GetValueOrDefault(reference))
+            .Where(item => item is { Type: EvidenceType.BankResearch } && item.ReviewStatus != ReviewStatus.Reviewed)
+            .Select(item => item!.Source).Distinct(StringComparer.Ordinal).ToArray();
+        string[] pdf = unreviewed.Length > 0 ? [$"Текст обзора банка не проверен вручную: {string.Join(", ", unreviewed)}."] : [];
+        return Unique(critical.Concat(pdf).Concat(toolLimitations.Where(item => item != AgentTools.UnreviewedBankText)))
+            .Take(InsightChecks.MaxLimitations).ToArray();
+    }
 
     private static string[] Unique(IEnumerable<string> items) => items.Where(item => !string.IsNullOrWhiteSpace(item))
         .DistinctBy(item => string.Join(' ', item.ToLowerInvariant().Replace('ё', 'е').Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))

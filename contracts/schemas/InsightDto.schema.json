@@ -86,6 +86,32 @@
         "failed"
       ]
     },
+    "CompanyTraitDto": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "amount_rub": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "code",
+        "label"
+      ],
+      "additionalProperties": false
+    },
     "Confidence": {
       "type": "string",
       "enum": [
@@ -556,6 +582,62 @@
           "anyOf": [
             {
               "$ref": "#/$defs/ForecastDto"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "direction": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ConsequenceType"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "news_period_from": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "news_period_to": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "company_traits": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/CompanyTraitDto"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "bank_data_as_of": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date"
             },
             {
               "type": "null"
