@@ -27,8 +27,12 @@ public sealed class InsightChecksTests
         var draft = JsonSerializer.SerializeToElement(new
         {
             headline = "Тест",
-            what_happened = new[] { "C1" },
-            claims = new[] { new { id = "C1", text = "Банк ожидает снижения ставки.", origin = "bank_analytics", refs = new[] { "E3" }, confidence = (string?)null } },
+            what_happened = new[] { "C2" },
+            claims = new[]
+            {
+                new { id = "C1", text = "Банк ожидает снижения ставки.", origin = "bank_analytics", refs = new[] { "E3" }, confidence = (string?)null },
+                new { id = "C2", text = "В таможенных данных компании есть Китай.", origin = "source_fact", refs = new[] { "E2" }, confidence = (string?)null }
+            },
             bank_view = new { status = "found", claim_ids = new[] { "C1" } },
             suggested_questions = Array.Empty<string>()
         });
@@ -37,6 +41,39 @@ public sealed class InsightChecksTests
             Assert.Empty(errors);
         else
             Assert.Equal(error, Assert.Single(errors));
+    }
+
+    // Скриншот 23.10: сентябрьский обзор банка в «почему важно» при bank_view not_found — карточка противоречила сама себе.
+    [Theory]
+    [InlineData("found", "", "")]
+    [InlineData("found", "C1", "C1")]
+    [InlineData("found", "C2", "C2")]
+    [InlineData("not_found", "", "C1")]
+    [InlineData("not_found", "C2", "C1,C2")]
+    public void BankResearchStaysInsideBankView(string status, string whyIds, string rejected)
+    {
+        // C1 — аналитика банка, C2 — вывод модели по тому же обзору; C1 в bank_view, если позиция найдена.
+        var evidence = new Dictionary<string, EvidenceDto>(Evidence)
+        {
+            ["E3"] = new(EvidenceType.BankResearch, "Обзор", null, "Банк ожидает снижения ставки.", new DateOnly(2026, 9, 11), null, 1,
+                Guid.NewGuid().ToString(), "bank_view", null, null, ReviewStatus.NotReviewed, false, null, null)
+        };
+        var draft = JsonSerializer.SerializeToElement(new
+        {
+            headline = "Тест",
+            what_happened = new[] { "C3" },
+            why_it_matters = whyIds.Split(',', StringSplitOptions.RemoveEmptyEntries),
+            claims = new[]
+            {
+                new { id = "C1", text = "Банк ожидает снижения ставки.", origin = "bank_analytics", refs = new[] { "E3" }, confidence = (string?)null },
+                new { id = "C2", text = "Обзор банка описывает ожидания по ставке.", origin = "ai_inference", refs = new[] { "E3" }, confidence = (string?)null },
+                new { id = "C3", text = "В таможенных данных компании есть Китай.", origin = "source_fact", refs = new[] { "E2" }, confidence = (string?)null }
+            },
+            bank_view = new { status, claim_ids = status == "found" ? new[] { "C1" } : [] },
+            suggested_questions = Array.Empty<string>()
+        });
+        var errors = InsightChecks.Validate(draft, evidence, new HashSet<string> { "E3" });
+        Assert.Equal(rejected.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(id => $"claims:{id}:bank_research_only_in_bank_view"), errors);
     }
 
     [Theory]

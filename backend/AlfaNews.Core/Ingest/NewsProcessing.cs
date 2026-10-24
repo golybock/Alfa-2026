@@ -30,7 +30,7 @@ public sealed class NewsProcessing(AlfaNewsDbContext db, LlmGateway gateway, New
         var now = clock.GetUtcNow();
         var reason = source is null || !source.Enabled ? "source_disabled"
             : row.PublishedAt is null ? "no_published_date"
-            : row.PublishedAt < now.AddDays(-7) || row.PublishedAt > now.AddDays(1) ? "outside_window"
+            : row.PublishedAt < await NewsWindow.StartAsync(db, now, cancellationToken) || row.PublishedAt > NewsWindow.End(now) ? "outside_window"
             : ArticleExtractor.IsBoilerplateOnly(row.Text) ? "boilerplate_body"
             : string.IsNullOrWhiteSpace(row.Text) ? "empty_body"
             : row.Importance == 3 ? "headline_irrelevant" : null;

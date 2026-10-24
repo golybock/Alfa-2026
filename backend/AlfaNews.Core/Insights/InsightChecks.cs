@@ -7,7 +7,7 @@ namespace AlfaNews.Core.Insights;
 
 public static partial class InsightChecks
 {
-    public const string Version = "insight-checks-v3";
+    public const string Version = "insight-checks-v4";
 
     private static readonly string[] PaymentOverclaims = ["поставщик", "покупател", "доля поставок", "доли поставок", "доля закупок", "доли закупок",
         "доля выручки", "доли выручки", "доля затрат", "доли затрат"];
@@ -23,9 +23,28 @@ public static partial class InsightChecks
         var origins = claims.ToDictionary(claim => claim.GetProperty("id").GetString()!, claim => claim.GetProperty("origin").GetString()!,
             StringComparer.Ordinal);
         var bankView = draft.GetProperty("bank_view");
-        if (bankView.GetProperty("status").GetString() == "found")
+        // Аналитика банка показывается только в блоке «Как это оценивает банк»: в других блоках интерфейс подписывает её
+        // как позицию банка, и при not_found карточка противоречит сама себе. Неприменимый обзор описывается в limitations.
+        var bankIds = bankView.GetProperty("status").GetString() == "found"
+            ? bankView.GetProperty("claim_ids").EnumerateArray().Select(item => item.GetString()!).ToHashSet(StringComparer.Ordinal)
+            : [];
+        var sectionIds = new[] { "what_happened", "why_it_matters", "actions" }
+            .SelectMany(name => draft.TryGetProperty(name, out var section) ? section.EnumerateArray() : Enumerable.Empty<JsonElement>())
+            .Concat(draft.TryGetProperty("consequences", out var consequences)
+                ? consequences.EnumerateArray().SelectMany(item => item.GetProperty("claim_ids").EnumerateArray())
+                : [])
+            .Select(item => item.GetString()!).ToHashSet(StringComparer.Ordinal);
+        foreach (var claim in claims)
         {
-            var ids = bankView.GetProperty("claim_ids").EnumerateArray().Select(item => item.GetString()!).ToArray();
+            var id = claim.GetProperty("id").GetString()!;
+            if (origins[id] == "bank_analytics" ? !bankIds.Contains(id) || sectionIds.Contains(id)
+                    : sectionIds.Contains(id) && claim.GetProperty("refs").EnumerateArray()
+                        .Any(item => evidence.GetValueOrDefault(item.GetString()!)?.Type == EvidenceType.BankResearch))
+                errors.Add($"claims:{id}:bank_research_only_in_bank_view");
+        }
+        if (bankIds.Count > 0)
+        {
+            var ids = bankIds.ToArray();
             if (ids.Length == 0 || ids.Any(item => origins.GetValueOrDefault(item) != "bank_analytics"))
                 errors.Add("bank_view:found_requires_bank_analytics_claims");
             else if (applicableBankEvidence is not null && !claims.Where(claim => ids.Contains(claim.GetProperty("id").GetString()))

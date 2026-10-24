@@ -30,6 +30,37 @@ public sealed class NewsProcessingTests(PostgresFixture fixture) : IClassFixture
         Assert.Equal(valid, errors.Count == 0);
     }
 
+    [Theory]
+    [InlineData(null, -7)]
+    [InlineData(0, -3)]
+    [InlineData(-2, -5)]
+    [InlineData(-4, -7)]
+    [InlineData(-30, -7)]
+    public void FirstRunProcessesOnlyRecentBacklog(int? startedDaysAgo, int expectedDaysAgo)
+    {
+        var now = new DateTimeOffset(2026, 10, 24, 12, 0, 0, TimeSpan.Zero);
+        var started = startedDaysAgo is { } days ? now.AddDays(days) : (DateTimeOffset?)null;
+        Assert.Equal(now.AddDays(expectedDaysAgo), NewsWindow.Start(now, started));
+    }
+
+    [Theory]
+    [InlineData("deepseek", true, "deepseek/deepseek-v4.1-flash", true)]
+    [InlineData("deepseek", false, "deepseek/deepseek-v4.1-flash", false)]
+    [InlineData("glm", true, "z-ai/glm-5.3-flash", true)]
+    public void ExtractionRouteIsChosenSeparatelyFromCards(string model, bool thinking, string expectedModel, bool expectedThinking)
+    {
+        var options = new LlmOptions { ExtractModel = model, ExtractThinkingEnabled = thinking };
+        foreach (var task in new[] { LlmTask.NewsExtract, LlmTask.Repair })
+        {
+            var route = options.Route(task, LlmTask.NewsExtract);
+            Assert.Equal(expectedModel, route.Model);
+            Assert.Equal(expectedThinking, route.ThinkingEnabled);
+        }
+        var draft = options.Route(LlmTask.Draft, LlmTask.Draft);
+        Assert.Equal("deepseek/deepseek-v4.1-flash", draft.Model);
+        Assert.True(draft.ThinkingEnabled);
+    }
+
     [Fact]
     public void TriageAndItsRepairDisableDeepSeekThinking()
     {
@@ -79,7 +110,7 @@ public sealed class NewsProcessingTests(PostgresFixture fixture) : IClassFixture
     }
 
     [PostgresFact]
-    public async Task AdmissionFillsFiftySlotsWithImportantThenOldestMaybe()
+    public async Task AdmissionFillsFiftySlotsWithImportantThenFreshestMaybe()
     {
         await using var db = fixture.CreateDb();
         await db.BackgroundJobRows.Where(row => row.Kind == "ParseNews").ExecuteUpdateAsync(update => update.SetProperty(row => row.Status, "done"));
@@ -87,7 +118,7 @@ public sealed class NewsProcessingTests(PostgresFixture fixture) : IClassFixture
         var prefix = Guid.NewGuid().ToString();
         var rows = Enumerable.Range(0, 55).Select(index => NewRow(prefix + index, 2)).ToArray();
         for (var index = 0; index < rows.Length; index++)
-            rows[index].FetchedAt = DateTimeOffset.UtcNow.AddMinutes(-100 + index);
+            rows[index].PublishedAt = DateTimeOffset.UtcNow.AddMinutes(-100 + index);
         var important = Enumerable.Range(0, 8).Select(index => NewRow(prefix + "important" + index, 1)).ToArray();
         var trash = NewRow(prefix + "trash", 3);
         db.NewsRawRows.AddRange(rows.Concat(important).Append(trash));
@@ -99,7 +130,7 @@ public sealed class NewsProcessingTests(PostgresFixture fixture) : IClassFixture
         Assert.Equal(50, jobs.Length);
         var selected = jobs.Select(job => Guid.Parse(job.Payload.GetProperty("news_raw_id").GetString()!)).ToHashSet();
         Assert.All(important, row => Assert.Contains(row.Id, selected));
-        Assert.All(rows.OrderBy(row => row.FetchedAt).ThenBy(row => row.Id).Take(42), row => Assert.Contains(row.Id, selected));
+        Assert.All(rows.OrderByDescending(row => row.PublishedAt).Take(42), row => Assert.Contains(row.Id, selected));
         Assert.DoesNotContain(trash.Id, selected);
         await db.BackgroundJobRows.Where(row => row.Kind == "ParseNews" && row.Status == "queued").ExecuteDeleteAsync();
         await db.NewsRawRows.Where(row => row.CanonicalUrl.StartsWith("https://example.org/" + prefix)).ExecuteDeleteAsync();

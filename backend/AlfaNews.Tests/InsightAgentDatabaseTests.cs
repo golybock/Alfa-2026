@@ -95,6 +95,28 @@ public sealed class InsightAgentDatabaseTests(PostgresFixture fixture) : IClassF
     }
 
     [PostgresFact]
+    public async Task AutomaticCardIsSkippedWhenEventLeftTheFeed()
+    {
+        await using var services = Services(new AgentClient(CriticResponse: """{"issues":[]}"""), insightsOnlyForFeed: true);
+        await using var scope = services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AlfaNewsDbContext>();
+        var eventId = await PrepareAsync(db, "test_company_a", "left-feed-" + Guid.NewGuid());
+        // Событие вытеснено из ленты: в снимках компании его нет.
+        foreach (var snapshot in await db.FeedSnapshotRows.Where(row => row.CompanyId == "test_company_a").ToListAsync())
+            snapshot.ItemsJson = JsonSerializer.SerializeToElement(snapshot.ItemsJson.EnumerateArray()
+                .Where(item => item.GetProperty("event_id").GetString() != eventId.ToString()).ToArray());
+        await db.SaveChangesAsync();
+        var inputVersion = await db.EventRows.Where(row => row.Id == eventId).Select(row => row.InputVersion).SingleAsync();
+        var payload = new GenerateInsightJob("test_company_a", eventId.ToString(), Role.Ceo, inputVersion);
+        var job = await scope.ServiceProvider.GetRequiredService<JobQueue>().EnqueueAsync(payload, null, "test_company_a", CancellationToken.None);
+        var result = await scope.ServiceProvider.GetRequiredService<InsightAgent>().GenerateAsync(job, payload, CancellationToken.None);
+        Assert.Equal("skipped", result.Stage);
+        Assert.Null(result.ErrorCode);
+        Assert.False(await db.InsightRows.AnyAsync(row => row.EventId == eventId));
+        await db.BackgroundJobRows.Where(row => row.Id == job.Id).ExecuteDeleteAsync();
+    }
+
+    [PostgresFact]
     public async Task CardWaitsWhileOtherRoleOfSameEventIsRunning()
     {
         var client = new AgentClient(CriticResponse: """{"issues":[]}""");
@@ -204,7 +226,7 @@ public sealed class InsightAgentDatabaseTests(PostgresFixture fixture) : IClassF
         return eventId;
     }
 
-    private ServiceProvider Services(ILlmClient client)
+    private ServiceProvider Services(ILlmClient client, bool insightsOnlyForFeed = false)
     {
         var services = new ServiceCollection();
         services.AddLogging();
@@ -213,7 +235,7 @@ public sealed class InsightAgentDatabaseTests(PostgresFixture fixture) : IClassF
         services.AddAlfaNewsData(fixture.ConnectionString!);
         services.AddAlfaNewsLlm(new LlmOptions { UseMock = false, ApiKey = "synthetic", BaseUrl = "https://example.org/v1" });
         services.AddSingleton(client);
-        services.AddSingleton(new RankingOptions());
+        services.AddSingleton(new RankingOptions { InsightsOnlyForFeed = insightsOnlyForFeed });
         services.AddSingleton(new NewsEmbeddings(new HttpClient(new DownHandler()), new ConfigurationBuilder().Build()));
         services.AddScoped<JobQueue>();
         services.AddScoped<ResearchSearch>();

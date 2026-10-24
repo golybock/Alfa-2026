@@ -94,7 +94,7 @@ public sealed class LlmGateway(AlfaNewsDbContext db, LlmOptions options, LlmProm
         var repairing = task == LlmTask.Repair;
         var transientRetries = 0;
         var originalStage = LlmBudget.Stage(request.Task);
-        var originalPrompt = prompts.Render(request, request.Task);
+        var originalPrompt = prompts.Render(request, request.Task, schemaInPrompt: !options.StructuredOutput);
         var originalCacheKey = CacheKey(request, request.Task, originalPrompt, options.Route(request.Task, request.Task));
         var since = await db.BackgroundJobRows.AsNoTracking().Where(row => row.Id == request.JobId)
             .Select(row => row.StartedAt).SingleOrDefaultAsync(cancellationToken) ?? DateTimeOffset.MinValue;
@@ -103,7 +103,7 @@ public sealed class LlmGateway(AlfaNewsDbContext db, LlmOptions options, LlmProm
         for (var attempt = 1; attempt <= Math.Max(1, 4 - initialCount); attempt++)
         {
             var route = options.Route(task, request.Task);
-            var prompt = prompts.Render(request, task, previous, diagnostics);
+            var prompt = prompts.Render(request, task, previous, diagnostics, !options.StructuredOutput);
             var cacheKey = CacheKey(request, task, prompt, route);
             var configVersion = LlmPromptCatalog.Hash(JsonSerializer.Serialize(new
             {

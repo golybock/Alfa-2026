@@ -93,6 +93,8 @@ public static partial class LocalEnvironment
         ["LLM_API_KEY"] = "Llm__ApiKey",
         ["LLM_STRUCTURED_OUTPUT"] = "Llm__StructuredOutput",
         ["LLM_DEEPSEEK_THINKING_ENABLED"] = "Llm__DeepSeekThinkingEnabled",
+        ["LLM_EXTRACT_MODEL"] = "Llm__ExtractModel",
+        ["LLM_EXTRACT_THINKING_ENABLED"] = "Llm__ExtractThinkingEnabled",
         ["LLM_GLM_REASONING_LEVEL"] = "Llm__GlmReasoningLevel",
         ["DEEPSEEK_MODEL_ID"] = "Llm__DeepSeekModel",
         ["GLM_MODEL_ID"] = "Llm__GlmModel",

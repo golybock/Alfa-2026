@@ -18,6 +18,8 @@ public sealed class RankingOptions
     public SameStoryRule SameStory() => new(SameStoryMinSimilarity, SameStoryTaggedMinSimilarity, TimeSpan.FromHours(SameStoryWindowHours));
     public bool CpEnabled { get; set; } = true;
     public bool PrecomputeInsights { get; set; } = true;
+    // Автоматическая карточка пропускается, если событие к её запуску выпало из ленты компании.
+    public bool InsightsOnlyForFeed { get; set; } = true;
     public string ConfigVersion { get; set; } = "ranking-v3";
     public IReadOnlyList<string> CompanyIds { get; set; } = [];
 

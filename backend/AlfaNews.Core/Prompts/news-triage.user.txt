@@ -1,5 +1,7 @@
-Classify this batch of headline data. Each object contains only id and title.
+Classify this batch using the system criteria.
+
 <input_json>
 {{INPUT_JSON}}
 </input_json>
-Return only NewsTriage JSON.
+
+Return only valid NewsTriage JSON.

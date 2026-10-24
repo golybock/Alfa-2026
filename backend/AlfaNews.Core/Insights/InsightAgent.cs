@@ -38,6 +38,8 @@ public sealed class InsightAgent(AlfaNewsDbContext db, LlmGateway gateway, Agent
             && row.Role == roleName && row.InputVersion == payload.InputVersion, cancellationToken);
         if (insight?.Status == "ready")
             return new JobResult("ready", "insight", insight.Id.ToString());
+        if (rankingOptions.InsightsOnlyForFeed && job.OwnerUserId is null && insight is null && !await InSnapshotAsync(payload, cancellationToken))
+            return new JobResult("skipped");
         if (await OtherRoleRunningAsync(job, payload, cancellationToken))
             return new JobResult("deferred", Defer: true);
         var now = clock.GetUtcNow();
@@ -177,7 +179,7 @@ public sealed class InsightAgent(AlfaNewsDbContext db, LlmGateway gateway, Agent
         var inapplicable = registry.Items.Where(pair => pair.Value.Type == EvidenceType.BankResearch && !applicable.Contains(pair.Key))
             .Select(pair => pair.Key).ToArray();
         if (inapplicable.Length > 0)
-            notes.Add($"Не являются позицией банка по этому событию: {string.Join(", ", inapplicable)}. У них нет даты публикации, дата старше {BankViewMaxAgeDays} дней до события или тема не совпадает с факторами события. Их можно использовать только как фон с оговоркой, bank_view для них — not_found.");
+            notes.Add($"Не являются позицией банка по этому событию: {string.Join(", ", inapplicable)}. У них нет даты публикации, дата старше {BankViewMaxAgeDays} дней до события или тема не совпадает с факторами события. Не ссылайся на них ни в одном утверждении: bank_view — not_found, а в limitations одной строкой укажи дату и тему обзора и почему он не относится к событию.");
         var finalContext = ContextJson(payload.Role);
         var evidence = registry.Items;
         var draftRequest = new LlmRequest(job.Id, $"insight:{insight.Id}:draft", payload.InputVersion, LlmTask.Draft,
@@ -307,6 +309,15 @@ public sealed class InsightAgent(AlfaNewsDbContext db, LlmGateway gateway, Agent
 
     // План общий для CEO и CFO: пока идёт карточка другой роли по тому же событию, ждём её и берём план из кэша шлюза.
     // Ждёт задание, захваченное позже (при равенстве — с большим ID), чтобы две роли не откладывали друг друга по кругу.
+    // Автоматическая карточка нужна, только пока событие в ленте компании: пока задание ждало, его могли вытеснить
+    // более свежие события (лента — не больше пяти). Карточку, которую открыл пользователь, делаем всегда.
+    private async Task<bool> InSnapshotAsync(GenerateInsightJob payload, CancellationToken cancellationToken)
+    {
+        var snapshots = await db.FeedSnapshotRows.AsNoTracking().Where(row => row.CompanyId == payload.CompanyId)
+            .Select(row => row.ItemsJson).ToListAsync(cancellationToken);
+        return snapshots.Any(items => items.Deserialize<List<FeedItemDto>>(AgentTools.JsonOptions)?.Any(item => item.EventId == payload.EventId) == true);
+    }
+
     private async Task<bool> OtherRoleRunningAsync(BackgroundJobEntity job, GenerateInsightJob payload, CancellationToken cancellationToken)
     {
         var kind = JobKinds.Name<GenerateInsightJob>();

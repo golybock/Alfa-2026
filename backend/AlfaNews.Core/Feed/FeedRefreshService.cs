@@ -180,9 +180,10 @@ public sealed class FeedRefreshService(AlfaNewsDbContext db, JobQueue queue, Ran
         }
     }
 
+    // Карточки ставятся от свежей публикации к старой: при равном приоритете очередь берёт задания в порядке постановки.
     private async Task EnqueueInsightsAsync(string companyId, IReadOnlyList<RankedCandidate> selected, CancellationToken cancellationToken)
     {
-        foreach (var item in selected)
+        foreach (var item in selected.OrderByDescending(item => item.Candidate.Source.PublishedAt).ThenByDescending(item => item.Score))
             foreach (var role in Roles)
             {
                 var roleName = AccessService.RoleName(role);

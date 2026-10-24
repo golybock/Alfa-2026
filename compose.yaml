@@ -117,6 +117,8 @@ services:
             Llm__GlmModel: ${GLM_MODEL_ID:-z-ai/glm-5.3-flash}
             Llm__GlmReasoningLevel: ${LLM_GLM_REASONING_LEVEL:-low}
             Llm__DeepSeekThinkingEnabled: ${LLM_DEEPSEEK_THINKING_ENABLED:-true}
+            Llm__ExtractModel: ${LLM_EXTRACT_MODEL:-deepseek}
+            Llm__ExtractThinkingEnabled: ${LLM_EXTRACT_THINKING_ENABLED:-true}
             Llm__MaxOutputTokens: "32000"
             Llm__ChatMaxOutputTokens: "8000"
             Llm__DeepSeekInputEstimateRubPerMillion: ${LLM_DEEPSEEK_INPUT_ESTIMATE_RUB_PER_MILLION:-55}

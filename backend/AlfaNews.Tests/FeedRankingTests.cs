@@ -124,8 +124,10 @@ public sealed class FeedRankingTests
 
         // Транзитивность: B похоже на A, C — на B, но не на A; C всё равно пропускается.
         var bridge = Item(0.95, 1);
-        var chained = FeedRanking.Rank(Candidate(factors: ["key_rate"], age: TimeSpan.FromHours(2)) with
-            { Embedding = [(float)(0.95 * 0.95 - Math.Sqrt(1 - 0.95 * 0.95) * Math.Sqrt(1 - 0.95 * 0.95)), (float)(2 * 0.95 * Math.Sqrt(1 - 0.95 * 0.95)), 0] },
+        // Поворот на двойной угол пересказа: косинус к A = 0,95² − sin², к B = 0,95.
+        var sine = Math.Sqrt(1 - 0.95 * 0.95);
+        float[] twice = [(float)(0.95 * 0.95 - sine * sine), (float)(2 * 0.95 * sine), 0];
+        var chained = FeedRanking.Rank(Candidate(factors: ["key_rate"], age: TimeSpan.FromHours(2)) with { Embedding = twice },
             company, [], Taxonomy(), options, AsOf);
         Assert.False(new SameStoryRule(0.93, 1.01, TimeSpan.Zero).Matches(rate.Candidate, chained.Candidate));
         Assert.Equal([rate.Candidate.EventId],
