@@ -26,7 +26,8 @@
             "claim_ids": [],
             "evidence_refs": [
               "E2"
-            ]
+            ],
+            "label": "Ваш продукт: депозит"
           }
         ],
         "contributions": [
@@ -40,7 +41,8 @@
               "E2"
             ]
           }
-        ]
+        ],
+        "significance": "low"
       },
       "evidence": {
         "E1": {
@@ -80,7 +82,13 @@
       },
       "analysis_status": "ready",
       "insight_id": "00000000-0000-4000-8000-000000000012",
-      "job_id": null
+      "job_id": null,
+      "insight_headline": "Фикстура: уточнить условия размещения ликвидности",
+      "direction": "risk",
+      "queued_at": null,
+      "retry_available": false
     }
-  ]
+  ],
+  "last_collected_at": "2026-10-21T12:00:00+03:00",
+  "collection_failed": false
 }

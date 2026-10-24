@@ -72,6 +72,9 @@
         },
         "tags": {
           "$ref": "#/$defs/NewsTags"
+        },
+        "commentary": {
+          "type": "boolean"
         }
       },
       "required": [
@@ -79,7 +82,8 @@
         "event_date",
         "facts",
         "participants",
-        "tags"
+        "tags",
+        "commentary"
       ],
       "additionalProperties": false
     },

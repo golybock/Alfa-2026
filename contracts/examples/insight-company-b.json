@@ -17,7 +17,8 @@
         ],
         "evidence_refs": [
           "E2"
-        ]
+        ],
+        "label": "Ваш продукт: депозит"
       }
     ],
     "contributions": [
@@ -31,7 +32,8 @@
           "E2"
         ]
       }
-    ]
+    ],
+    "significance": "low"
   },
   "what_happened": [
     "C1"

@@ -33,12 +33,13 @@ def parts(text):
 enums = {n: [snake(v.strip()) for v in values.split(',')] for n, values in re.findall(r'public enum (\w+)\s*{([^}]+)}', source)}
 records = {}
 for name, body in re.findall(r'public sealed record (\w+)\((.*?)\);', source, re.S):
-    body = re.sub(r'\[property:.*?\]\s*', '', body, flags=re.S)
     fields = []
     for field in parts(body):
+        omitted = 'JsonIgnore' in field
+        field = re.sub(r'\[property:.*?\]\s*', '', field, flags=re.S)
         decl, _, default = field.partition(' = ')
         typ, prop = decl.rsplit(' ', 1)
-        fields.append((snake(prop), typ.strip(), bool(default)))
+        fields.append((snake(prop), typ.strip(), bool(default), omitted))
     records[name] = fields
 
 
@@ -69,8 +70,8 @@ def schema_type(typ):
 
 definitions = {name: {'type':'string', 'enum':values} for name, values in enums.items()}
 for name, fields in records.items():
-    definitions[name] = {'type':'object', 'properties':{n:schema_type(t) for n,t,_ in fields},
-                         'required':[n for n,_,optional in fields if not optional], 'additionalProperties':False}
+    definitions[name] = {'type':'object', 'properties':{n:schema_type(t) for n,t,_,_ in fields},
+                         'required':[n for n,_,optional,_ in fields if not optional], 'additionalProperties':False}
 
 
 def reachable(name):
@@ -94,8 +95,9 @@ for name in sorted(public_types):
         lines += ['export type ' + name + ' = ' + ' | '.join(json.dumps(v) for v in enums[name]) + ';', '']
     else:
         lines.append('export interface ' + name + ' {')
-        for prop, typ, optional in records[name]:
-            if optional: typ = typ.removesuffix('?')
+        for prop, typ, optional, omitted in records[name]:
+            # Поле с JsonIgnore(WhenWritingNull) пропадает из JSON вместо null; остальные необязательные приходят и как null.
+            if omitted: typ = typ.removesuffix('?')
             lines.append('  readonly ' + prop + ('?' if optional else '') + ': ' + ts_type(typ) + ';')
         lines += ['}', '']
 (ROOT / 'api.ts').write_text('\n'.join(lines).rstrip('\n'), encoding='utf-8')
