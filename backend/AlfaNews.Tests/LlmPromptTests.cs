@@ -220,7 +220,7 @@ public sealed class LlmPromptTests
         };
         var prompt = new LlmPromptCatalog().Render(request, request.Task);
         var content = """{"claims":[{"id":"C1","text":"Рост на 10%.","origin":"source_fact","refs":["E1"],"confidence":null}],"suggested_questions":[]}""";
-        Assert.Contains("claims:unreviewed_chart_number", LlmOutputValidator.Validate<ChatDraft>(content, prompt, request, out _));
+        Assert.Contains("claims:C1:unreviewed_chart_number", LlmOutputValidator.Validate<ChatDraft>(content, prompt, request, out _));
     }
 
     [Theory]

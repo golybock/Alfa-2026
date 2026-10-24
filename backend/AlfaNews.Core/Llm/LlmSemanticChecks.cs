@@ -9,7 +9,7 @@ namespace AlfaNews.Core.Llm;
 
 public static class LlmSemanticChecks
 {
-    public const string Version = "v4";
+    public const string Version = "v5";
 
     public static IReadOnlyList<string> Validate(JsonElement value, LlmRequest request)
     {
@@ -78,16 +78,17 @@ public static class LlmSemanticChecks
             var evidence = Property(context, "evidence");
             foreach (var claim in claims)
             {
+                var id = claim.GetProperty("id").GetString();
                 var refs = claim.GetProperty("refs");
                 if (refs.GetArrayLength() == 0 || refs.EnumerateArray().Any(reference => evidence.ValueKind != JsonValueKind.Object
                         || !evidence.TryGetProperty(reference.GetString()!, out _)))
-                    errors.Add("claims:unknown_evidence");
+                    errors.Add($"claims:{id}:unknown_evidence");
                 foreach (var reference in refs.EnumerateArray())
                     if (evidence.ValueKind == JsonValueKind.Object && evidence.TryGetProperty(reference.GetString()!, out var source)
                         && Property(source, "chart_id").ValueKind == JsonValueKind.String
                         && Property(source, "review_status").GetString() != "reviewed"
                         && Numbers(claim.GetProperty("text").GetString()!).Count > 0)
-                        errors.Add("claims:unreviewed_chart_number");
+                        errors.Add($"claims:{id}:unreviewed_chart_number");
             }
             if (request.Task == LlmTask.Draft)
             {

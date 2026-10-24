@@ -188,6 +188,29 @@ public sealed class LlmGatewayDatabaseTests(PostgresFixture fixture) : IClassFix
     }
 
     [PostgresFact]
+    public async Task BadFactIsDroppedWithoutRepairAndCleanedAnswerIsCached()
+    {
+        await ResetAsync();
+        var node = System.Text.Json.Nodes.JsonNode.Parse(ValidNews().Content!)!;
+        node["facts"] = System.Text.Json.Nodes.JsonNode.Parse("""
+            [{"text":"Ставка 14%","line":1,"start":null,"end":null},{"text":"Ставка 12%","line":1,"start":null,"end":null}]
+            """);
+        var client = new ScriptedClient(new LlmClientResponse(node.ToJsonString(), ActualCostRub: 0.1m));
+        await using var services = Services(client);
+        var request = LlmPromptTests.Request(LlmTask.NewsExtract, fixture.JobId);
+
+        var result = await GenerateAsync<NewsExtractionDraft>(services, request);
+        Assert.Equal("Ставка 14%", Assert.Single(result.Value.Facts).Text);
+        Assert.Equal(["fact:1:number_not_in_quote"], result.Dropped);
+        var hit = await GenerateAsync<NewsExtractionDraft>(services, request);
+        Assert.True(hit.CacheHit);
+        Assert.Single(hit.Value.Facts);
+        Assert.Equal(1, client.Calls);
+        await using var db = fixture.CreateDb();
+        Assert.False(await db.LlmUsageRows.AnyAsync(row => row.Stage == "repair" || row.Error == "invalid_output"));
+    }
+
+    [PostgresFact]
     public async Task AttemptLimitStartsOverWhenTheJobRunsAgain()
     {
         await ResetAsync();

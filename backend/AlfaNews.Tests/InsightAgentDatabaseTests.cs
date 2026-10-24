@@ -87,11 +87,36 @@ public sealed class InsightAgentDatabaseTests(PostgresFixture fixture) : IClassF
         Assert.Equal(1, card.Verification.Critic.RequestCount);
         Assert.Equal(1, timeout.Critics);
 
-        var invalid = new AgentClient(CriticResponse: """{"issues":[]}""", DraftResponse: Draft("Ставка выросла до 99%.", "source_fact"));
-        var (failed, result) = await RunAsync(invalid, Role.Cfo, "test_company_a", "invalid");
+        // Ошибка в одном утверждении: код убирает его без починки, карточка готова.
+        var withAction = System.Text.Json.Nodes.JsonNode.Parse(Draft("Ставка выросла до 99%.", "source_fact"))!;
+        withAction["claims"]!.AsArray().Add(System.Text.Json.Nodes.JsonNode.Parse(
+            """{"id":"C3","text":"Сверьте условия кредитного договора.","origin":"ai_inference","refs":["E1"],"confidence":null}"""));
+        withAction["actions"] = new System.Text.Json.Nodes.JsonArray("C2", "C3");
+        var salvaged = new AgentClient(CriticResponse: """{"issues":[]}""", DraftResponse: withAction.ToJsonString());
+        var (ready, _) = await RunAsync(salvaged, Role.Cfo, "test_company_a", "salvaged");
+        Assert.Equal("ready", ready.Status);
+        var salvagedCard = AccessService.ReadReadyInsight(ready);
+        Assert.Equal(["C1", "C3"], salvagedCard.Claims.Select(claim => claim.Id));
+        Assert.Equal(["C3"], salvagedCard.Actions);
+        Assert.Equal(1, salvaged.Critics);
+        Assert.Equal(0, salvaged.Repairs);
+
+        // Ошибочным оказалось единственное действие: заголовок называет проверку, без действия — ошибка карточки и починка.
+        var lastAction = new AgentClient(CriticResponse: """{"issues":[]}""", DraftResponse: Draft("Ставка выросла до 99%.", "source_fact"));
+        var (noAction, _) = await RunAsync(lastAction, Role.Ceo, "test_company_a", "last-action");
+        Assert.Equal("failed", noAction.Status);
+        Assert.Equal(1, lastAction.Repairs);
+        Assert.Equal(0, lastAction.Critics);
+
+        // Убрать пришлось единственное «что произошло» — ошибка всей карточки: починка, а без неё карточка падает до критика.
+        var broken = System.Text.Json.Nodes.JsonNode.Parse(Draft("Спрос на кредиты снизится."))!;
+        broken["claims"]![0]!["text"] = "Банк России сохранил ставку 99%.";
+        var invalid = new AgentClient(CriticResponse: """{"issues":[]}""", DraftResponse: broken.ToJsonString());
+        var (failed, result) = await RunAsync(invalid, Role.Ceo, "test_company_a", "invalid");
         Assert.Equal("failed", failed.Status);
         Assert.Equal("invalid_output", result.ErrorCode);
         Assert.Equal(0, invalid.Critics);
+        Assert.Equal(1, invalid.Repairs);
     }
 
     [PostgresFact]
@@ -268,6 +293,7 @@ public sealed class InsightAgentDatabaseTests(PostgresFixture fixture) : IClassF
     {
         public int Plans { get; private set; }
         public int Critics { get; private set; }
+        public int Repairs { get; private set; }
         public string LastDraftContext { get; private set; } = "";
         public string LastPlanContext { get; private set; } = "";
         public string LastCriticContext { get; private set; } = "";
@@ -275,7 +301,10 @@ public sealed class InsightAgentDatabaseTests(PostgresFixture fixture) : IClassF
         public Task<LlmClientResponse> SendAsync(LlmPrompt prompt, LlmRoute route, LlmImage? image, CancellationToken cancellationToken)
         {
             if (prompt.User.Contains("<diagnostics_json>", StringComparison.Ordinal))
+            {
+                Repairs++;
                 return Respond(RepairResponse ?? "{}");
+            }
             switch (prompt.SchemaName)
             {
                 case "AgentPlan":

@@ -192,9 +192,10 @@ public sealed class InsightAgent(AlfaNewsDbContext db, LlmGateway gateway, Agent
             ValidateOutput: json => InsightChecks.Validate(json, evidence, applicable, dated), ValidationVersion: InsightChecks.Version,
             Runtime: new LlmRuntime(Rank: rankingResult.Rank), RunId: run.Id);
         var draftStarted = Stopwatch.GetTimestamp();
-        var draft = InsightChecks.Trim((await gateway.GenerateAsync<InsightDraft>(draftRequest, cancellationToken)).Value);
+        var drafted = await gateway.GenerateAsync<InsightDraft>(draftRequest, cancellationToken);
+        var draft = InsightChecks.Trim(drafted.Value);
         await steps.AddAsync("draft", null, null, null, draft.Claims.SelectMany(claim => claim.Refs).Distinct().ToArray(),
-            "Черновик карточки прошёл проверки кодом.", draftStarted, cancellationToken);
+            "Черновик карточки прошёл проверки кодом." + DroppedNote(drafted.Dropped), draftStarted, cancellationToken);
         var draftJson = JsonSerializer.Serialize(draft, AgentTools.JsonOptions);
         var criticContext = ContextJson(payload.Role, draft.Claims.SelectMany(claim => claim.Refs).ToHashSet(StringComparer.Ordinal));
 
@@ -235,11 +236,13 @@ public sealed class InsightAgent(AlfaNewsDbContext db, LlmGateway gateway, Agent
             var repairStarted = Stopwatch.GetTimestamp();
             try
             {
-                draft = InsightChecks.Trim((await gateway.RepairAsync<InsightDraft>(draftRequest, draftJson,
-                    issues.Select(issue => $"critic:{issue.ClaimId}:{issue.Code}: {issue.Explanation}").ToArray(), cancellationToken)).Value);
+                var fixedDraft = await gateway.RepairAsync<InsightDraft>(draftRequest, draftJson,
+                    issues.Select(issue => $"critic:{issue.ClaimId}:{issue.Code}: {issue.Explanation}").ToArray(), cancellationToken);
+                draft = InsightChecks.Trim(fixedDraft.Value);
                 repaired = true;
                 await steps.AddAsync("repair", null, null, null, draft.Claims.SelectMany(claim => claim.Refs).Distinct().ToArray(),
-                    "Черновик исправлен по замечаниям критика и повторно прошёл проверки кодом.", repairStarted, cancellationToken);
+                    "Черновик исправлен по замечаниям критика и повторно прошёл проверки кодом." + DroppedNote(fixedDraft.Dropped),
+                    repairStarted, cancellationToken);
             }
             catch (LlmException exception)
             {
@@ -349,6 +352,9 @@ public sealed class InsightAgent(AlfaNewsDbContext db, LlmGateway gateway, Agent
             && peer.EventId == payload.EventId && peer.InputVersion == payload.InputVersion && peer.Role != payload.Role
             && (other.StartedAt < job.StartedAt || other.StartedAt == job.StartedAt && other.Id.CompareTo(job.Id) < 0));
     }
+
+    private static string DroppedNote(IReadOnlyList<string>? dropped) =>
+        LlmSalvage.Describe(dropped ?? []) is { Length: > 0 } reasons ? $" Код убрал утверждения с ошибками: {reasons}." : "";
 
     private Task<int> RepairCountAsync(Guid runId, CancellationToken cancellationToken) => db.LlmUsageRows.AsNoTracking()
         .CountAsync(row => row.RunId == runId && row.Stage == "repair" && row.Attempt > 0, cancellationToken);
