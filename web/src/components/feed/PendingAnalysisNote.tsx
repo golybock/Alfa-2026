@@ -52,9 +52,14 @@ export default function PendingAnalysisNote({ item, companyId, role }: PendingAn
   }
 
   return (
-    <div className="max-w-56 text-right text-xs text-zinc-500">
+    <div className="whitespace-nowrap text-right text-xs text-zinc-500">
       <p>Готовится</p>
-      {item.queued_at ? <p className="mt-0.5">в очереди с {formatTime(item.queued_at)}, обычно около 3 минут</p> : null}
+      {item.queued_at ? (
+        <>
+          <p className="mt-0.5">в очереди с {formatTime(item.queued_at)}</p>
+          <p className="mt-0.5">обычно около 3 минут</p>
+        </>
+      ) : null}
     </div>
   );
 }
