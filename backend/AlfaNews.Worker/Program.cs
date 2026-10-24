@@ -77,6 +77,7 @@ builder.Services.AddScoped<IJobHandler, FinalizePdfJobHandler>();
 builder.Services.AddScoped<IJobHandler, EmbedContentJobHandler>();
 builder.Services.AddScoped<ResearchSearch>();
 builder.Services.AddScoped<IJobHandler, CollectNewsJobHandler>();
+builder.Services.AddScoped<IJobHandler, CollectManualNewsJobHandler>();
 builder.Services.AddSingleton(_ => new SafeFetcher(builder.Configuration.GetValue<bool>("Ingest:AllowPrivateAddresses")));
 builder.Services.AddScoped<SourceCatalogLoader>();
 builder.Services.AddScoped<CollectNewsService>();

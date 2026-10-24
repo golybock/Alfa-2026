@@ -228,6 +228,9 @@
           "items": {
             "$ref": "#/$defs/DocumentPageDto"
           }
+        },
+        "llm_key_required": {
+          "type": "boolean"
         }
       },
       "required": [
@@ -238,7 +241,8 @@
         "version",
         "ocr_status",
         "review_status",
-        "pages"
+        "pages",
+        "llm_key_required"
       ],
       "additionalProperties": false
     },

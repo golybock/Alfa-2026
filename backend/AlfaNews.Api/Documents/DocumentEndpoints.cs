@@ -7,6 +7,7 @@ using AlfaNews.Contracts.Processing;
 using AlfaNews.Core.Access;
 using AlfaNews.Core.Data;
 using AlfaNews.Core.Documents;
+using AlfaNews.Core.Ingest;
 using AlfaNews.Core.Processing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
@@ -17,11 +18,12 @@ public static class DocumentEndpoints
 {
     public static void MapDocumentEndpoints(this WebApplication app)
     {
-        var group = app.MapGroup("/api/admin/documents").RequireAuthorization(SessionAuthenticationHandler.OperatorPolicy);
+        // Загрузка и список материалов открыты операторам и демо-учётке (AccessService.CanAddMaterials), проверка страниц — только оператору.
+        var group = app.MapGroup("/api/admin/documents").RequireAuthorization();
         group.MapPost("", async (HttpContext http, AccessService access, PdfRegistration registration, CancellationToken cancellationToken) =>
         {
             var user = SessionAuthenticationHandler.CurrentUser(http.User);
-            await access.RequireOperatorAsync(user, cancellationToken);
+            await access.RequireMaterialsAsync(user, cancellationToken);
             if (!http.Request.HasFormContentType)
                 throw new AccessException(415, "invalid_input", "Требуется multipart/form-data.");
             IFormCollection form;
@@ -75,14 +77,20 @@ public static class DocumentEndpoints
         });
         group.MapGet("", async (HttpContext http, AccessService access, AlfaNewsDbContext db, CancellationToken cancellationToken) =>
         {
-            await access.RequireOperatorAsync(SessionAuthenticationHandler.CurrentUser(http.User), cancellationToken);
+            var user = SessionAuthenticationHandler.CurrentUser(http.User);
+            await access.RequireMaterialsAsync(user, cancellationToken);
             var documents = await db.ResearchDocRows.AsNoTracking().OrderBy(row => row.CreatedAt).ToArrayAsync(cancellationToken);
+            var failedIds = documents.Where(row => row.OcrStatus == "failed").Select(row => row.Id).ToArray();
+            var failedPages = (await db.ResearchPageRows.AsNoTracking().Where(row => failedIds.Contains(row.DocumentId))
+                    .Select(row => new { row.DocumentId, row.OcrStatus, row.LastError }).ToArrayAsync(cancellationToken))
+                .ToLookup(row => row.DocumentId, row => (row.OcrStatus, row.LastError));
             return new DocumentListResponse(documents.Select(row => new DocumentSummaryDto(row.Id.ToString(), row.Title,
-                row.PublishedOn, row.PageCount, row.Version, Parse<OcrStatus>(row.OcrStatus), Parse<ReviewStatus>(row.ReviewStatus))).ToArray());
+                row.PublishedOn, row.PageCount, row.Version, Parse<OcrStatus>(row.OcrStatus), Parse<ReviewStatus>(row.ReviewStatus),
+                row.CreatedAt, row.UploadedBy == user.UserId, DocumentStatuses.WaitsForKey(row.OcrStatus, failedPages[row.Id].ToArray()))).ToArray());
         });
         group.MapGet("/{id:guid}", async (Guid id, HttpContext http, AccessService access, AlfaNewsDbContext db, CancellationToken cancellationToken) =>
         {
-            await access.RequireOperatorAsync(SessionAuthenticationHandler.CurrentUser(http.User), cancellationToken);
+            await access.RequireMaterialsAsync(SessionAuthenticationHandler.CurrentUser(http.User), cancellationToken);
             var document = await db.ResearchDocRows.AsNoTracking().SingleOrDefaultAsync(row => row.Id == id, cancellationToken)
                 ?? throw new AccessException(404, "not_found", "Документ не найден.");
             var pages = await db.ResearchPageRows.AsNoTracking().Where(row => row.DocumentId == id).OrderBy(row => row.PageNo).ToArrayAsync(cancellationToken);
@@ -94,7 +102,13 @@ public static class DocumentEndpoints
                     chunks.Where(chunk => chunk.PageId == page.Id).Select(chunk => new ReviewableChunkDto(chunk.Id.ToString(), Parse<ResearchBlockKind>(chunk.Kind),
                         chunk.Text, Parse<ReviewStatus>(chunk.ReviewStatus), chunk.TablesJson.Deserialize<TableDraft[]>(JobKinds.JsonOptions)!,
                         chunk.ChartData.Deserialize<ReviewableChartDto[]>(JobKinds.JsonOptions)!)).ToArray(),
-                    page.LastError is null ? null : "Не удалось распознать страницу. Требуется повтор задания.")).ToArray());
+                    page.LastError switch
+                    {
+                        null => null,
+                        DocumentStatuses.KeyRequired => "Не задан ключ модели. После настройки ключа повторите задание страницы.",
+                        _ => "Не удалось распознать страницу. Требуется повтор задания."
+                    })).ToArray(),
+                DocumentStatuses.WaitsForKey(document.OcrStatus, pages.Select(page => (page.OcrStatus, page.LastError)).ToArray()));
         });
         group.MapPost("/{id:guid}/pages/{pageNo:int}/review", async (Guid id, int pageNo, PageReviewRequest request, HttpContext http,
             AccessService access, ResearchReview review, CancellationToken cancellationToken) =>
@@ -104,7 +118,16 @@ public static class DocumentEndpoints
             var ifMatch = http.Request.Headers.IfMatch.ToString();
             var result = await review.ApplyAsync(user, id, pageNo, ifMatch.Length > 0 ? ifMatch : null, request, cancellationToken);
             return Results.Json(result.Response, statusCode: StatusCodes.Status202Accepted);
-        });
+        }).RequireAuthorization(SessionAuthenticationHandler.OperatorPolicy);
+        // D17: новость по ссылке с сайта подключённого источника; статью загружает Worker, дальше обычный разбор.
+        app.MapPost("/api/admin/news", async (ManualNewsRequest request, HttpContext http, AccessService access, ManualNewsService news,
+            CancellationToken cancellationToken) =>
+        {
+            var user = SessionAuthenticationHandler.CurrentUser(http.User);
+            await access.RequireMaterialsAsync(user, cancellationToken);
+            var job = await news.EnqueueAsync(request, user.UserId, cancellationToken);
+            return Results.Accepted($"/api/jobs/{job.Id}", new AcceptedResponse(job.Id.ToString(), $"/api/jobs/{job.Id}"));
+        }).RequireAuthorization();
         app.MapGet("/api/research/{id:guid}/pages/{pageNo:int}", async (Guid id, int pageNo, HttpContext http, AccessService access,
             AlfaNewsDbContext db, PdfOptions options, PdfTools tools, CancellationToken cancellationToken) =>
         {

@@ -56,6 +56,19 @@ public sealed class AccessService(AlfaNewsDbContext db, TimeProvider timeProvide
             throw new AccessException(403, "forbidden", "Требуются права оператора.");
     }
 
+    // Материалы (PDF аналитики и новости по ссылке) общие для всех компаний, поэтому добавлять их могут только операторы
+    // и демо-учётка для жюри, а не учётки отдельных компаний.
+    public static bool CanAddMaterials(AppUserEntity user) =>
+        user.IsOperator || user.Login == UserSeedService.AllCompaniesLogin;
+
+    public async Task<AppUserEntity> RequireMaterialsAsync(UserContext context, CancellationToken cancellationToken)
+    {
+        var user = await RequireUserAsync(context, cancellationToken);
+        if (!CanAddMaterials(user))
+            throw new AccessException(403, "forbidden", "Добавлять материалы может оператор или демо-учётка.");
+        return user;
+    }
+
     public async Task<InsightEntity> RequireInsightAsync(UserContext context, Guid insightId,
         CancellationToken cancellationToken)
     {
@@ -79,7 +92,7 @@ public sealed class AccessService(AlfaNewsDbContext db, TimeProvider timeProvide
         CancellationToken cancellationToken)
     {
         var user = await RequireUserAsync(context, cancellationToken);
-        if (!user.IsOperator)
+        if (!CanAddMaterials(user))
         {
             var candidates = await (from insight in db.InsightRows.AsNoTracking()
                 join access in db.UserCompanyAccessRows.AsNoTracking()
