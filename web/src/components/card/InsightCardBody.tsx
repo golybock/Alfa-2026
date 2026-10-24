@@ -3,10 +3,11 @@ import { criticStatusLabels, reviewStatusLabels } from "../../lib/labels";
 import type { ClaimDto, EvidenceDto, EvidenceType, InsightDto } from "../../lib/types/api";
 import Icon from "../ui/Icon";
 import KindBadge from "../ui/KindBadge";
-import RankBadge from "../ui/RankBadge";
+import ImpactBadge from "../ui/ImpactBadge";
 import SourceLinkRow from "../ui/SourceLinkRow";
 import CardBlock from "./CardBlock";
 import ClaimList from "./ClaimList";
+import ManagerContactButton from "./ManagerContactButton";
 
 type EvidenceEntry = { id: string; item: EvidenceDto };
 
@@ -98,14 +99,7 @@ export default function InsightCardBody({ insight }: InsightCardBodyProps) {
             ) : (
               <>
                 <ClaimList ids={insight.actions} claims={claims} evidence={insight.evidence} />
-                <button
-                  type="button"
-                  disabled
-                  title="Пока недоступно"
-                  className="mt-4 h-10 cursor-not-allowed rounded-xl bg-zinc-100 px-4 text-sm font-medium opacity-50"
-                >
-                  Связаться с менеджером
-                </button>
+                <ManagerContactButton insight={insight} />
               </>
             )}
           </CardBlock>
@@ -132,7 +126,7 @@ export default function InsightCardBody({ insight }: InsightCardBodyProps) {
             )}
           </CardBlock>
           <CardBlock number={numberOf("shown")} title="Почему показано">
-            <RankBadge rank={insight.relevance.rank} />
+            {insight.relevance.significance ? <ImpactBadge significance={insight.relevance.significance} /> : null}
             {insight.relevance.reasons.length === 0 ? (
               <p className="mt-3 text-sm text-zinc-500">Данных нет</p>
             ) : (

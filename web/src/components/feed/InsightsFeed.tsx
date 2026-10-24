@@ -3,13 +3,17 @@
 import { useState } from "react";
 import { describeError } from "../../lib/api/client";
 import { formatAgo, formatDateTimeWithYear, formatDateWithYear, formatDayMonthNumeric, formatPeriod } from "../../lib/dates";
+import { matchesFilter } from "../../lib/feedFilter";
+import type { FeedFilter } from "../../lib/feedFilter";
 import type { FeedMode } from "../../lib/feedMode";
 import { queryKeys, useFeed, useJob, useRefreshFeed } from "../../lib/hooks/queries";
 import { useNow } from "../../lib/hooks/useNow";
 import type { FeedItemDto, FeedResponse, Role } from "../../lib/types/api";
 import EmptyFeed from "./EmptyFeed";
+import FeedFilterTabs from "./FeedFilterTabs";
 import FeedHeader from "./FeedHeader";
 import FeedNotice from "./FeedNotice";
+import FeedSkeleton from "./FeedSkeleton";
 import FeedProgress from "./FeedProgress";
 import InsightRow from "./InsightRow";
 
@@ -44,6 +48,7 @@ type InsightsFeedProps = { companyId: string; companyName: string; role: Role };
 
 export default function InsightsFeed({ companyId, companyName, role }: InsightsFeedProps) {
   const [mode, setMode] = useState<FeedMode>("snapshot");
+  const [filter, setFilter] = useState<FeedFilter>("all");
   const [acknowledged, setAcknowledged] = useState<ReadonlyArray<string> | null>(null);
   const live = mode === "live";
   const feed = useFeed(companyId, role, live);
@@ -62,6 +67,12 @@ export default function InsightsFeed({ companyId, companyName, role }: InsightsF
   const knownIds = live ? acknowledged : null;
   const shown = knownIds ? items.filter((item) => knownIds.includes(item.event_id)) : items;
   const fresh = knownIds ? items.filter((item) => !knownIds.includes(item.event_id)) : [];
+  const filtered = shown.filter((item) => matchesFilter(item, filter));
+  const counts: Record<FeedFilter, number> = {
+    all: shown.length,
+    risk: shown.filter((item) => matchesFilter(item, "risk")).length,
+    opportunity: shown.filter((item) => matchesFilter(item, "opportunity")).length,
+  };
   const generating = feed.data?.refresh_status === "queued" || feed.data?.refresh_status === "processing";
 
   const changeMode = (next: FeedMode) => {
@@ -99,6 +110,17 @@ export default function InsightsFeed({ companyId, companyName, role }: InsightsF
             text={`${refreshJob.data?.error?.message ?? "Не получен статус обновления."} Показана последняя сохранённая лента.`}
           />
         ) : null}
+        {feed.data?.collection_failed ? (
+          <FeedNotice
+            tone="warning"
+            title="Не удалось получить новые новости"
+            text={
+              feed.data.last_collected_at
+                ? `Последний удачный сбор: ${formatDateTimeWithYear(feed.data.last_collected_at)}. Показываем сохранённые инсайты.`
+                : "Показываем сохранённые инсайты."
+            }
+          />
+        ) : null}
         {feed.data?.refresh_status === "failed" ? (
           <FeedNotice
             tone="warning"
@@ -116,7 +138,7 @@ export default function InsightsFeed({ companyId, companyName, role }: InsightsF
           />
         ) : null}
         {generating ? <FeedProgress companyName={companyName} /> : null}
-        {feed.isPending ? <p className="rounded-2xl bg-white p-5 text-sm text-zinc-500">Загружаем ленту…</p> : null}
+        {feed.isPending ? <FeedSkeleton /> : null}
         {feed.isError ? (
           <div role="alert" className="rounded-2xl bg-white p-5 text-sm">
             <p className="text-alfa">Не удалось загрузить ленту: {describeError(feed.error)}</p>
@@ -142,14 +164,12 @@ export default function InsightsFeed({ companyId, companyName, role }: InsightsF
           ) : (
             <>
               <div className="mt-4 flex items-center justify-between gap-4">
-                <p className="flex h-9 items-center rounded-xl bg-zinc-900 px-4 text-xs font-medium text-white">
-                  Все инсайты · {shown.length}
-                </p>
+                <FeedFilterTabs filter={filter} counts={counts} onChange={setFilter} />
                 <p className="text-xs text-zinc-500">Порядок: по значимости для вашей компании</p>
               </div>
               <ul className="mt-3 flex flex-col gap-3">
-                {shown.map((item) => (
-                  <InsightRow key={item.event_id} item={item} />
+                {filtered.map((item) => (
+                  <InsightRow key={item.event_id} item={item} companyId={companyId} role={role} />
                 ))}
               </ul>
             </>

@@ -1,16 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { QueryKey } from "@tanstack/react-query";
 import { api } from "../api";
-import type { ChatRequest, FeedbackRequest, Role } from "../types/api";
+import type { ChatRequest, FeedbackRequest, Role, UserActivityRequest } from "../types/api";
 
 const FEED_POLL_MS = 120_000;
 const JOB_POLL_MS = 3_000;
+const PREFETCH_STALE_MS = 30_000;
 
 export const queryKeys = {
   job: (jobId: string) => ["job", jobId] as const,
   feed: (companyId: string, role: Role) => ["feed", companyId, role] as const,
   insight: (companyId: string, eventId: string, role: Role) => ["insight", companyId, eventId, role] as const,
   chat: (insightId: string) => ["chat", insightId] as const,
+  steps: (insightId: string) => ["steps", insightId] as const,
 };
 
 export function useFeed(companyId: string, role: Role, polling = true) {
@@ -32,6 +34,16 @@ export function useInsight(companyId: string, eventId: string, role: Role) {
     queryKey: queryKeys.insight(companyId, eventId, role),
     queryFn: () => api.getInsight(companyId, eventId, role),
   });
+}
+
+export function usePrefetchInsight(companyId: string, eventId: string, role: Role) {
+  const queryClient = useQueryClient();
+  return () =>
+    queryClient.prefetchQuery({
+      queryKey: queryKeys.insight(companyId, eventId, role),
+      queryFn: () => api.getInsight(companyId, eventId, role),
+      staleTime: PREFETCH_STALE_MS,
+    });
 }
 
 export function useChatHistory(insightId: string) {
@@ -77,5 +89,24 @@ export function useSendFeedback(insightId: string, companyId: string) {
         return queryClient.invalidateQueries({ queryKey: ["feed", companyId] });
       }
     },
+  });
+}
+
+export function useInsightSteps(insightId: string) {
+  return useQuery({
+    queryKey: queryKeys.steps(insightId),
+    queryFn: () => api.getInsightSteps(insightId),
+  });
+}
+
+export function useRecordActivity(insightId: string) {
+  return useMutation({
+    mutationFn: (request: UserActivityRequest) => api.recordActivity(insightId, request),
+  });
+}
+
+export function useRetryInsight(companyId: string, eventId: string, role: Role) {
+  return useMutation({
+    mutationFn: () => api.ensureInsight(companyId, eventId, role),
   });
 }
