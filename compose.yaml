@@ -66,7 +66,6 @@ services:
             <<: *backend-env
             ASPNETCORE_ENVIRONMENT: Development
             ASPNETCORE_URLS: http://+:8080
-            Auth__DemoPassword: ${DEMO_LOGIN_PASSWORD:-}
             # Изменяющие запросы принимаются только с внешнего адреса шлюза (сайт и API на одном origin).
             Auth__AllowedOrigins__0: ${PUBLIC_ORIGIN:-http://localhost:${HTTP_PORT:-8080}}
             Auth__AllowedOrigins__1: http://127.0.0.1:${HTTP_PORT:-8080}

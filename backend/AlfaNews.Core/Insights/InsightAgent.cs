@@ -22,6 +22,7 @@ public sealed class InsightAgent(AlfaNewsDbContext db, LlmGateway gateway, Agent
     private const int MaxPlanRounds = 2;
     private const int MaxBankSearches = 2;
     private const int BankViewMaxAgeDays = 60;
+    private const int BankViewStaleMaxAgeDays = 120;
 
     public async Task<JobResult> GenerateAsync(BackgroundJobEntity job, GenerateInsightJob payload, CancellationToken cancellationToken)
     {
@@ -114,6 +115,7 @@ public sealed class InsightAgent(AlfaNewsDbContext db, LlmGateway gateway, Agent
         var ranked = await ranking.RankEventAsync(payload.CompanyId, eventRow.Id, asOf, cancellationToken)
             ?? throw new InvalidOperationException("Событие недоступно для ранжирования.");
         var relevance = feedItem?.Relevance ?? new RelevanceDto(ranked.Score, 0, ranked.Reasons, ranked.Contributions);
+        relevance = relevance with { Significance = FeedRanking.SignificanceOf(relevance) };
         var rankingResult = new RankingResult(payload.CompanyId, payload.EventId, ranked.Base, ranked.Recency, ranked.Candidate.SourceReliability,
             ranked.Score, relevance.Rank, ranked.Eligible, rankingOptions.ConfigVersion, ranked.Contributions);
         var registry = new EvidenceRegistry(feedItem?.Evidence ?? ranked.Evidence);
@@ -174,20 +176,23 @@ public sealed class InsightAgent(AlfaNewsDbContext db, LlmGateway gateway, Agent
             })), "default_search", scope, registry, limitations, steps, cancellationToken));
 
         var eventDate = eventRow.EventDate ?? DateOnly.FromDateTime(eventRow.PublishedAt.ToOffset(TimeSpan.FromHours(3)).DateTime);
-        var applicable = await ApplicableBankEvidenceAsync(registry.Items, news, eventDate, DateOnly.FromDateTime(asOf.ToOffset(TimeSpan.FromHours(3)).DateTime),
-            cancellationToken);
+        var (applicable, dated) = await ApplicableBankEvidenceAsync(registry.Items, news, eventDate,
+            DateOnly.FromDateTime(asOf.ToOffset(TimeSpan.FromHours(3)).DateTime), cancellationToken);
         var inapplicable = registry.Items.Where(pair => pair.Value.Type == EvidenceType.BankResearch && !applicable.Contains(pair.Key))
             .Select(pair => pair.Key).ToArray();
         if (inapplicable.Length > 0)
-            notes.Add($"Не являются позицией банка по этому событию: {string.Join(", ", inapplicable)}. У них нет даты публикации, дата старше {BankViewMaxAgeDays} дней до события или тема не совпадает с факторами события. Не ссылайся на них ни в одном утверждении: bank_view — not_found, а в limitations одной строкой укажи дату и тему обзора и почему он не относится к событию.");
+            notes.Add($"Не являются позицией банка по этому событию: {string.Join(", ", inapplicable)}. У них нет даты публикации, дата старше {BankViewStaleMaxAgeDays} дней до события, тема не совпадает с факторами события или по теме есть более поздний обзор банка. Не ссылайся на них ни в одном утверждении: bank_view — not_found, а в limitations одной строкой укажи дату и тему обзора и почему он не относится к событию.");
+        if (dated.Count > 0)
+            notes.Add("DATED: " + string.Join("; ", dated.Select(pair => $"{pair.Key} — оценка банка на {pair.Value:dd.MM.yyyy}")) +
+                $". Обзоры на тему события, старше {BankViewMaxAgeDays} дней, более поздних обзоров банка по теме нет. Их можно показать в bank_view только как оценку банка на эту дату: в утверждении назови дату («по оценке банка на 11.09.2026») и что более поздних оценок по теме нет; это не реакция банка на событие.");
         var finalContext = ContextJson(payload.Role);
         var evidence = registry.Items;
         var draftRequest = new LlmRequest(job.Id, $"insight:{insight.Id}:draft", payload.InputVersion, LlmTask.Draft,
             new Dictionary<string, JsonElement> { ["CONTEXT_JSON"] = JsonSerializer.Deserialize<JsonElement>(finalContext) }, insight.Id,
-            ValidateOutput: json => InsightChecks.Validate(json, evidence, applicable), ValidationVersion: InsightChecks.Version,
+            ValidateOutput: json => InsightChecks.Validate(json, evidence, applicable, dated), ValidationVersion: InsightChecks.Version,
             Runtime: new LlmRuntime(Rank: rankingResult.Rank), RunId: run.Id);
         var draftStarted = Stopwatch.GetTimestamp();
-        var draft = (await gateway.GenerateAsync<InsightDraft>(draftRequest, cancellationToken)).Value;
+        var draft = InsightChecks.Trim((await gateway.GenerateAsync<InsightDraft>(draftRequest, cancellationToken)).Value);
         await steps.AddAsync("draft", null, null, null, draft.Claims.SelectMany(claim => claim.Refs).Distinct().ToArray(),
             "Черновик карточки прошёл проверки кодом.", draftStarted, cancellationToken);
         var draftJson = JsonSerializer.Serialize(draft, AgentTools.JsonOptions);
@@ -230,8 +235,8 @@ public sealed class InsightAgent(AlfaNewsDbContext db, LlmGateway gateway, Agent
             var repairStarted = Stopwatch.GetTimestamp();
             try
             {
-                draft = (await gateway.RepairAsync<InsightDraft>(draftRequest, draftJson,
-                    issues.Select(issue => $"critic:{issue.ClaimId}:{issue.Code}: {issue.Explanation}").ToArray(), cancellationToken)).Value;
+                draft = InsightChecks.Trim((await gateway.RepairAsync<InsightDraft>(draftRequest, draftJson,
+                    issues.Select(issue => $"critic:{issue.ClaimId}:{issue.Code}: {issue.Explanation}").ToArray(), cancellationToken)).Value);
                 repaired = true;
                 await steps.AddAsync("repair", null, null, null, draft.Claims.SelectMany(claim => claim.Refs).Distinct().ToArray(),
                     "Черновик исправлен по замечаниям критика и повторно прошёл проверки кодом.", repairStarted, cancellationToken);
@@ -257,26 +262,42 @@ public sealed class InsightAgent(AlfaNewsDbContext db, LlmGateway gateway, Agent
         }).ToArray();
         var unconfirmed = claims.Where(claim => claim.VerificationStatus == ClaimVerification.NotConfirmed).Select(claim => claim.Id)
             .ToHashSet(StringComparer.Ordinal);
-        if (unconfirmed.Count > 0)
-            limitations.Add("Часть выводов не подтверждена проверкой критика и показана с отметкой «не подтверждено».");
+        // На экране не больше трёх ограничений: сначала отметка о неподтверждённых выводах, затем ограничения модели и инструментов.
+        string[] critical = unconfirmed.Count > 0 ? ["Часть выводов не подтверждена проверкой критика и показана с отметкой «не подтверждено»."] : [];
+        var shownLimitations = Unique(critical.Concat(draft.Limitations).Concat(limitations)).Take(InsightChecks.MaxLimitations).ToArray();
         var requestCount = await db.LlmUsageRows.AsNoTracking().CountAsync(row => row.RunId == run.Id && row.Stage == "critic" && row.Attempt > 0,
             cancellationToken);
         return new InsightDto(insight.Id.ToString(), payload.EventId, payload.CompanyId, payload.Role, asOf, draft.Headline, relevance,
             draft.WhatHappened, draft.WhyItMatters, draft.Consequences, draft.Actions.Where(id => !unconfirmed.Contains(id)).ToArray(),
-            draft.BankView, claims, registry.Items, Unique(draft.Limitations.Concat(limitations)),
+            draft.BankView, claims, registry.Items, shownLimitations,
             draft.SuggestedQuestions.Take(3).ToArray(), run.Id.ToString(),
             new VerificationDto(CodeStatus.Passed, new CriticVerificationDto(criticStatus, requestCount, criticReason),
                 Math.Min(1, await RepairCountAsync(run.Id, cancellationToken))));
     }
 
-    private async Task<IReadOnlySet<string>> ApplicableBankEvidenceAsync(IReadOnlyDictionary<string, EvidenceDto> evidence, NewsExtraction news,
-        DateOnly eventDate, DateOnly asOf, CancellationToken cancellationToken)
+    // Позиция банка: обзор на тему события не старше 60 дней; обзор 60–120 дней — только как датированная оценка и только
+    // если более позднего обзора банка по этой теме нет (иначе оценка устарела).
+    private async Task<(IReadOnlySet<string> Applicable, IReadOnlyDictionary<string, DateOnly> Dated)> ApplicableBankEvidenceAsync(
+        IReadOnlyDictionary<string, EvidenceDto> evidence, NewsExtraction news, DateOnly eventDate, DateOnly asOf,
+        CancellationToken cancellationToken)
     {
-        var dated = evidence.Where(pair => pair.Value is { Type: EvidenceType.BankResearch, Date: { } date }
-                && date >= eventDate.AddDays(-BankViewMaxAgeDays) && date <= asOf && Guid.TryParse(pair.Value.ChunkId, out _))
-            .ToDictionary(pair => pair.Key, pair => Guid.Parse(pair.Value.ChunkId!), StringComparer.Ordinal);
-        var matching = await research.MatchingFactorsAsync(dated.Values.ToArray(), news.Tags.Factors, cancellationToken);
-        return dated.Where(pair => matching.Contains(pair.Value)).Select(pair => pair.Key).ToHashSet(StringComparer.Ordinal);
+        var candidates = evidence.Where(pair => pair.Value is { Type: EvidenceType.BankResearch, Date: { } date }
+                && date >= eventDate.AddDays(-BankViewStaleMaxAgeDays) && date <= asOf && Guid.TryParse(pair.Value.ChunkId, out _))
+            .ToDictionary(pair => pair.Key, pair => (Chunk: Guid.Parse(pair.Value.ChunkId!), Date: pair.Value.Date!.Value), StringComparer.Ordinal);
+        var matching = await research.MatchingFactorsAsync(candidates.Values.Select(item => item.Chunk).ToArray(), news.Tags.Factors, cancellationToken);
+        var applicable = new HashSet<string>(StringComparer.Ordinal);
+        var dated = new Dictionary<string, DateOnly>(StringComparer.Ordinal);
+        foreach (var (id, item) in candidates.Where(pair => matching.Contains(pair.Value.Chunk)))
+        {
+            if (item.Date >= eventDate.AddDays(-BankViewMaxAgeDays))
+                applicable.Add(id);
+            else if (!await research.LaterOnTopicAsync(item.Date, asOf, news.Tags.Factors, cancellationToken))
+            {
+                applicable.Add(id);
+                dated[id] = item.Date;
+            }
+        }
+        return (applicable, dated);
     }
 
     private static JsonElement Canonical(JsonElement value) => JsonSerializer.SerializeToElement(Sorted(value));

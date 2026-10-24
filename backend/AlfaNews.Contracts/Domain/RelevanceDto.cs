@@ -4,5 +4,6 @@ public sealed record RelevanceDto(
 	decimal Score,
 	int Rank,
 	IReadOnlyList<RelevanceReasonDto> Reasons,
-	IReadOnlyList<FeatureContribution> Contributions
+	IReadOnlyList<FeatureContribution> Contributions,
+	Significance? Significance = null
 );

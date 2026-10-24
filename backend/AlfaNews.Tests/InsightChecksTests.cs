@@ -1,5 +1,6 @@
 using System.Text.Json;
 using AlfaNews.Contracts.Domain;
+using AlfaNews.Contracts.Processing;
 using AlfaNews.Core.Insights;
 
 namespace AlfaNews.Tests;
@@ -41,6 +42,64 @@ public sealed class InsightChecksTests
             Assert.Empty(errors);
         else
             Assert.Equal(error, Assert.Single(errors));
+    }
+
+    [Theory]
+    [InlineData("Банк на 11.09 ожидает снижения ставки, более поздних оценок нет.", null)]
+    [InlineData("По оценке банка на 11 сентября ставка снизится.", null)]
+    [InlineData("Банк ожидает снижения ставки.", "claims:C1:dated_bank_view_without_date")]
+    public void DatedBankResearchNamesItsDate(string text, string? error)
+    {
+        var evidence = new Dictionary<string, EvidenceDto>(Evidence)
+        {
+            ["E3"] = new(EvidenceType.BankResearch, "Обзор", null, "Банк ожидает снижения ставки.", new DateOnly(2026, 9, 11), null, 1,
+                Guid.NewGuid().ToString(), "bank_view", null, null, ReviewStatus.NotReviewed, false, null, null)
+        };
+        var draft = JsonSerializer.SerializeToElement(new
+        {
+            headline = "Тест",
+            what_happened = new[] { "C2" },
+            claims = new[]
+            {
+                new { id = "C1", text, origin = "bank_analytics", refs = new[] { "E3" }, confidence = (string?)null },
+                new { id = "C2", text = "В таможенных данных компании есть Китай.", origin = "source_fact", refs = new[] { "E2" }, confidence = (string?)null }
+            },
+            bank_view = new { status = "found", claim_ids = new[] { "C1" } },
+            suggested_questions = Array.Empty<string>()
+        });
+        var errors = InsightChecks.Validate(draft, evidence, new HashSet<string> { "E3" },
+            new Dictionary<string, DateOnly> { ["E3"] = new(2026, 9, 11) });
+        Assert.Equal(error is null ? [] : [error], errors);
+    }
+
+    [Fact]
+    public void LongHeadlineAndClaimAreRejected()
+    {
+        var draft = JsonSerializer.SerializeToElement(new
+        {
+            headline = new string('а', InsightChecks.MaxHeadlineLength + 1),
+            what_happened = new[] { "C1" },
+            claims = new[] { new { id = "C1", text = new string('б', InsightChecks.MaxClaimLength + 1), origin = "ai_inference", refs = new[] { "E2" }, confidence = (string?)null } },
+            bank_view = new { status = "not_found", claim_ids = Array.Empty<string>() },
+            suggested_questions = Array.Empty<string>()
+        });
+        Assert.Equal(["claims:C1:too_long", "card:headline_too_long"], InsightChecks.Validate(draft, Evidence));
+    }
+
+    [Fact]
+    public void TrimKeepsScreenLimitsAndDropsOrphanClaims()
+    {
+        DraftClaim Claim(int index) => new("C" + index, "Утверждение " + index, Origin.AiInference, ["E2"], null);
+        var draft = new InsightDraft("Заголовок", ["C1", "C2", "C3"], ["C4"],
+            [new(ConsequenceType.Risk, ["C5"]), new(ConsequenceType.Opportunity, ["C6"]), new(ConsequenceType.Risk, ["C7"]), new(ConsequenceType.Risk, ["C8"])],
+            ["C9", "C10", "C11", "C12"], new BankViewDto(BankViewStatus.NotFound, []), Enumerable.Range(1, 12).Select(Claim).ToArray(),
+            ["Л1", "Л2", "Л3", "Л4"], []);
+        var trimmed = InsightChecks.Trim(draft);
+        Assert.Equal(["C1", "C2"], trimmed.WhatHappened);
+        Assert.Equal(3, trimmed.Consequences.Count);
+        Assert.Equal(["C9", "C10", "C11"], trimmed.Actions);
+        Assert.Equal(3, trimmed.Limitations.Count);
+        Assert.Equal(["C1", "C2", "C4", "C5", "C6", "C7", "C9", "C10", "C11"], trimmed.Claims.Select(claim => claim.Id));
     }
 
     // Скриншот 23.10: сентябрьский обзор банка в «почему важно» при bank_view not_found — карточка противоречила сама себе.

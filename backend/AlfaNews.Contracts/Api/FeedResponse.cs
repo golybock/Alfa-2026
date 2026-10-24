@@ -10,5 +10,7 @@ public sealed record FeedResponse(
 	DateTimeOffset? LastUpdatedAt,
 	DateTimeOffset? CollectionStartedAt,
 	RefreshStatus RefreshStatus,
-	IReadOnlyList<FeedItemDto> Items
+	IReadOnlyList<FeedItemDto> Items,
+	DateTimeOffset? LastCollectedAt = null,
+	bool CollectionFailed = false
 );

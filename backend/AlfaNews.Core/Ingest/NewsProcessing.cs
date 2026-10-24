@@ -110,7 +110,7 @@ public sealed class NewsProcessing(AlfaNewsDbContext db, LlmGateway gateway, New
             var draft = result.Value;
             var extraction = new NewsExtraction(draft.Headline, draft.EventDate, draft.Facts.Select(fact =>
                 new ExtractedFact(fact.Text, NewsLines.Resolve(lines, fact).Quote!, fact.Line, fact.Start, fact.End)).ToArray(),
-                draft.Participants, draft.Tags);
+                draft.Participants, draft.Tags, draft.Commentary);
             var eventId = Guid.NewGuid();
             try
             {

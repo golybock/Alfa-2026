@@ -10,7 +10,7 @@ public sealed class UserActivityConfiguration : IEntityTypeConfiguration<UserAct
     {
         builder.ToTable("user_activity", table =>
         {
-            table.HasCheckConstraint("user_activity_1_check", "kind IN ('insight_opened','reasons_opened','chat_question_accepted','source_opened','action_interacted')");
+            table.HasCheckConstraint("user_activity_1_check", "kind IN ('insight_opened','reasons_opened','chat_question_accepted','source_opened','action_interacted','manager_contact_requested')");
             table.HasCheckConstraint("user_activity_2_check", "(kind = 'source_opened') = (evidence_id IS NOT NULL)");
             table.HasCheckConstraint("user_activity_3_check", "(kind = 'action_interacted') = (action_id IS NOT NULL)");
         });

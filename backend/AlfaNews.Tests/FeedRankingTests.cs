@@ -18,7 +18,29 @@ public sealed class FeedRankingTests
         Assert.Equal(Enum.GetValues<RankingFeatureCode>(), ranked.Contributions.Select(item => item.Code));
         Assert.Contains(ranked.Reasons, reason => reason.Code == "product_loan");
         Assert.All(ranked.Reasons, reason => Assert.All(reason.EvidenceRefs, reference => Assert.True(ranked.Evidence.ContainsKey(reference))));
+        Assert.All(ranked.Reasons, reason => Assert.InRange(reason.Label?.Length ?? 0, 1, FeedRanking.LabelMaxLength));
+        Assert.Equal("Ваш продукт: кредит", ranked.Reasons.Single(reason => reason.Code == "product_loan").Label);
+        Assert.Equal(Significance.Low, FeedRanking.SignificanceOf(ranked.Base));
     }
+
+    [Fact]
+    public void CommentaryWithoutDecisionWeighsHalfOfTheSectorFactor()
+    {
+        var decision = FeedRanking.Rank(Candidate(factors: ["key_rate"]), Company(products: ["loan"]), [], Taxonomy(), new RankingOptions(), AsOf);
+        var remark = FeedRanking.Rank(Candidate(factors: ["key_rate"]) with { Commentary = true }, Company(products: ["loan"]), [], Taxonomy(),
+            new RankingOptions(), AsOf);
+        var factor = decision.Contributions.Single(item => item.Code == RankingFeatureCode.Factor).Contribution;
+        Assert.Equal(decision.Base - factor / 2, remark.Base);
+        Assert.Contains("комментарий", remark.Reasons.Single(reason => reason.Code.StartsWith("factor_", StringComparison.Ordinal)).Text);
+    }
+
+    [Theory]
+    [InlineData(0.35, Significance.Low)]
+    [InlineData(0.40, Significance.Medium)]
+    [InlineData(0.4999, Significance.Medium)]
+    [InlineData(0.50, Significance.High)]
+    public void SignificanceBandsFollowBase(double baseScore, Significance expected) =>
+        Assert.Equal(expected, FeedRanking.SignificanceOf((decimal)baseScore));
 
     [Fact]
     public void ProductWithoutSectorFactorStaysBelowThresholdAndUnknownFeaturesStayUnknown()

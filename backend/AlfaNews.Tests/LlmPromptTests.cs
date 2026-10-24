@@ -130,7 +130,7 @@ public sealed class LlmPromptTests
     {
         var request = Request(LlmTask.NewsExtract);
         var prompt = new LlmPromptCatalog().Render(request, request.Task);
-        var content = """{"headline":"Тест","event_date":null,"facts":[{"text":"Тест","line":5,"start":null,"end":null}],"participants":[],"tags":{"factors":[],"okved2":[],"countries":[],"regions":[],"commodities":[]}}""";
+        var content = """{"headline":"Тест","event_date":null,"facts":[{"text":"Тест","line":5,"start":null,"end":null}],"participants":[],"tags":{"factors":[],"okved2":[],"countries":[],"regions":[],"commodities":[]},"commentary":false}""";
         Assert.Contains("news:unknown_line", LlmOutputValidator.Validate<NewsExtractionDraft>(content, prompt, request, out _));
         Assert.Contains("schema:invalid_json", LlmOutputValidator.Validate<NewsExtractionDraft>("```json\n" + content + "\n```", prompt, request, out _));
     }
@@ -173,7 +173,8 @@ public sealed class LlmPromptTests
                 countries = Array.Empty<string>(),
                 regions = Array.Empty<string>(),
                 commodities = Array.Empty<string>()
-            }
+            },
+            commentary = false
         });
         var prompt = new LlmPromptCatalog().Render(request, request.Task);
         var errors = LlmOutputValidator.Validate<NewsExtractionDraft>(content, prompt, request, out _);

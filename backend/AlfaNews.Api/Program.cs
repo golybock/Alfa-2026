@@ -47,7 +47,6 @@ feedSettings.Validate();
 builder.Services.AddSingleton(feedSettings);
 builder.Services.AddScoped<FeedService>();
 builder.Services.AddScoped<InsightService>();
-builder.Services.AddScoped<UserSeedService>();
 builder.Services.AddScoped<UserActivityService>();
 builder.Services.AddScoped<ChatService>();
 builder.Services.AddScoped<FeedbackService>();
@@ -64,21 +63,6 @@ await using (var scope = app.Services.CreateAsyncScope())
     await scope.ServiceProvider.GetRequiredService<AlfaNewsDbContext>().Database.MigrateAsync(app.Lifetime.ApplicationStopping);
 if (args.Contains("--migrate"))
     return;
-
-if (args.Contains("--seed-users"))
-{
-    await using var scope = app.Services.CreateAsyncScope();
-    var configuration = app.Configuration;
-    var companyIds = (configuration["Seed:CompanyIds"] ?? throw new InvalidOperationException("Задайте Seed__CompanyIds."))
-        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-    await scope.ServiceProvider.GetRequiredService<UserSeedService>().SeedAsync(new UserSeedOptions(
-        configuration["Seed:UserLogin"] ?? "demo",
-        configuration["Seed:UserPassword"] ?? throw new InvalidOperationException("Задайте Seed__UserPassword."),
-        configuration["Seed:OperatorLogin"] ?? "operator",
-        configuration["Seed:OperatorPassword"] ?? throw new InvalidOperationException("Задайте Seed__OperatorPassword."),
-        companyIds), app.Lifetime.ApplicationStopping);
-    return;
-}
 
 app.UseMiddleware<ApiAccessMiddleware>();
 app.UseAuthentication();

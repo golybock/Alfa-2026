@@ -98,7 +98,7 @@ THIRD_PARTY_NOTICES.md              сторонние зависимости
 
 | Модуль | Как устроен и что выполняет |
 | --- | --- |
-| `Api/Program.cs` | Загружает окружение, регистрирует сервисы и аутентификацию, применяет миграции, подключает endpoints. Команда `--migrate` завершает процесс после миграций; `--seed-users` создаёт пользователей через `UserSeedService`. В Development доступны `/api/swagger` и `/api/openapi/v1.json`. |
+| `Api/Program.cs` | Загружает окружение, регистрирует сервисы и аутентификацию, применяет миграции, подключает endpoints. Команда `--migrate` завершает процесс после миграций. Демо-учётки создаёт Worker после импорта CSV (`UserSeedService`). В Development доступны `/api/swagger` и `/api/openapi/v1.json`. |
 | `Core/Configuration/LocalEnvironment.cs` | Читает ближайший родительский `.env`; переменные процесса имеют приоритет. Формирует локальную строку PostgreSQL из `POSTGRES_*`, если она не задана явно. Секреты не выводить. |
 | `Api/Access/` + `Core/Access/` | `AuthEndpoints` — login/logout и `/me`; `AuthService` — пароль и выдача сессии; `SessionService` и `SessionAuthenticationHandler` — проверка токена. `ApiAccessMiddleware` обрабатывает доступ/Origin и ошибки. `AccessService` проверяет компанию, роль, карточку, evidence, страницу PDF, владельца job и личную историю чата. Выбранные в UI company/role не являются авторизацией. |
 | `Core/Data/` | `AlfaNewsDbContext.cs` — таблицы; `Entities/` — ORM-сущности; `Configurations/` — отображение и ограничения; `DataRegistration.cs` — PostgreSQL/pgvector; `AlfaNewsDbContextFactory.cs` — EF tooling. Изменение целевого SQL в contracts само по себе не меняет базу: выполняются EF-миграции. |

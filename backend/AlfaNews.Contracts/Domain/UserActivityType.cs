@@ -6,5 +6,6 @@ public enum UserActivityType
     ReasonsOpened,
     ChatQuestionAccepted,
     SourceOpened,
-    ActionInteracted
+    ActionInteracted,
+    ManagerContactRequested
 }

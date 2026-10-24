@@ -401,7 +401,7 @@ public sealed class NewsProcessingTests(PostgresFixture fixture) : IClassFixture
             var end = prompt.User.IndexOf("</input_json>", StringComparison.Ordinal);
             var input = JsonSerializer.Deserialize<JsonElement>(prompt.User[start..end]);
             var text = input.GetProperty("lines")[0].GetProperty("text").GetString()!;
-            var result = new NewsExtractionDraft("Рост выручки", null, [new FactReference(text, 1, null, null)], [], new NewsTags([], [], ["РОССИЯ"], [], []));
+            var result = new NewsExtractionDraft("Рост выручки", null, [new FactReference(text, 1, null, null)], [], new NewsTags([], [], ["РОССИЯ"], [], []), false);
             return Task.FromResult(new LlmClientResponse(JsonSerializer.Serialize(result, LlmOutputValidator.JsonOptions), ActualCostRub: 0));
         }
     }
