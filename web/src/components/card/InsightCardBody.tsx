@@ -1,10 +1,10 @@
-import { formatDate } from "../../lib/dates";
-import { criticStatusLabels, reviewStatusLabels } from "../../lib/labels";
+import { formatDate, formatDateNumeric } from "../../lib/dates";
+import { criticStatusLabels, reviewStatusLabels, roleLabels } from "../../lib/labels";
 import type { ClaimDto, EvidenceDto, EvidenceType, InsightDto } from "../../lib/types/api";
 import Icon from "../ui/Icon";
 import KindBadge from "../ui/KindBadge";
-import ImpactBadge from "../ui/ImpactBadge";
 import SourceLinkRow from "../ui/SourceLinkRow";
+import ActionList from "./ActionList";
 import CardBlock from "./CardBlock";
 import ClaimList from "./ClaimList";
 import ManagerContactButton from "./ManagerContactButton";
@@ -50,117 +50,146 @@ function idRanges(ids: string[]): string {
   return parts.join(", ");
 }
 
-type InsightCardBodyProps = { insight: InsightDto };
+type InsightCardBodyProps = { insight: InsightDto; onOpenWhy: () => void };
 
-export default function InsightCardBody({ insight }: InsightCardBodyProps) {
+export default function InsightCardBody({ insight, onOpenWhy }: InsightCardBodyProps) {
   const claims = new Map(insight.claims.map((claim) => [claim.id, claim]));
   const news = evidenceOf(insight.what_happened, claims, insight.evidence, "news");
   const bankSources = evidenceOf(insight.bank_view.claim_ids, claims, insight.evidence, "bank_research");
   const bankFound = insight.bank_view.status === "found";
-  const blocks = ["what", "why", "consequences", "actions", "bank", "shown"];
-  const numberOf = (block: string) => blocks.indexOf(block) + 1;
+  const features = insight.relevance.reasons.map((reason) => reason.label).filter((label): label is string => Boolean(label));
+  const bankDate =
+    Object.values(insight.evidence)
+      .filter((item) => item.type === "bank_research" && item.date)
+      .map((item) => item.date as string)
+      .sort()
+      .at(-1) ?? null;
+  const codePassed = insight.verification.code_status === "passed";
+  const criticPassed = insight.verification.critic.status === "passed";
 
   return (
     <div className="mt-4 flex flex-col gap-4">
-      <div className="grid grid-cols-[1fr_340px] items-start gap-4">
-        <div className="flex flex-col gap-4">
-          <CardBlock number={numberOf("what")} title="Что произошло">
-            <ClaimList ids={insight.what_happened} claims={claims} evidence={insight.evidence} />
-			  {news.length === 0 ? (
-				  <p className="mt-3 text-xs text-zinc-500">Ссылка на источник: данных нет</p>
-			  ) : (
-				  groupByUrl(news).map((group) => (
-					  <SourceLinkRow key={group.url} title={`${idRanges(group.ids)} · ${group.source}`} url={group.url} />
-				  ))
-			  )}
-          </CardBlock>
-          <CardBlock number={numberOf("why")} title="Почему это важно именно вам">
-            <ClaimList ids={insight.why_it_matters} claims={claims} evidence={insight.evidence} />
-          </CardBlock>
-          <CardBlock number={numberOf("consequences")} title="Какие последствия возможны">
-            {insight.consequences.length === 0 ? (
-              <p className="text-sm text-zinc-500">Данных нет</p>
-            ) : (
-              <ul className="flex flex-col gap-4">
-                {insight.consequences.map((consequence) => (
-                  <li key={`${consequence.type}-${consequence.claim_ids.join("-")}`} className="flex flex-col gap-2">
-                    <KindBadge kind={consequence.type} />
-                    <ClaimList ids={consequence.claim_ids} claims={claims} evidence={insight.evidence} />
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardBlock>
+      <div className="grid grid-cols-3 gap-4">
+        <CardBlock title="Что произошло">
+          <ClaimList ids={insight.what_happened} claims={claims} evidence={insight.evidence} stacked />
+          {news.length === 0 ? (
+            <p className="mt-3 text-xs text-zinc-500">Ссылка на источник: данных нет</p>
+          ) : (
+            groupByUrl(news).map((group) => (
+              <SourceLinkRow key={group.url} title={`${idRanges(group.ids)} · ${group.source}`} url={group.url} />
+            ))
+          )}
+        </CardBlock>
+        <CardBlock title="Что это меняет">
+          {insight.consequences.length === 0 ? (
+            <p className="text-sm text-zinc-500">Данных нет</p>
+          ) : (
+            <ul className="flex flex-col gap-4">
+              {insight.consequences.map((consequence) => (
+                <li key={`${consequence.type}-${consequence.claim_ids.join("-")}`}>
+                  <ClaimList
+                    ids={consequence.claim_ids}
+                    claims={claims}
+                    evidence={insight.evidence}
+                    stacked
+                    leading={<KindBadge kind={consequence.type} />}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardBlock>
+        <CardBlock title="Что стоит предпринять" subtitle={`Подобрано для роли: ${roleLabels[insight.role].toLowerCase()}`}>
+          {insight.actions.length === 0 ? (
+            <p className="text-sm text-zinc-500">Данных нет</p>
+          ) : (
+            <>
+              <ActionList ids={insight.actions} claims={claims} evidence={insight.evidence} />
+              <ManagerContactButton insight={insight} />
+            </>
+          )}
+        </CardBlock>
+      </div>
+      <section aria-label="Почему это касается вас" className="flex items-start gap-8 rounded-2xl bg-white p-5">
+        <div className="w-48 shrink-0">
+          <h2 className="text-base font-semibold">Почему это касается вас</h2>
+          <button
+            type="button"
+            onClick={onOpenWhy}
+            className="mt-3 h-11 rounded-xl bg-zinc-900 px-5 text-sm font-medium text-white hover:bg-zinc-800"
+          >
+            Почему я это вижу
+          </button>
         </div>
-        <div className="flex flex-col gap-4">
-          <CardBlock number={numberOf("actions")} title="Что стоит проверить">
-            {insight.actions.length === 0 ? (
-              <p className="text-sm text-zinc-500">Данных нет</p>
-            ) : (
-              <>
-                <ClaimList ids={insight.actions} claims={claims} evidence={insight.evidence} />
-                <ManagerContactButton insight={insight} />
-              </>
-            )}
-          </CardBlock>
-          <CardBlock number={numberOf("bank")} title="Как это оценивает банк">
-            {bankFound ? (
-              <div className="rounded-xl bg-red-50 p-4">
-                <ClaimList ids={insight.bank_view.claim_ids} claims={claims} evidence={insight.evidence} />
-                {bankSources.map(({ id, item }) => (
-                  <div key={id} className="mt-3 text-xs text-zinc-500">
-                    <p>
-                      {id} · {item.source}
-                      {item.date ? ` · ${formatDate(item.date)}` : ""}
-                      {item.page ? ` · стр. ${item.page}` : ""}
-                    </p>
-                    {item.review_status && item.review_status !== "not_reviewed" ? <p>{reviewStatusLabels[item.review_status]}</p> : null}
-                    {item.page_image_url ? <SourceLinkRow title="Открыть страницу материала" url={item.page_image_url} /> : null}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="rounded-xl bg-zinc-100 p-4 text-sm text-zinc-600">
-                Позиции банка по этой теме нет.
-              </p>
-            )}
-          </CardBlock>
-          <CardBlock number={numberOf("shown")} title="Почему показано">
-            {insight.relevance.significance ? <ImpactBadge significance={insight.relevance.significance} /> : null}
-            {insight.relevance.reasons.length === 0 ? (
-              <p className="mt-3 text-sm text-zinc-500">Данных нет</p>
-            ) : (
-              <ul className="mt-3 flex flex-col gap-2 text-sm">
-                {insight.relevance.reasons.map((reason) => (
-                  <li key={reason.code}>{reason.text}</li>
-                ))}
-              </ul>
-            )}
-            <p className="mt-3 flex items-start gap-2 text-xs text-zinc-500">
-              <Icon name="info" className="h-4 w-4 shrink-0" />
-              {insight.verification.code_status === "passed" ? "Проверки кодом пройдены. " : "Проверки кодом не пройдены. "}
+        <div className="min-w-0 flex-1">
+          <ClaimList ids={insight.why_it_matters} claims={claims} evidence={insight.evidence} />
+          {features.length > 0 ? (
+            <ul className="mt-3 flex flex-wrap gap-2">
+              {features.map((feature) => (
+                <li key={feature} className="rounded-lg bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-900">
+                  {feature}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      </section>
+      <div className="grid grid-cols-3 gap-4">
+        <CardBlock title="Что говорит Альфа-Банк">
+          {bankFound ? (
+            <div className="rounded-xl bg-red-50 p-4">
+              <ClaimList ids={insight.bank_view.claim_ids} claims={claims} evidence={insight.evidence} stacked />
+              {bankSources.map(({ id, item }) => (
+                <div key={id} className="mt-3 text-xs text-zinc-500">
+                  <p>
+                    {id} · {item.source}
+                    {item.date ? ` · ${formatDate(item.date)}` : ""}
+                    {item.page ? ` · стр. ${item.page}` : ""}
+                  </p>
+                  {item.review_status && item.review_status !== "not_reviewed" ? <p>{reviewStatusLabels[item.review_status]}</p> : null}
+                  {item.page_image_url ? <SourceLinkRow title="Открыть страницу материала" url={item.page_image_url} /> : null}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="rounded-xl bg-zinc-100 p-4 text-sm text-zinc-600">Позиции банка по этой теме нет.</p>
+          )}
+        </CardBlock>
+        <CardBlock title="Что мы о вас не знаем">
+          {insight.limitations.length === 0 ? (
+            <p className="text-sm text-zinc-500">Данных нет</p>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {insight.limitations.map((limitation) => (
+                <li key={limitation} className="flex items-start gap-2 text-sm text-zinc-600">
+                  <Icon name="info" className="mt-0.5 h-4 w-4 shrink-0" />
+                  {limitation}
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardBlock>
+        <CardBlock title="На чём основан вывод">
+          <ul className="flex flex-col gap-2 text-sm">
+            <li className="flex items-start gap-2">
+              <Icon name="check" className={`mt-0.5 h-4 w-4 shrink-0 ${codePassed ? "text-green-600" : "text-alfa"}`} />
+              {codePassed ? "Расчёт проверен кодом" : "Проверки кодом не пройдены"}
+            </li>
+            <li className="flex items-start gap-2">
+              <Icon name={criticPassed ? "check" : "info"} className={`mt-0.5 h-4 w-4 shrink-0 ${criticPassed ? "text-green-600" : "text-orange-600"}`} />
               {criticStatusLabels[insight.verification.critic.status]}
               {insight.verification.critic.reason ? ` (${insight.verification.critic.reason})` : ""}
-            </p>
-          </CardBlock>
-          <section className="rounded-2xl bg-zinc-100 p-5">
-            <h2 className="text-sm font-semibold">Чего мы о вас не знаем</h2>
-            {insight.limitations.length === 0 ? (
-              <p className="mt-2 text-xs text-zinc-600">Данных нет</p>
-            ) : (
-              <ul className="mt-2 flex list-disc flex-col gap-1 pl-4 text-xs leading-5 text-zinc-600">
-                {insight.limitations.map((limitation) => (
-                  <li key={limitation}>{limitation}</li>
-                ))}
-              </ul>
-            )}
-          </section>
-        </div>
+            </li>
+            <li className="flex items-start gap-2">
+              <Icon name="info" className="mt-0.5 h-4 w-4 shrink-0 text-zinc-500" />
+              {bankDate ? `В основе лежат данные банка на момент ${formatDateNumeric(bankDate)}` : "Данные банка: данных нет"}
+            </li>
+          </ul>
+          <p className="mt-3 text-xs text-zinc-500">
+            Аналитика не является инвестиционной рекомендацией. Вывод ИИ не является позицией Альфа-Банка.
+          </p>
+        </CardBlock>
       </div>
-      <footer className="flex flex-col gap-1 text-xs text-zinc-500">
-        <p>Информация не является индивидуальной инвестиционной рекомендацией.</p>
-        {bankFound ? null : <p>Вывод сделан моделью по внешним источникам и не является позицией Альфа-Банка.</p>}
-      </footer>
     </div>
   );
 }

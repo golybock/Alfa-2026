@@ -1,6 +1,5 @@
 import { formatDate } from "../../lib/dates";
 import type { FeedItemDto, Role } from "../../lib/types/api";
-import Icon from "../ui/Icon";
 import ImpactBadge from "../ui/ImpactBadge";
 import KindBadge from "../ui/KindBadge";
 import OpenInsightLink from "./OpenInsightLink";
@@ -11,17 +10,15 @@ type InsightRowProps = { item: FeedItemDto; companyId: string; role: Role };
 export default function InsightRow({ item, companyId, role }: InsightRowProps) {
   const significance = item.relevance.significance ?? null;
   const direction = item.direction ?? null;
-  const topic = item.relevance.reasons[0]?.label ?? null;
   const insightHeadline = item.insight_headline ?? null;
 
   return (
     <li className="flex items-stretch justify-between gap-6 rounded-2xl bg-white px-5 py-4 transition-shadow duration-150 hover:shadow-md">
       <div className="min-w-0">
-        {direction || significance || topic ? (
+        {direction || significance ? (
           <div className="flex flex-wrap items-center gap-2">
             {direction ? <KindBadge kind={direction} /> : null}
             {significance ? <ImpactBadge significance={significance} /> : null}
-            {topic ? <p className="text-xs text-zinc-500">{topic}</p> : null}
           </div>
         ) : null}
         <h2 className="mt-3 line-clamp-2 text-base font-semibold">{insightHeadline ?? item.headline}</h2>
@@ -41,10 +38,9 @@ export default function InsightRow({ item, companyId, role }: InsightRowProps) {
             href={item.source.url}
             target="_blank"
             rel="noreferrer"
-            className="flex shrink-0 items-center gap-1 text-blue-600 hover:underline"
+            className="shrink-0 hover:text-zinc-900 hover:underline"
           >
             {item.source.name}
-            <Icon name="arrowUpRight" className="h-3.5 w-3.5" />
           </a>
           {insightHeadline ? <em className="truncate not-italic">· {item.headline}</em> : null}
           ·

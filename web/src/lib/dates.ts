@@ -42,6 +42,12 @@ export function formatDateTimeWithYear(value: string): string {
   return `${dateFormat.format(date).replace(" г.", "")}, ${timeFormat.format(date)}`;
 }
 
+const numericDateFormat = new Intl.DateTimeFormat("ru-RU", { timeZone: MOSCOW, day: "2-digit", month: "2-digit", year: "numeric" });
+
+export function formatDateNumeric(value: string): string {
+  return numericDateFormat.format(new Date(value));
+}
+
 export function formatDuration(ms: number): string {
   const totalSeconds = Math.round(ms / 1000);
   if (totalSeconds < 1) {

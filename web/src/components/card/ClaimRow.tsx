@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { claimKindOf } from "../../lib/claimKinds";
 import { confidenceLabels, reviewStatusLabels } from "../../lib/labels";
 import type { ClaimDto, EvidenceDto, ReviewStatus } from "../../lib/types/api";
@@ -11,14 +12,26 @@ function unreviewedStatus(claim: ClaimDto, evidence: Readonly<Record<string, Evi
   return statuses.find((status) => status === "partially_reviewed") ?? null;
 }
 
-type ClaimRowProps = { claim: ClaimDto; evidence: Readonly<Record<string, EvidenceDto>> };
+type ClaimRowProps = {
+  claim: ClaimDto;
+  evidence: Readonly<Record<string, EvidenceDto>>;
+  stacked?: boolean;
+  leading?: ReactNode;
+};
 
-export default function ClaimRow({ claim, evidence }: ClaimRowProps) {
+export default function ClaimRow({ claim, evidence, stacked = false, leading }: ClaimRowProps) {
   const unreviewed = unreviewedStatus(claim, evidence);
 
   return (
-    <li className="grid items-start gap-2 @md:grid-cols-[150px_1fr] @md:gap-3">
-      <ClaimBadge kind={claimKindOf(claim, evidence)} />
+    <li className={stacked ? "flex flex-col gap-2" : "grid items-start gap-2 @md:grid-cols-[150px_1fr] @md:gap-3"}>
+      {leading ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {leading}
+          <ClaimBadge kind={claimKindOf(claim, evidence)} />
+        </div>
+      ) : (
+        <ClaimBadge kind={claimKindOf(claim, evidence)} />
+      )}
       <div>
         <p className="text-sm leading-6">{claim.text}</p>
         <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-zinc-500">
