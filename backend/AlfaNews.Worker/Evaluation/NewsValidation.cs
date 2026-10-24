@@ -43,10 +43,11 @@ public sealed class NewsValidation(AlfaNewsDbContext db, JobQueue queue, JobDisp
         await db.SaveChangesAsync(cancellationToken);
         var input = JsonSerializer.SerializeToElement(headlines);
         NewsTriage? glm = null;
+        var triageModel = options.TriageModel;
         string? comparisonError = null;
         try
         {
-            options.TriageUseGlm = true;
+            options.TriageModel = LlmOptions.Glm;
             var result = await gateway.GenerateAsync<NewsTriage>(new LlmRequest(comparisonJob.Id, "triage-glm:" + batch.Id,
                 LlmPromptCatalog.Hash(input.GetRawText()), LlmTask.NewsTriage,
                 new Dictionary<string, JsonElement> { ["INPUT_JSON"] = input }), cancellationToken);
@@ -58,7 +59,7 @@ public sealed class NewsValidation(AlfaNewsDbContext db, JobQueue queue, JobDisp
         }
         finally
         {
-            options.TriageUseGlm = false;
+            options.TriageModel = triageModel;
         }
         comparisonJob.Status = comparisonError is null ? "done" : "failed";
         comparisonJob.FinishedAt = DateTimeOffset.UtcNow;

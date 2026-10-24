@@ -359,8 +359,8 @@ export interface MeResponse {
 }
 
 export interface ModelConfigResponse {
-  readonly deep_seek_model: string;
-  readonly glm_model: string;
+  readonly models: Readonly<Record<string, string>>;
+  readonly thinking_enabled: boolean;
   readonly glm_reasoning: string;
   readonly general_max_tokens: number;
   readonly chat_max_tokens: number;

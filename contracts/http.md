@@ -65,7 +65,7 @@ Review: только существующие chunk_id/chart local_id данно
 | Метод / путь | Формат | Задача |
 | --- | --- | --- |
 | GET /admin/usage?date=YYYY-MM-DD | OperatorUsageResponse, сутки Europe/Moscow; если date нет — текущие | D15 |
-| GET /admin/config | ModelConfigResponse, только выбранные модели/режимы/лимиты, без ключа и .env | D15 |
+| GET /admin/config | ModelConfigResponse, только выбранные модели/режимы/лимиты, без ключа и .env; `models` — модель на каждое использование (`triage`, `extract`, `agent`, `repair`, `critic`, `ocr`, `chat`, `scope_gate`) | D15 |
 | GET /admin/sources | OperatorSourcesResponse, только список/последний статус | D15 |
 
 Все endpoints требуют оператора. В D15 не входит runtime-редактор источников: в хакатоне добавление проходит через проверенный sources.json и обычный reload/restart. Редактор источников/документов не означает редактирование серверных секретов.
