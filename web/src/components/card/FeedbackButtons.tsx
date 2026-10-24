@@ -22,7 +22,10 @@ const dislikeReasons: { reason: FeedbackReason; title: string }[] = [
   { reason: "obvious", title: "Очевидно" },
 ];
 
-const buttonClass = "flex h-8 items-center gap-1.5 rounded-lg border px-3 text-xs hover:bg-zinc-50 disabled:opacity-50";
+const feedbackAvailable = false;
+
+const buttonClass =
+  "flex h-8 items-center gap-1.5 rounded-lg border px-3 text-xs hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent";
 
 type FeedbackButtonsProps = { insightId: string };
 
@@ -64,7 +67,8 @@ export default function FeedbackButtons({ insightId }: FeedbackButtonsProps) {
           <button
             key={action.kind}
             type="button"
-            disabled={feedback.isPending}
+            disabled={!feedbackAvailable || feedback.isPending}
+            title={feedbackAvailable ? undefined : "Пока недоступно"}
             aria-pressed={chosen === action.kind}
             onClick={() => choose(action.kind)}
             className={`${buttonClass} ${chosen === action.kind ? "border-zinc-900 bg-zinc-100" : "border-zinc-200"}`}
