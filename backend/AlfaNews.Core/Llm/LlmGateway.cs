@@ -112,6 +112,7 @@ public sealed class LlmGateway(AlfaNewsDbContext db, LlmOptions options, LlmProm
                 prompt.SchemaHash,
                 request.ValidationVersion,
                 SemanticVersion = LlmSemanticChecks.Version,
+                SalvageVersion = LlmSalvage.Version,
                 route.Model,
                 route.Reasoning,
                 route.ThinkingEnabled,
@@ -147,6 +148,7 @@ public sealed class LlmGateway(AlfaNewsDbContext db, LlmOptions options, LlmProm
             LlmClientResponse response;
             IReadOnlyList<string> errors = [];
             T? value = default;
+            LlmSalvageResult? salvage = null;
             try
             {
                 var reserve = options.UseMock ? 0 : budget.Estimate(prompt, route, request.Image);
@@ -175,14 +177,14 @@ public sealed class LlmGateway(AlfaNewsDbContext db, LlmOptions options, LlmProm
                 if (response.Content is { } content)
                     request.CaptureResponse?.Invoke(content);
                 if (response.Error is null)
-                    errors = LlmOutputValidator.Validate<T>(response.Content ?? "", prompt, request, out value);
+                    errors = LlmOutputValidator.Validate<T>(response.Content ?? "", prompt, request, out value, out salvage);
                 await budget.FinishAsync(entry, response, (long)Stopwatch.GetElapsedTime(started).TotalMilliseconds,
                     errors.Count > 0 ? "invalid_output" : null, cancellationToken);
                 if (response.Error == "llm_key_required")
                     budget.RejectKey();
-                logger.LogInformation("LLM {RunId} {Stage} {Model}: {Error}, HTTP {HttpStatus}, finish {FinishReason}, diagnostics {Diagnostics}.",
+                logger.LogInformation("LLM {RunId} {Stage} {Model}: {Error}, HTTP {HttpStatus}, finish {FinishReason}, diagnostics {Diagnostics}, dropped {Dropped}.",
                     runId, LlmBudget.Stage(task), route.Model, response.Error ?? (errors.Count > 0 ? "invalid_output" : "done"),
-                    response.HttpStatus, response.FinishReason, string.Join(",", errors));
+                    response.HttpStatus, response.FinishReason, string.Join(",", errors), string.Join(",", salvage?.Dropped ?? []));
             }
             finally
             {
@@ -190,7 +192,7 @@ public sealed class LlmGateway(AlfaNewsDbContext db, LlmOptions options, LlmProm
             }
             if (response.Error is null && errors.Count == 0)
             {
-                var json = JsonSerializer.Deserialize<JsonElement>(response.Content!);
+                var json = JsonSerializer.Deserialize<JsonElement>(salvage?.Content ?? response.Content!);
                 await db.Database.ExecuteSqlInterpolatedAsync($"""
                     INSERT INTO llm_cache (cache_key, task, model, schema_version, response_json, created_at)
                     VALUES ({cacheKey}, {LlmBudget.Stage(task)}, {route.Model}, {prompt.SchemaHash}, {json.GetRawText()}::jsonb, {timeProvider.GetUtcNow()})
@@ -202,7 +204,7 @@ public sealed class LlmGateway(AlfaNewsDbContext db, LlmOptions options, LlmProm
                         VALUES ({originalCacheKey}, {originalStage}, {options.Route(request.Task, request.Task).Model}, {prompt.SchemaHash}, {json.GetRawText()}::jsonb, {timeProvider.GetUtcNow()})
                         ON CONFLICT (cache_key) DO UPDATE SET response_json = EXCLUDED.response_json, created_at = EXCLUDED.created_at
                         """, cancellationToken);
-                return new LlmResult<T>(value!, runId, false, cacheKey);
+                return new LlmResult<T>(value!, runId, false, cacheKey, salvage?.Dropped);
             }
             if (request.Task == LlmTask.Critic)
                 throw new LlmException(response.Error ?? "invalid_output", errors);

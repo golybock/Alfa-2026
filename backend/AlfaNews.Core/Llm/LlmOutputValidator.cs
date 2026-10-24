@@ -34,6 +34,23 @@ public static class LlmOutputValidator
         }
     }
 
+    // Проверка с очисткой: если ответ прошёл схему, но отдельные факты или утверждения ошибочны, они убираются кодом
+    // и очищенный ответ проверяется заново. Не помогло — возвращаются исходные ошибки, и шлюз зовёт починку.
+    public static IReadOnlyList<string> Validate<T>(string content, LlmPrompt prompt, LlmRequest request, out T? value,
+        out LlmSalvageResult? salvage)
+    {
+        salvage = null;
+        var errors = Validate(content, prompt, request, out value);
+        if (errors.Count == 0 || errors.Any(error => error.StartsWith("schema:", StringComparison.Ordinal)))
+            return errors;
+        var candidate = LlmSalvage.TryApply(content, request, errors, text => Validate<T>(text, prompt, request, out _));
+        if (candidate is null || Validate<T>(candidate.Content, prompt, request, out var cleaned).Count > 0)
+            return errors;
+        value = cleaned;
+        salvage = candidate;
+        return [];
+    }
+
     private static JsonSerializerOptions CreateOptions()
     {
         var options = new JsonSerializerOptions();
