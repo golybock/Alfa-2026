@@ -9,7 +9,7 @@ import { ANALYTICS_HREF } from "../../lib/navigation";
 import type { InsightDto } from "../../lib/types/api";
 import Drawer from "../ui/Drawer";
 import Icon from "../ui/Icon";
-import RankBadge from "../ui/RankBadge";
+import ImpactBadge from "../ui/ImpactBadge";
 import RoleSwitch from "../ui/RoleSwitch";
 import ChatPanel from "./ChatPanel";
 import FeedbackButtons from "./FeedbackButtons";
@@ -33,7 +33,13 @@ export default function InsightCardHeader({ insight }: InsightCardHeaderProps) {
               <Icon name="chevronLeft" className="h-3.5 w-3.5" />
               Все инсайты
             </Link>
-            <RankBadge rank={insight.relevance.rank} />
+            {insight.relevance.significance ? <ImpactBadge significance={insight.relevance.significance} /> : null}
+            {insight.verification.critic.status.startsWith("skipped_") ? (
+              <p className="flex h-6 items-center gap-1 rounded-lg bg-amber-50 px-2 text-xs font-medium text-orange-700">
+                <Icon name="info" className="h-3.5 w-3.5" />
+                Без проверки критиком
+              </p>
+            ) : null}
           </div>
           <h1 className="mt-3 text-2xl font-semibold">{insight.headline}</h1>
           <p className="mt-2 text-sm text-zinc-500">

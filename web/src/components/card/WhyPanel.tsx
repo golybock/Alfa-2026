@@ -7,16 +7,9 @@ import type { InsightDto } from "../../lib/types/api";
 import ClaimBadge from "../ui/ClaimBadge";
 import EvidenceRefButton from "../ui/EvidenceRefButton";
 import Icon from "../ui/Icon";
+import SystemSteps from "./SystemSteps";
 
 const numberFormat = new Intl.NumberFormat("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-const systemSteps = [
-  "Разбор новости: факты, факторы, отрасли",
-  "Профиль компании из данных банка",
-  "Расчёт балла по формуле",
-  "Черновик карточки с метками происхождения",
-  "Проверка кодом и критиком",
-];
 
 const headingClass = "mb-3 text-[11px] font-medium uppercase tracking-wider text-zinc-500";
 
@@ -114,16 +107,7 @@ export default function WhyPanel({ insight }: WhyPanelProps) {
       </section>
       <section>
         <h3 className={headingClass}>Шаги системы</h3>
-        <ol className="flex flex-col gap-2 text-sm">
-          {systemSteps.map((step, index) => (
-            <li key={step} className="flex items-center gap-3">
-              <em className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-[11px] font-medium not-italic">
-                {index + 1}
-              </em>
-              {step}
-            </li>
-          ))}
-        </ol>
+        <SystemSteps insightId={insight.id} />
       </section>
       {insight.limitations.length > 0 ? (
         <section className="rounded-2xl bg-zinc-100 p-4">

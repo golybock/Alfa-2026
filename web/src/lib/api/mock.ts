@@ -4,12 +4,14 @@ import documentJson from "../../../fixtures/api/document.json";
 import documentsListJson from "../../../fixtures/api/documents-list.json";
 import feedCompanyBJson from "../../../fixtures/api/feed-company-b.json";
 import feedEmptyJson from "../../../fixtures/api/feed-empty.json";
+import feedFailedJson from "../../../fixtures/api/feed-failed.json";
 import feedPendingJson from "../../../fixtures/api/feed-pending.json";
 import feedReadyJson from "../../../fixtures/api/feed-ready.json";
 import insightCeoJson from "../../../fixtures/api/insight-ceo.json";
 import insightCompanyBCeoJson from "../../../fixtures/api/insight-company-b-ceo.json";
 import insightCompanyBJson from "../../../fixtures/api/insight-company-b.json";
 import insightNoBankJson from "../../../fixtures/api/insight-no-bank.json";
+import insightStepsJson from "../../../fixtures/api/insight-steps.json";
 import insightJson from "../../../fixtures/api/insight.json";
 import jobDoneJson from "../../../fixtures/api/job-done.json";
 import jobFailedJson from "../../../fixtures/api/job-failed.json";
@@ -25,13 +27,14 @@ import type {
   EvidenceDto,
   FeedResponse,
   InsightDto,
+  InsightStepsResponse,
   JobResponse,
   MeResponse,
 } from "../types/api";
 import type { Api } from "./client";
 import { ApiRequestError } from "./client";
 
-export type MockScenario = "pending" | "empty" | "no-bank" | "refusal" | "failed" | "chat-waiting" | "chat-failed" | "feed-1" | "feed-3" | "feed-5";
+export type MockScenario = "pending" | "empty" | "collection-failed" | "no-bank" | "refusal" | "failed" | "chat-waiting" | "chat-failed" | "feed-1" | "feed-3" | "feed-5";
 
 type MockCredentials = { login: string; password: string };
 
@@ -59,7 +62,7 @@ function currentScenario(): MockScenario | null {
     return null;
   }
   const value = new URLSearchParams(window.location.search).get("mock");
-  const known: MockScenario[] = ["pending", "empty", "no-bank", "refusal", "failed", "chat-waiting", "chat-failed", "feed-1", "feed-3", "feed-5"];
+  const known: MockScenario[] = ["pending", "empty", "collection-failed", "no-bank", "refusal", "failed", "chat-waiting", "chat-failed", "feed-1", "feed-3", "feed-5"];
   return known.find((scenario) => scenario === value) ?? null;
 }
 
@@ -140,6 +143,9 @@ function feedFor(companyId: string): FeedResponse {
   }
   if (scenario === "pending" && companyId === "U_DEMO_A") {
     return feedPendingJson as FeedResponse;
+  }
+  if (scenario === "collection-failed" && companyId === "U_DEMO_A") {
+    return feedFailedJson as FeedResponse;
   }
   const itemCount = scenario ? feedItemCounts[scenario] : undefined;
   if (itemCount && companyId === "U_DEMO_A") {
@@ -262,6 +268,13 @@ export const mockApi: Api = {
     return { state: "ready", data: answer };
   },
   sendFeedback: async (insightId) => {
+    findInsightById(insightId);
+  },
+  getInsightSteps: async (insightId) => {
+    findInsightById(insightId);
+    return { ...(insightStepsJson as InsightStepsResponse), insight_id: insightId };
+  },
+  recordActivity: async (insightId) => {
     findInsightById(insightId);
   },
   listDocuments: async () => {

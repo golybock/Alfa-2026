@@ -7,6 +7,7 @@ import type {
   EvidenceDto,
   FeedResponse,
   InsightDto,
+  InsightStepsResponse,
   JobResponse,
   MeResponse,
   PendingInsightResponse,
@@ -38,6 +39,8 @@ export const httpApi: Api = {
   askQuestion: (insightId, request) =>
     postOutcome<ChatAnswerDto, AcceptedResponse>(`/insights/${segment(insightId)}/chat`, request),
   sendFeedback: (insightId, request) => postEmpty(`/insights/${segment(insightId)}/feedback`, request),
+  getInsightSteps: (insightId) => getJson<InsightStepsResponse>(`/insights/${segment(insightId)}/steps`),
+  recordActivity: (insightId, request) => postEmpty(`/insights/${segment(insightId)}/activity`, request),
   listDocuments: () => getJson<DocumentListResponse>("/admin/documents"),
   getDocument: (documentId) => getJson<DocumentResponse>(`/admin/documents/${segment(documentId)}`),
   reviewPage: (documentId, pageNo, version, request) =>
