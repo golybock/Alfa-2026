@@ -19,5 +19,6 @@
         "cfo"
       ]
     }
-  ]
+  ],
+  "can_add_materials": true
 }

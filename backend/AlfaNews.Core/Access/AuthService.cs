@@ -86,7 +86,7 @@ public sealed class AuthService(AlfaNewsDbContext db, TimeProvider timeProvider)
                 group.Key.MainOkvedName is null ? group.Key.Id : $"{group.Key.Id} · {group.Key.MainOkvedName}",
                 group.Select(row => row.Role).Distinct().Order(StringComparer.Ordinal).Select(ParseRole).ToList()))
             .ToList();
-        return new MeResponse(user.Id.ToString(), user.DisplayName, user.IsOperator, companies);
+        return new MeResponse(user.Id.ToString(), user.DisplayName, user.IsOperator, companies, AccessService.CanAddMaterials(user));
     }
 
     private static Role ParseRole(string role) => role switch

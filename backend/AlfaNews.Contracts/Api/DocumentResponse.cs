@@ -10,5 +10,6 @@ public sealed record DocumentResponse(
 	string Version,
 	OcrStatus OcrStatus,
 	ReviewStatus ReviewStatus,
-	IReadOnlyList<DocumentPageDto> Pages
+	IReadOnlyList<DocumentPageDto> Pages,
+	bool LlmKeyRequired
 );

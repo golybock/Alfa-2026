@@ -9,6 +9,8 @@ namespace AlfaNews.Core.Ingest;
 
 public sealed record CollectSummary(string SourceId, int Collected, int Rejected, int Failed, int Skipped, string? Error);
 
+public sealed record ManualCollectResult(string Stage, string? ErrorCode = null);
+
 public sealed class CollectNewsService(AlfaNewsDbContext db, SafeFetcher fetcher, TimeProvider timeProvider,
     ILogger<CollectNewsService> logger)
 {
@@ -30,6 +32,67 @@ public sealed class CollectNewsService(AlfaNewsDbContext db, SafeFetcher fetcher
             summaries.Add(summary);
         }
         return summaries;
+    }
+
+    // Новость, добавленная пользователем по ссылке: важность 1 без фильтра заголовков, дата из статьи, иначе время загрузки.
+    // Уже собранная по RSS статья, отсеянная фильтром заголовков или ещё не проверенная, поднимается до важности 1.
+    public async Task<ManualCollectResult> CollectManualAsync(string sourceId, string url, CancellationToken cancellationToken)
+    {
+        var source = await db.SourceRows.AsNoTracking().SingleOrDefaultAsync(row => row.Id == sourceId && row.Enabled, cancellationToken);
+        var canonical = TryCanonical(url);
+        if (source is null || canonical is null)
+            return new ManualCollectResult("failed", "news_unavailable");
+        var existing = await db.NewsRawRows.SingleOrDefaultAsync(row => row.CanonicalUrl == canonical, cancellationToken);
+        if (existing is not null)
+        {
+            if (existing.Importance != 1 && (existing.Status == "queued"
+                || existing.Status == "rejected" && existing.RejectionReason is "headline_irrelevant" or "e5_clearly_unrelated"))
+            {
+                existing.Status = "queued";
+                existing.Importance = 1;
+                existing.RejectionReason = null;
+                await db.SaveChangesAsync(cancellationToken);
+                return new ManualCollectResult("collected");
+            }
+            return new ManualCollectResult("duplicate");
+        }
+
+        var fetchedAt = timeProvider.GetUtcNow();
+        ArticleContent article;
+        try
+        {
+            var page = await fetcher.GetAsync(canonical, ManualNewsService.Hosts(source), cancellationToken);
+            article = ArticleExtractor.Extract(page.Body, page.FinalUrl);
+        }
+        catch (FetchException exception)
+        {
+            logger.LogWarning("Ручная новость, источник {SourceId}: статья не загружена, {Code}.", source.Id, exception.Code);
+            return exception.Code == "empty_body" ? new ManualCollectResult("rejected", "news_empty") : new ManualCollectResult("failed", "news_unavailable");
+        }
+        if (ArticleExtractor.IsBoilerplateOnly(article.Text))
+            return new ManualCollectResult("rejected", "news_empty");
+        var published = (article.PublishedAt ?? fetchedAt).ToUniversalTime();
+        if (published < fetchedAt - NewsWindow || published > fetchedAt + ClockSkew)
+            return new ManualCollectResult("rejected", "news_outside_window");
+        var saved = await SaveAsync(new NewsRawEntity
+        {
+            Id = Guid.NewGuid(),
+            SourceId = source.Id,
+            CanonicalUrl = canonical,
+            Title = article.Title.Length > 0 ? article.Title : canonical,
+            Text = article.Text,
+            TextSha256 = TextNormalizer.Sha256(TextNormalizer.Normalize(article.Text)),
+            PublishedAt = published,
+            FetchedAt = fetchedAt,
+            Status = "queued",
+            Importance = 1
+        }, cancellationToken);
+        return saved switch
+        {
+            SaveResult.Saved => new ManualCollectResult("collected"),
+            SaveResult.Duplicate => new ManualCollectResult("duplicate"),
+            _ => new ManualCollectResult("failed", "news_unavailable")
+        };
     }
 
     private async Task<CollectSummary> CollectSourceAsync(SourceEntity source, CancellationToken cancellationToken)

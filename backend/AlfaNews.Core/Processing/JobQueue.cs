@@ -75,6 +75,9 @@ public sealed class JobQueue(AlfaNewsDbContext db, TimeProvider timeProvider)
             "llm_key_required" => new ApiError("llm_key_required", "Требуется ключ модели.", requestId),
             "budget_exhausted" or "budget_unknown_cost" => new ApiError("budget_exhausted", "Недостаточно доступного бюджета модели.", requestId),
             "llm_timeout" => new ApiError("processing_failed", "Модель не ответила вовремя.", requestId),
+            "news_unavailable" => new ApiError("news_unavailable", "Не удалось загрузить статью по ссылке.", requestId),
+            "news_empty" => new ApiError("news_empty", "На странице не найден текст статьи.", requestId),
+            "news_outside_window" => new ApiError("news_outside_window", "Новость старше семи дней и не попадёт в ленту.", requestId),
             _ => new ApiError("job_failed", "Не удалось выполнить задание.", requestId)
         };
         var safeResult = job.Status == "done" && job.ResultType is "insight" or "chat" or "document" or "feed";

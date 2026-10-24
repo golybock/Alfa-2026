@@ -21,11 +21,14 @@ DTO: [Api](../backend/AlfaNews.Contracts/Api), [api.ts](api.ts); общие по
 | POST /insights/{id}/activity | UserActivityRequest | 204, включая точный повтор | 400/401/403/404/409; доступ к карточке | A02 |
 | GET /insights/{id}/steps | без тела | 200 InsightStepsResponse | 401/403/404; 409 insight_not_prepared | ALF-59 |
 | GET /jobs/{id} | — | 200 JobResponse | 401/403/404; только владелец либо оператор | D09 |
-| POST /admin/documents | multipart: file PDF; title string; published_on YYYY-MM-DD или пусто; source_url URL или пусто | 202 DocumentAcceptedResponse | 400/401/403/413/415 | D10 |
-| GET /admin/documents | — | 200 DocumentListResponse, включая стартовые 9 документов | 401/403 | D10 |
-| GET /admin/documents/{id} | — | 200 DocumentResponse | 401/403/404 | D10 |
+| POST /admin/documents | multipart: file PDF; title string; published_on YYYY-MM-DD или пусто; source_url URL или пусто | 202 DocumentAcceptedResponse | 400/401/403/413/415; оператор или `can_add_materials` | D10 |
+| GET /admin/documents | — | 200 DocumentListResponse, включая стартовые 9 документов | 401/403; оператор или `can_add_materials` | D10 |
+| GET /admin/documents/{id} | — | 200 DocumentResponse | 401/403/404; оператор или `can_add_materials` | D10 |
 | POST /admin/documents/{id}/pages/{pageNo}/review | PageReviewRequest | 202 ReviewAcceptedResponse | 400/401/403/404/409 | D10 |
 | POST /admin/jobs/{id}/retry | без тела | 202 AcceptedResponse | 400/401/403/404/409 | D10 |
+| POST /admin/news | ManualNewsRequest | 202 AcceptedResponse | 400/401/403; оператор или `can_add_materials` | D17 |
+
+Материалы (25.10, страница «Добавить материал» макета 03): `MeResponse.can_add_materials` — true у операторов и учётки `demo`; аналитика банка общая для всех компаний, поэтому учёткам отдельных компаний загрузка закрыта (403). Такие пользователи видят и страницы загруженных PDF (`GET /research/{id}/pages/{n}`) без ссылки из своей карточки. Проверка страниц PDF (`.../review`) и повтор заданий — только оператор. В `DocumentSummaryDto` `uploaded_at` — время добавления документа, `uploaded_by_me` — документ загружен текущим пользователем (фильтр «Ваши загрузки»). `llm_key_required` в `DocumentSummaryDto` и `DocumentResponse` — документ failed, и все его страницы не распознаны только потому, что не задан ключ модели («Ждёт ключа модели»); у такой страницы `error` объясняет, что после настройки ключа нужен повтор задания. Это отдельный флаг, `ocr_status` прежний (`failed`), чтобы не менять перечисление статусов на фронте.
 
 `200` означает готовый результат. `202` означает принятую работу, не готовый анализ. `GET` не ставит новые LLM-задания; если карточки нет, возвращается 404 `insight_not_prepared`, сайт может вызвать POST один раз по действию пользователя. При failed POST ставит повтор (202), всего не больше трёх попыток на карточку (первая и два повтора), дальше 409 `analysis_failed`; `feed.items[].retry_available` говорит, показывать ли кнопку «Повторить». GET для failed по-прежнему отвечает 409 `analysis_failed`. Нет бесконечного автоматического перезапуска из GET/рендера.
 
@@ -62,8 +65,7 @@ Review: только существующие chunk_id/chart local_id данно
 | GET /admin/usage?date=YYYY-MM-DD | OperatorUsageResponse, сутки Europe/Moscow; если date нет — текущие | D15 |
 | GET /admin/config | ModelConfigResponse, только выбранные модели/режимы/лимиты, без ключа и .env | D15 |
 | GET /admin/sources | OperatorSourcesResponse, только список/последний статус | D15 |
-| POST /admin/news | ManualNewsRequest → 202 AcceptedResponse | D17 |
 
 Все endpoints требуют оператора. В D15 не входит runtime-редактор источников: в хакатоне добавление проходит через проверенный sources.json и обычный reload/restart. Редактор источников/документов не означает редактирование серверных секретов.
 
-ManualNewsRequest: source_id существующего источника; либо url (title/text/published_at=null, загружаем разрешённую статью), либо text+title+published_at с url=null. Текст до 100 000 символов, заголовок до 300; дата обязательна для ручного текста, окно то же. CollectManualNewsJob сохраняет CollectedNews/news_raw и вызывает обычный ParseNews, не создаёт insight вручную. Недоступный/неразрешённый URL — 400, а не обход allowlist.
+ManualNewsRequest (D17, сделано 25.10): обязателен `url` статьи с сайта включённого источника, `source_id` необязателен — без него источник подбирается по хосту ссылки. `title`, `text`, `published_at` не используются: ручной текст без ссылки не принимается, у новости должен быть первоисточник. Ссылка не с сайта источника — 400 со списком допустимых сайтов, allowlist не обходится. Статью загружает `CollectManualNews` в Worker: сохраняет `news_raw` с важностью 1 (без фильтра заголовков) и ставит обычный разбор, карточку вручную не создаёт; дата — из статьи, иначе время загрузки. JobResponse: done со stage `collected` или `duplicate` (статья уже была в базе; отсеянная фильтром заголовков поднимается до важности 1 и считается `collected`); failed с ошибкой `news_unavailable` (страница не загрузилась), `news_empty` (нет текста статьи) или `news_outside_window` (старше семи дней). Новость появится в ленте после разбора и следующего обновления ленты, если пройдёт отбор для компании.
