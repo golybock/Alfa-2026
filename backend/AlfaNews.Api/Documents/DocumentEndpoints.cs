@@ -18,7 +18,7 @@ public static class DocumentEndpoints
 {
     public static void MapDocumentEndpoints(this WebApplication app)
     {
-        // Загрузка и список материалов открыты операторам и демо-учётке (AccessService.CanAddMaterials), проверка страниц — только оператору.
+        // Загрузка и список материалов открыты всем вошедшим (AccessService.CanAddMaterials, демонстрация), проверка страниц — только оператору.
         var group = app.MapGroup("/api/admin/documents").RequireAuthorization();
         group.MapPost("", async (HttpContext http, AccessService access, PdfRegistration registration, CancellationToken cancellationToken) =>
         {
@@ -127,6 +127,12 @@ public static class DocumentEndpoints
             await access.RequireMaterialsAsync(user, cancellationToken);
             var job = await news.EnqueueAsync(request, user.UserId, cancellationToken);
             return Results.Accepted($"/api/jobs/{job.Id}", new AcceptedResponse(job.Id.ToString(), $"/api/jobs/{job.Id}"));
+        }).RequireAuthorization();
+        app.MapGet("/api/admin/news", async (HttpContext http, AccessService access, ManualNewsService news, CancellationToken cancellationToken) =>
+        {
+            var user = SessionAuthenticationHandler.CurrentUser(http.User);
+            await access.RequireMaterialsAsync(user, cancellationToken);
+            return await news.ListAsync(user.UserId, http.TraceIdentifier, cancellationToken);
         }).RequireAuthorization();
         app.MapGet("/api/research/{id:guid}/pages/{pageNo:int}", async (Guid id, int pageNo, HttpContext http, AccessService access,
             AlfaNewsDbContext db, PdfOptions options, PdfTools tools, CancellationToken cancellationToken) =>
