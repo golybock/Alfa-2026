@@ -75,7 +75,7 @@
 	{
 		"id": "cbr-press",
 		"name": "Банк России (пресс-релизы)",
-		"feed_url": "https://www.cbr.ru/RSSMain/",
+		"feed_url": "https://www.cbr.ru/rss/RssPress",
 		"kind": "official",
 		"rubric": "government",
 		"publisher": "Банк России",
@@ -83,11 +83,11 @@
 			"www.cbr.ru",
 			"cbr.ru"
 		],
-		"enabled": false,
+		"enabled": true,
 		"poll_seconds": 3600,
 		"reliability": 1,
-		"validation_status": "rejected",
-		"checked_at": null,
-		"selection_reason": "RSS-ленты не обнаружены: страница подписок RSSMain отдаёт 404"
+		"validation_status": "checked",
+		"checked_at": "2026-10-24T17:10:00+03:00",
+		"selection_reason": "проверено: RSS пресс-релизов с cbr.ru/development/RSS/ (RssMain давал 404), 14 записей, в том числе решение по ключевой ставке 23.10; текст статей извлекается; служебные релизы (отзыв лицензий) отсеивает фильтр заголовков"
 	}
 ]
