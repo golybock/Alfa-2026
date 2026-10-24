@@ -33,6 +33,9 @@ public sealed class InsightAgentDatabaseTests(PostgresFixture fixture) : IClassF
         Assert.Equal(0, card.Verification.RepairCount);
         Assert.All(card.Claims, claim => Assert.Equal(ClaimVerification.CriticPassed, claim.VerificationStatus));
         Assert.Contains(card.Evidence.Values, evidence => evidence.Type == EvidenceType.BankResearch);
+        // Непроверенные обзоры найдены, но карточка на них не ссылается: отметки о них на экране нет.
+        Assert.DoesNotContain(AgentTools.UnreviewedBankText, card.Limitations);
+        Assert.DoesNotContain(card.Limitations, item => item.StartsWith("Текст обзора банка", StringComparison.Ordinal));
         Assert.Contains(card.Evidence.Values, evidence => evidence.Type == EvidenceType.CompanyFeature && evidence.Key == "products");
         Assert.Equal(1, card.Relevance.Rank);
         Assert.Equal(2, client.Plans);
@@ -98,6 +101,8 @@ public sealed class InsightAgentDatabaseTests(PostgresFixture fixture) : IClassF
         var salvagedCard = AccessService.ReadReadyInsight(ready);
         Assert.Equal(["C1", "C3"], salvagedCard.Claims.Select(claim => claim.Id));
         Assert.Equal(["C3"], salvagedCard.Actions);
+        // Ограничения формирует код: строка модели из черновика на экран не попадает.
+        Assert.DoesNotContain("Условия кредитного договора неизвестны.", salvagedCard.Limitations);
         Assert.Equal(1, salvaged.Critics);
         Assert.Equal(0, salvaged.Repairs);
 

@@ -22,5 +22,10 @@ public sealed record InsightDto(
 	string TraceId,
 	VerificationDto Verification,
 	[property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-	ForecastDto? Forecast = null
+	ForecastDto? Forecast = null,
+	ConsequenceType? Direction = null,
+	DateTimeOffset? NewsPeriodFrom = null,
+	DateTimeOffset? NewsPeriodTo = null,
+	IReadOnlyList<CompanyTraitDto>? CompanyTraits = null,
+	DateOnly? BankDataAsOf = null
 );

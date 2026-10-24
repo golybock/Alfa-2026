@@ -123,8 +123,14 @@ public sealed class AccessService(AlfaNewsDbContext db, TimeProvider timeProvide
             throw new AccessException(409, "insight_not_prepared", "Карточка ещё не готова.");
         var body = insight.BodyJson.Value.Deserialize<InsightDto>(JsonOptions)
             ?? throw new InvalidOperationException("Сохранённая карточка не содержит данных.");
-        // Значимость считается кодом по base и у карточек, сохранённых до появления поля.
-        return body with { Relevance = body.Relevance with { Significance = FeedRanking.SignificanceOf(body.Relevance) } };
+        // Значимость, направление и период считаются кодом из сохранённой карточки, в том числе у карточек до появления полей.
+        return body with
+        {
+            Relevance = body.Relevance with { Significance = FeedRanking.SignificanceOf(body.Relevance) },
+            Direction = FeedService.DirectionOf(body),
+            NewsPeriodFrom = body.NewsPeriodFrom ?? FeedRanking.WindowStart(body.AsOf),
+            NewsPeriodTo = body.NewsPeriodTo ?? body.AsOf
+        };
     }
 
     public static string RoleName(Role role) => role switch

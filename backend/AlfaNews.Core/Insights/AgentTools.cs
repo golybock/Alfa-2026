@@ -48,6 +48,9 @@ public sealed record AgentScope(CompanyProfile Company, NewsExtraction News, Gui
 
 public sealed class AgentTools(AlfaNewsDbContext db, ResearchSearch research, NewsSearch newsSearch)
 {
+    // Подсказка модели при поиске обзоров; на экран карточки не попадает — там отметку ставит код, если обзор процитирован.
+    public const string UnreviewedBankText = "Фрагменты аналитики банка распознаны автоматически и не проверены вручную.";
+
     public const string EventTool = "get_event";
     public const string BankSearch = "search_bank_research";
     public const string SimilarNews = "search_similar_news";
@@ -143,7 +146,7 @@ public sealed class AgentTools(AlfaNewsDbContext db, ResearchSearch research, Ne
                         hit.ReviewedCharts.Count > 0 ? JsonSerializer.SerializeToElement(hit.ReviewedCharts, JsonOptions) : null, null,
                         hit.ReviewStatus, false, null, $"/api/research/{hit.DocumentId}/pages/{hit.PageNo}")));
                 if (found.Any(hit => hit.ReviewStatus != ReviewStatus.Reviewed))
-                    limitations.Add("Фрагменты аналитики банка распознаны автоматически и не проверены вручную.");
+                    limitations.Add(UnreviewedBankText);
                 if (found.Count == 0)
                     limitations.Add("Подходящих материалов аналитики банка по теме события не найдено.");
                 summary = $"Найдено фрагментов аналитики банка: {found.Count}.";

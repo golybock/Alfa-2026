@@ -1,9 +1,11 @@
+using System.Text.Json;
 using AlfaNews.Contracts.Api;
 using AlfaNews.Contracts.Domain;
 using AlfaNews.Contracts.Processing;
 using AlfaNews.Core.Access;
 using AlfaNews.Core.Data;
 using AlfaNews.Core.Data.Entities;
+using AlfaNews.Core.Llm;
 using AlfaNews.Core.Processing;
 using Microsoft.EntityFrameworkCore;
 
@@ -33,7 +35,7 @@ public sealed class InsightService(AlfaNewsDbContext db, AccessService access, J
         }
         return current.Status switch
         {
-            "ready" => new InsightReadResult(AccessService.ReadReadyInsight(current), null),
+            "ready" => new InsightReadResult(await WithCompanyAsync(AccessService.ReadReadyInsight(current), cancellationToken), null),
             "failed" => throw AnalysisFailed(),
             _ => new InsightReadResult(null, new PendingInsightResponse(
                 Enum.Parse<AnalysisStatus>(current.Status, true),
@@ -46,13 +48,30 @@ public sealed class InsightService(AlfaNewsDbContext db, AccessService access, J
     {
         var (eventGuid, current) = await FindAsync(user, companyId, eventId, role, cancellationToken);
         if (current?.Status == "ready")
-            return new InsightEnsureResult(AccessService.ReadReadyInsight(current), null);
+            return new InsightEnsureResult(await WithCompanyAsync(AccessService.ReadReadyInsight(current), cancellationToken), null);
         if (current?.Status == "failed")
             await PrepareRetryAsync(current, cancellationToken);
         var inputVersion = current?.InputVersion ?? await EventInputVersionAsync(eventGuid, cancellationToken);
         var job = await jobs.EnqueueAsync(new GenerateInsightJob(companyId, eventId, role, inputVersion), user.UserId,
             companyId, cancellationToken);
         return new InsightEnsureResult(null, new AcceptedResponse(job.Id.ToString(), $"/api/jobs/{job.Id}"));
+    }
+
+    // Полоска признаков компании и дата данных банка о клиенте (сборка профиля) берутся из текущих профилей.
+    public async Task<InsightDto> WithCompanyAsync(InsightDto insight, CancellationToken cancellationToken)
+    {
+        var profile = await db.CompanyProfileRows.AsNoTracking().Where(row => row.CompanyId == insight.CompanyId)
+            .Select(row => new { row.ProfileJson, row.UpdatedAt }).SingleOrDefaultAsync(cancellationToken);
+        if (profile is null)
+            return insight;
+        var company = profile.ProfileJson.Deserialize<CompanyProfile>(LlmOutputValidator.JsonOptions)!;
+        var group = company.GroupId is null ? null : await db.GroupProfileRows.AsNoTracking().Where(row => row.GroupId == company.GroupId)
+            .Select(row => (JsonElement?)row.ProfileJson).SingleOrDefaultAsync(cancellationToken);
+        return insight with
+        {
+            CompanyTraits = CompanyTraits.Build(insight.Relevance, company, group?.Deserialize<GroupProfile>(LlmOutputValidator.JsonOptions)),
+            BankDataAsOf = DateOnly.FromDateTime(profile.UpdatedAt.ToOffset(TimeSpan.FromHours(3)).DateTime)
+        };
     }
 
     private async Task<(Guid EventId, InsightEntity? Current)> FindAsync(UserContext user, string companyId,
