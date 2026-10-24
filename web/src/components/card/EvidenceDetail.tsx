@@ -52,7 +52,7 @@ export default function EvidenceDetail({ id, evidence, limitations }: EvidenceDe
         <section className="flex flex-col gap-2 text-sm">
           <h4 className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">Материал банка</h4>
           <p>{evidence.page ? `Страница ${evidence.page}` : "Страница не указана"}</p>
-          {evidence.review_status ? <p>{reviewStatusLabels[evidence.review_status]}</p> : null}
+          {evidence.review_status && evidence.review_status !== "not_reviewed" ? <p>{reviewStatusLabels[evidence.review_status]}</p> : null}
           {evidence.approximate ? <p className="text-orange-700">Значение снято с графика, приблизительно</p> : null}
           {pageImage ? (
             <>

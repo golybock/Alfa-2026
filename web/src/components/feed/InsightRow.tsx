@@ -14,7 +14,7 @@ export default function InsightRow({ item }: InsightRowProps) {
       <div className="min-w-0">
         <RankBadge rank={item.relevance.rank} />
         <h2 className="mt-3 text-base font-semibold">{item.headline}</h2>
-        <p className="mt-1 text-sm text-zinc-600">{item.summary}</p>
+        <p className="mt-1 line-clamp-1 text-sm text-zinc-600">{item.summary}</p>
         {item.relevance.reasons.length > 0 ? (
           <p className="mt-2 text-xs text-zinc-500">
             Почему вы:{" "}

@@ -8,7 +8,7 @@ import EvidenceRefButton from "../ui/EvidenceRefButton";
 
 function unreviewedStatus(claim: ClaimDto, evidence: Readonly<Record<string, EvidenceDto>>): ReviewStatus | null {
   const statuses = claim.refs.map((ref) => evidence[ref]?.review_status ?? null);
-  return statuses.find((status) => status === "not_reviewed" || status === "partially_reviewed") ?? null;
+  return statuses.find((status) => status === "partially_reviewed") ?? null;
 }
 
 type ClaimRowProps = { claim: ClaimDto; evidence: Readonly<Record<string, EvidenceDto>> };
