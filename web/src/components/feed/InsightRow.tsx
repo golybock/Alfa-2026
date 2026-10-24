@@ -1,10 +1,9 @@
-import Link from "next/link";
 import { formatDate } from "../../lib/dates";
-import { ANALYTICS_HREF } from "../../lib/navigation";
 import type { FeedItemDto, Role } from "../../lib/types/api";
 import Icon from "../ui/Icon";
 import ImpactBadge from "../ui/ImpactBadge";
 import KindBadge from "../ui/KindBadge";
+import OpenInsightLink from "./OpenInsightLink";
 import PendingAnalysisNote from "./PendingAnalysisNote";
 
 type InsightRowProps = { item: FeedItemDto; companyId: string; role: Role };
@@ -16,7 +15,7 @@ export default function InsightRow({ item, companyId, role }: InsightRowProps) {
   const insightHeadline = item.insight_headline ?? null;
 
   return (
-    <li className="flex items-stretch justify-between gap-6 rounded-2xl bg-white px-5 py-4">
+    <li className="flex items-stretch justify-between gap-6 rounded-2xl bg-white px-5 py-4 transition-shadow duration-150 hover:shadow-md">
       <div className="min-w-0">
         {direction || significance || topic ? (
           <div className="flex flex-wrap items-center gap-2">
@@ -54,12 +53,7 @@ export default function InsightRow({ item, companyId, role }: InsightRowProps) {
           </time>
         </p>
         {item.analysis_status === "ready" ? (
-          <Link
-            href={`${ANALYTICS_HREF}/${item.event_id}`}
-            className="flex h-11 items-center rounded-xl border border-zinc-200 px-6 text-sm font-medium transition-colors hover:bg-zinc-50"
-          >
-            Открыть
-          </Link>
+          <OpenInsightLink companyId={companyId} eventId={item.event_id} role={role} />
         ) : (
           <PendingAnalysisNote item={item} companyId={companyId} role={role} />
         )}

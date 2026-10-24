@@ -13,6 +13,7 @@ import EmptyFeed from "./EmptyFeed";
 import FeedFilterTabs from "./FeedFilterTabs";
 import FeedHeader from "./FeedHeader";
 import FeedNotice from "./FeedNotice";
+import FeedSkeleton from "./FeedSkeleton";
 import FeedProgress from "./FeedProgress";
 import InsightRow from "./InsightRow";
 
@@ -137,7 +138,7 @@ export default function InsightsFeed({ companyId, companyName, role }: InsightsF
           />
         ) : null}
         {generating ? <FeedProgress companyName={companyName} /> : null}
-        {feed.isPending ? <p className="rounded-2xl bg-white p-5 text-sm text-zinc-500">Загружаем ленту…</p> : null}
+        {feed.isPending ? <FeedSkeleton /> : null}
         {feed.isError ? (
           <div role="alert" className="rounded-2xl bg-white p-5 text-sm">
             <p className="text-alfa">Не удалось загрузить ленту: {describeError(feed.error)}</p>

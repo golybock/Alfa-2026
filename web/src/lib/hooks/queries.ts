@@ -5,6 +5,7 @@ import type { ChatRequest, FeedbackRequest, Role, UserActivityRequest } from "..
 
 const FEED_POLL_MS = 120_000;
 const JOB_POLL_MS = 3_000;
+const PREFETCH_STALE_MS = 30_000;
 
 export const queryKeys = {
   job: (jobId: string) => ["job", jobId] as const,
@@ -33,6 +34,16 @@ export function useInsight(companyId: string, eventId: string, role: Role) {
     queryKey: queryKeys.insight(companyId, eventId, role),
     queryFn: () => api.getInsight(companyId, eventId, role),
   });
+}
+
+export function usePrefetchInsight(companyId: string, eventId: string, role: Role) {
+  const queryClient = useQueryClient();
+  return () =>
+    queryClient.prefetchQuery({
+      queryKey: queryKeys.insight(companyId, eventId, role),
+      queryFn: () => api.getInsight(companyId, eventId, role),
+      staleTime: PREFETCH_STALE_MS,
+    });
 }
 
 export function useChatHistory(insightId: string) {
