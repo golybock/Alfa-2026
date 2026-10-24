@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { formatDateNumeric } from "../../lib/dates";
+import { formatDateNumeric, formatDateWithYear, formatPeriod } from "../../lib/dates";
 import { ANALYTICS_HREF } from "../../lib/navigation";
 import type { InsightDto } from "../../lib/types/api";
 import Icon from "../ui/Icon";
 import ImpactBadge from "../ui/ImpactBadge";
+import KindBadge from "../ui/KindBadge";
 import RoleSwitch from "../ui/RoleSwitch";
 import FeedbackButtons from "./FeedbackButtons";
 
@@ -15,6 +16,8 @@ export default function InsightCardHeader({ insight, onOpenChat }: InsightCardHe
   const firstFact = insight.claims.find((claim) => claim.id === insight.what_happened[0]);
   const newsSource =
     firstFact?.refs.map((ref) => insight.evidence[ref]).find((item) => item?.type === "news" && item.url) ?? null;
+  const periodFrom = insight.news_period_from ?? null;
+  const periodTo = insight.news_period_to ?? null;
 
   return (
     <header className="rounded-2xl bg-white p-5">
@@ -25,11 +28,17 @@ export default function InsightCardHeader({ insight, onOpenChat }: InsightCardHe
               <Icon name="chevronLeft" className="h-3.5 w-3.5" />
               Все инсайты
             </Link>
+            {insight.direction ? <KindBadge kind={insight.direction} /> : null}
             {insight.relevance.significance ? <ImpactBadge significance={insight.relevance.significance} /> : null}
             {insight.verification.critic.status.startsWith("skipped_") ? (
               <p className="flex h-6 items-center gap-1 rounded-lg bg-amber-50 px-2 text-xs font-medium text-orange-700">
                 <Icon name="info" className="h-3.5 w-3.5" />
                 Без проверки критиком
+              </p>
+            ) : null}
+            {periodFrom && periodTo ? (
+              <p className="text-xs text-zinc-500">
+                Период анализа: {formatPeriod(periodFrom, periodTo)} {formatDateWithYear(periodTo).split(" ").at(-1)}
               </p>
             ) : null}
           </div>
