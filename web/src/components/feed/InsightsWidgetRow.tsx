@@ -22,7 +22,7 @@ export default function InsightsWidgetRow({ item }: InsightsWidgetRowProps) {
       >
         <RankBadge rank={item.relevance.rank} />
         <p className="flex-1 text-sm font-medium">{item.headline}</p>
-        <p className="w-64 text-xs text-zinc-500">{note}</p>
+        <p className="line-clamp-1 w-64 shrink-0 text-xs text-zinc-500">{note}</p>
         <Icon name="send" className="h-4 w-4" />
       </Link>
     </li>

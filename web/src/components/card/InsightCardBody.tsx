@@ -71,7 +71,12 @@ export default function InsightCardBody({ insight }: InsightCardBodyProps) {
             ) : (
               <>
                 <ClaimList ids={insight.actions} claims={claims} evidence={insight.evidence} />
-                <button type="button" className="mt-4 h-10 rounded-xl bg-zinc-100 px-4 text-sm font-medium hover:bg-zinc-200">
+                <button
+                  type="button"
+                  disabled
+                  title="Пока недоступно"
+                  className="mt-4 h-10 cursor-not-allowed rounded-xl bg-zinc-100 px-4 text-sm font-medium opacity-50"
+                >
                   Связаться с менеджером
                 </button>
               </>

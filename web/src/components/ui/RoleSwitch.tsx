@@ -13,18 +13,17 @@ export default function RoleSwitch() {
   return (
     <div
       role="group"
-      aria-label="Демо: роль"
-      className="flex h-11 items-center gap-1 rounded-xl border border-dashed border-blue-600 px-2"
+      aria-label="Роль"
+      className="flex h-8 shrink-0 items-center gap-0.5 rounded-lg bg-zinc-200/60 p-0.5"
     >
-      <p className="px-1 text-xs text-blue-700">Демо · роль</p>
       {active.company.roles.map((role) => (
         <button
           key={role}
           type="button"
           aria-pressed={role === active.context.role}
           onClick={() => selectContext({ companyId: active.company.company_id, role })}
-          className={`h-8 rounded-lg px-3 text-xs font-medium ${
-            role === active.context.role ? "bg-zinc-900 text-white" : "text-zinc-900 hover:bg-zinc-100"
+          className={`h-7 rounded-md px-2.5 text-xs font-medium ${
+            role === active.context.role ? "bg-zinc-900 text-white" : "text-zinc-700 hover:bg-zinc-100"
           }`}
         >
           {roleShortLabels[role]}
