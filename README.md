@@ -6,7 +6,7 @@
 Copy-Item .env.example .env
 ```
 
-В локальном `.env` замените `POSTGRES_PASSWORD` на свой пароль. `POSTGRES_USER` и `POSTGRES_DB` можно оставить как в примере. Не публикуйте `.env`. Это учётные данные PostgreSQL, а не логин пользователя сайта. По умолчанию включён MockLlm; ключ модели для запуска не нужен.
+В локальном `.env` замените `POSTGRES_PASSWORD` на свой пароль. `POSTGRES_USER` и `POSTGRES_DB` можно оставить как в примере. Не публикуйте `.env`. Это учётные данные PostgreSQL, а не логин пользователя сайта. По умолчанию выключён MockLlm; ключ модели для запуска нужен.
 
 ```powershell
 docker compose up -d --build
@@ -32,6 +32,58 @@ docker compose up -d --build
 | `U_258515` | `password` | ЛПР | только эта компания, роли CEO и CFO |
 
 Учётки по id компании создаются для каждой компании из `FEED_COMPANY_IDS` в `.env`. Каждый перезапуск Worker сбрасывает пароли этих учёток на `password`. Подробнее — [вход и учётки](docs/d04-auth.md).
+
+## Переменные окружения
+
+Скопируйте `.env.example` в `.env`. В примере только основные переменные; остальные необязательны, у них есть значения по умолчанию в `compose.yaml` и коде. Чтобы изменить, добавьте строку в `.env`.
+
+### Основные (есть в `.env.example`)
+
+| Переменная | Назначение |
+| --- | --- |
+| `HTTP_PORT` | Порт сайта (по умолчанию 8080). |
+| `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` | База и пользователь PostgreSQL. Значения в `.env.example` фиксированные, менять их для проверки не нужно; пароль задаётся при первом создании volume. |
+| `LLM_BASE_URL`, `LLM_API_KEY` | Адрес шлюза модели и ключ для живой модели. |
+| `FEED_COMPANY_IDS` | Компании ленты; для каждой Worker создаёт учётку с логином = id компании. |
+| `LLM_DAILY_LIMIT_RUB` | Дневной лимит расходов стенда на модель, ₽ (сутки с 03:00 МСК). Задания сверх лимита завершаются `budget_exhausted` и повторяются вручную. Ключ общий на команду: Worker дополнительно сверяется с расходом и лимитом ключа на шлюзе (`/key/info`). |
+
+### Дополнительные
+
+| Переменная | По умолчанию | Назначение |
+| --- | --- | --- |
+| `LLM_USE_MOCK` | `false` | `false` — живая модель (нужны `LLM_BASE_URL` и `LLM_API_KEY`); `true` — модель не вызывается (MockLlm), ключ не нужен. |
+| `PUBLIC_ORIGIN` | `http://localhost:HTTP_PORT` | Внешний адрес сайта за шлюзом; с него API принимает изменяющие запросы (Origin). |
+| `LLM_TRIAGE_MODEL` | `deepseek/deepseek-v4.1-flash` | Модель фильтра заголовков новостей. |
+| `LLM_EXTRACT_MODEL` | `deepseek/deepseek-v4.1-flash` | Разбор новости в факты. |
+| `LLM_AGENT_MODEL` | `deepseek/deepseek-v4.1-flash` | Агент карточки: план и черновик. |
+| `LLM_REPAIR_MODEL` | `deepseek/deepseek-v4.1-flash` | Починка ответов (кроме фильтра и разбора — они чинятся своей моделью). |
+| `LLM_CRITIC_MODEL` | `z-ai/glm-5.3-flash` | Критик карточки. |
+| `LLM_OCR_MODEL` | `z-ai/glm-5.3-flash` | Распознавание PDF (нужна модель, принимающая изображения). |
+| `LLM_CHAT_MODEL` | `deepseek/deepseek-v4.1-flash` | Ответы чата по карточке. |
+| `LLM_SCOPE_GATE_MODEL` | `deepseek/deepseek-v4.1-flash` | Проверка, что вопрос чата по теме. |
+| `LLM_THINKING_ENABLED` | `true` | Рассуждения включены у всех задач, кроме фильтра заголовков; у GLM-5.3-Flash они принудительные. |
+| `LLM_EXTRACT_THINKING_ENABLED` | `true` | Рассуждения при разборе новости. |
+| `LLM_GLM_REASONING_LEVEL` | `low` | Уровень рассуждений GLM. |
+| `LLM_STRUCTURED_OUTPUT` | `true` | Структурированный ответ модели (`response_format`). |
+| `CRITIC_ENABLED` | `true` | Включить критика карточки. |
+| `CRITIC_SCOPE` | `all_full` | На каких карточках работает критик. |
+| `FEED_MODE` | `live` | `live` — живая лента; `demo` — снимок, заранее посчитанный командой Worker `precompute-demo`. |
+| `FEED_REFRESH_INTERVAL_SECONDS` | `86400` | Интервал обновления ленты. |
+| `RANKING_MIN_BASE` | `0.30` | Порог базовой оценки события для ленты. |
+| `RANKING_MIN_SCORE` | `0.15` | Порог итоговой оценки события для ленты. |
+| `QUEUE_NEWS_SLOTS` | `4` | Исполнители полосы новостей (1–16). |
+| `QUEUE_DOCUMENTS_SLOTS` | `3` | Исполнители полосы документов (1–16). |
+| `QUEUE_INSIGHTS_SLOTS` | `2` | Исполнители полосы карточек (1–16). |
+| `QUEUE_CHAT_SLOTS` | `2` | Исполнители полосы чата (1–16). |
+| `LLM_MAX_PARALLEL_REQUESTS` | `8` | Общий предел одновременных запросов к модели (1–16). |
+| `LLM_DEEPSEEK_INPUT_ESTIMATE_RUB_PER_MILLION` | `55` | Оценка цены входа DeepSeek для резерва бюджета до ответа, ₽ за 1 млн токенов. |
+| `LLM_DEEPSEEK_OUTPUT_ESTIMATE_RUB_PER_MILLION` | `100` | То же для выхода DeepSeek. |
+| `LLM_GLM_INPUT_ESTIMATE_RUB_PER_MILLION` | `22` | То же для входа GLM. |
+| `LLM_GLM_OUTPUT_ESTIMATE_RUB_PER_MILLION` | `50` | То же для выхода GLM. |
+| `POSTGRES_HOST`, `POSTGRES_PORT` | `127.0.0.1`, `15432` | Только для запуска API и Worker без Docker (`dotnet run`): адрес PostgreSQL на хосте. |
+| `Embeddings__BaseUrl` | `http://127.0.0.1:18081` | Только без Docker: адрес сервиса векторов на хосте. |
+
+Модели задаются полными именами шлюза. Разрешены: `deepseek/deepseek-v4.1-flash`, `z-ai/glm-5.3-flash`, `google/gemma-4-26b-a4b-it`, `qwen/qwen3.6-35b-a3b`, `qwen/qwen3-vl-30b-a3b-instruct`, `moonshotai/kimi-k2.6`; другое Worker не запустит. Полоса `data` всегда последовательная; карточки CEO и CFO одного события не идут одновременно: вторая ждёт общий план.
 
 ## Пересборка с нуля
 

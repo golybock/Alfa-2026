@@ -80,7 +80,7 @@ export default function UploadCard({ disabled }: UploadCardProps) {
         ) : (
           <>
             <p className="text-sm font-medium">Перетащите PDF сюда или выберите файл</p>
-            <p className="text-xs text-zinc-500">PDF-скан, до 50 МБ и до 50 страниц</p>
+            <p className="text-xs text-zinc-500">PDF-скан, до 50 МБ и до 10 страниц</p>
             <button
               type="button"
               disabled={disabled}

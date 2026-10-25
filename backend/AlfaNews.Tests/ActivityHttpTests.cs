@@ -50,10 +50,12 @@ public sealed class ActivityHttpTests(PostgresFixture fixture) : IClassFixture<P
         await FailQuestionsAsync();
         await using (var db = fixture.CreateDb())
             Assert.Equal(1, await db.UserActivityRows.CountAsync(row => row.UserId == fixture.UserId && row.Kind == "chat_question_accepted"));
+        Assert.Equal(HttpStatusCode.Accepted, await SendAsync(client, chat, Question("Почему это важно?"), fixture.Token, Origin));
+        await RefuseQuestionsAsync();
         for (var question = 2; question <= 10; question++)
         {
             Assert.Equal(HttpStatusCode.Accepted, await SendAsync(client, chat, Question($"Вопрос {question}"), fixture.Token, Origin));
-            await FailQuestionsAsync();
+            await RefuseQuestionsAsync();
         }
         Assert.Equal(HttpStatusCode.TooManyRequests, await SendAsync(client, chat, Question("Одиннадцатый"), fixture.Token, Origin));
         var history = await GetJsonAsync(client, chat, fixture.Token);
@@ -89,12 +91,23 @@ public sealed class ActivityHttpTests(PostgresFixture fixture) : IClassFixture<P
 
     private static string Question(string text) => JsonSerializer.Serialize(new { question = text });
 
-    // Без Worker вопрос остаётся в очереди; отказ освобождает место для следующего, но засчитывается в лимит.
+    // Без Worker вопрос остаётся в очереди. Сбой освобождает место и не засчитывается в лимит, отказ засчитывается.
     private async Task FailQuestionsAsync()
     {
         await using var db = fixture.CreateDb();
-        await db.ChatMessageRows.Where(row => row.UserId == fixture.UserId)
+        await db.ChatMessageRows.Where(row => row.UserId == fixture.UserId && row.Status == "queued")
             .ExecuteUpdateAsync(update => update.SetProperty(row => row.Status, "failed"));
+    }
+
+    private async Task RefuseQuestionsAsync()
+    {
+        await using var db = fixture.CreateDb();
+        await db.Database.ExecuteSqlInterpolatedAsync($$"""
+            UPDATE chat_message SET status = 'ready', answer_json = jsonb_build_object('id', id::text, 'insight_id', insight_id::text,
+                'status', 'refusal', 'answer', null, 'claims', '[]'::jsonb, 'evidence', '{}'::jsonb, 'missing', '[]'::jsonb,
+                'refusal_reason', 'Отказ.', 'suggested_questions', '[]'::jsonb, 'questions_remaining', 0)
+            WHERE user_id = {{fixture.UserId}} AND status = 'queued'
+            """);
     }
 
     private async Task SetInsightStatusAsync(string status)

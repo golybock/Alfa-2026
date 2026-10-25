@@ -140,7 +140,7 @@ public static partial class InsightChecks
     public static IEnumerable<string> Numbers(string text) => NumberPattern().Matches(text)
         .Select(match => Normalize(match.Value));
 
-    private static IEnumerable<string> EvidenceNumbers(EvidenceDto evidence)
+    public static IEnumerable<string> EvidenceNumbers(EvidenceDto evidence)
     {
         var raw = string.Join(" ", new[] { evidence.Quote, evidence.Value?.GetRawText(), evidence.Source,
             evidence.Date?.ToString("dd.MM.yyyy", CultureInfo.InvariantCulture), evidence.Date?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),

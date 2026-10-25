@@ -109,7 +109,7 @@ services:
             Llm__MaxParallelRequests: ${LLM_MAX_PARALLEL_REQUESTS:-8}
             TestJob__Enabled: ${TEST_JOB_ENABLED:-false}
             TestJob__Text: ${TEST_JOB_TEXT:-Очередь Worker работает.}
-            Llm__UseMock: ${LLM_USE_MOCK:-true}
+            Llm__UseMock: ${LLM_USE_MOCK:-false}
             Llm__BaseUrl: ${LLM_BASE_URL:-}
             Llm__ApiKey: ${LLM_API_KEY:-}
             Llm__TriageModel: ${LLM_TRIAGE_MODEL:-deepseek/deepseek-v4.1-flash}
@@ -124,7 +124,7 @@ services:
             Llm__ThinkingEnabled: ${LLM_THINKING_ENABLED:-true}
             Llm__ExtractThinkingEnabled: ${LLM_EXTRACT_THINKING_ENABLED:-true}
             Llm__MaxOutputTokens: "32000"
-            Llm__ChatMaxOutputTokens: "8000"
+            Llm__ChatMaxOutputTokens: "16000"
             Llm__DeepSeekInputEstimateRubPerMillion: ${LLM_DEEPSEEK_INPUT_ESTIMATE_RUB_PER_MILLION:-55}
             Llm__StructuredOutput: ${LLM_STRUCTURED_OUTPUT:-true}
             Llm__DeepSeekOutputEstimateRubPerMillion: ${LLM_DEEPSEEK_OUTPUT_ESTIMATE_RUB_PER_MILLION:-100}

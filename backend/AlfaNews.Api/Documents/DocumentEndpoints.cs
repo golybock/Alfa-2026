@@ -64,7 +64,7 @@ public static class DocumentEndpoints
                             Required = new HashSet<string> { "file", "title" },
                             Properties = new Dictionary<string, IOpenApiSchema>
                             {
-                                ["file"] = new OpenApiSchema { Type = JsonSchemaType.String, Format = "binary", Description = "PDF до 50 MiB и 50 страниц." },
+                                ["file"] = new OpenApiSchema { Type = JsonSchemaType.String, Format = "binary", Description = $"PDF до 50 MiB и {PdfOptions.MaxPages} страниц." },
                                 ["title"] = new OpenApiSchema { Type = JsonSchemaType.String, Description = "Название документа." },
                                 ["published_on"] = new OpenApiSchema { Type = JsonSchemaType.String, Format = "date", Description = "Дата публикации, если известна." },
                                 ["source_url"] = new OpenApiSchema { Type = JsonSchemaType.String, Format = "uri", Description = "URL первоисточника, если известен." }

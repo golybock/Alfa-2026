@@ -246,6 +246,16 @@ export const mockApi: Api = {
       }
       pendingChat.delete(jobId);
       if (currentScenario() === "chat-failed") {
+        const answer = {
+          ...pending.turn.answer,
+          status: "failed" as const,
+          answer: null,
+          claims: [],
+          evidence: {},
+          missing: [],
+          refusal_reason: "Не удалось подготовить ответ. Попробуйте задать вопрос ещё раз.",
+        };
+        chatHistory.set(pending.insightId, [...(chatHistory.get(pending.insightId) ?? []), { ...pending.turn, answer }]);
         return { ...(jobFailedJson as JobResponse), id: jobId };
       }
       chatHistory.set(pending.insightId, [...(chatHistory.get(pending.insightId) ?? []), pending.turn]);
