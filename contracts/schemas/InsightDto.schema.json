@@ -643,6 +643,16 @@
               "type": "null"
             }
           ]
+        },
+        "why_you": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [

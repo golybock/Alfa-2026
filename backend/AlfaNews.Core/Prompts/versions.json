@@ -1,5 +1,5 @@
 {
-  "pack_version": "2.9.0",
+  "pack_version": "2.10.0",
   "created_on": "2026-10-23",
   "language": "en",
   "generated_user_text_language": "ru",
@@ -49,7 +49,7 @@
       "schema": "schemas/InsightDraft.schema.json",
       "model_config_key": "deepseek",
       "max_output_tokens": 32000,
-      "prompt_version": "2.5.0",
+      "prompt_version": "2.6.0",
       "placeholders": {
         "system": [
           "OUTPUT_SCHEMA_JSON"
@@ -173,7 +173,7 @@
     }
   },
   "sha256": {
-    "agent-draft.system.txt": "1cfce6741cec590464b38c3426a620c7e7ba64a1f2cb11f11698232fd8725f44",
+    "agent-draft.system.txt": "47fdbe99add53428f81696610470644a6df3116a0299d0ea48981a24b9e9f8ad",
     "agent-draft.user.txt": "22f0859b991b0f85c5c6face4a5a12f1732877f2deb9776d95eb72a37bd4f899",
     "agent-plan.system.txt": "873ebcf73f1467ee160fffee090870b9ceaee1398f84e9f68726e802def1ec7f",
     "agent-plan.user.txt": "79d55605db62860cde6d5fcb640a7edc0346fa0da062a33b55fc618a07bcbd86",
@@ -191,7 +191,7 @@
     "schemas/AgentPlan.schema.json": "615b1765a533e31c57c1f5368a653fbeb283d32ca045f8aaea48db622d1aca57",
     "schemas/ChatDraft.schema.json": "cd83cbb27cb3f2e3a166f3175e1b265b24254bfa553ec17cef7f236ca5b70742",
     "schemas/CriticResult.schema.json": "6af8c60be39a61bec73223bbd6bad59c90091034e3872031ed33c918999cfb6f",
-    "schemas/InsightDraft.schema.json": "a40defbd6348d9d933c040cc6896d0e5cb8b093b4b627ca1a3e17b860c372a02",
+    "schemas/InsightDraft.schema.json": "632e27a39d7fcf87f868439e56fd2217d20c8889c753a42d771e5bfedac512ce",
     "schemas/NewsExtractionDraft.schema.json": "a99248390de33c67f4abd9756f9ff38f41978a1c92e9a8dca20270a0a9d6ebd4",
     "schemas/PdfPageExtraction.schema.json": "cf2c8362a13f62511e98d31012d7939ca126f2081237ac0129259c1e10a8ed9e",
     "schemas/ScopeGateResult.schema.json": "dc594ca4f60f59a27073c6ef31111001e295372e99599cb706c1118550e9fb34",

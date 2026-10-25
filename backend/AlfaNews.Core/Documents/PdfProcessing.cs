@@ -92,6 +92,8 @@ public sealed class PdfProcessing(AlfaNewsDbContext db, JobQueue queue, PdfOptio
                 }, Image: new LlmImage(await File.ReadAllBytesAsync(imagePath, cancellationToken)),
                 ValidateOutput: PdfExtractionChecks.Validate, ValidationVersion: PdfExtractionChecks.Version);
             var result = await gateway.GenerateAsync<PdfPageExtraction>(request, cancellationToken);
+            // Документ, отмеченный проверенным (ReviewedResearch), передаёт отметку новым страницам и блокам.
+            var reviewed = document.ReviewStatus == "reviewed";
             await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
             foreach (var block in result.Value.Blocks)
             {
@@ -106,15 +108,18 @@ public sealed class PdfProcessing(AlfaNewsDbContext db, JobQueue queue, PdfOptio
                     Kind = JsonSerializer.SerializeToElement(block.Kind, JobKinds.JsonOptions).GetString()!,
                     Text = block.Text,
                     TablesJson = JsonSerializer.SerializeToElement(block.Tables, JobKinds.JsonOptions),
-                    ChartData = JsonSerializer.SerializeToElement(block.Charts.Select(chart => new ReviewableChartDto(chart, ReviewStatus.NotReviewed)), JobKinds.JsonOptions),
+                    ChartData = JsonSerializer.SerializeToElement(block.Charts.Select(chart =>
+                        new ReviewableChartDto(chart, reviewed ? ReviewStatus.Reviewed : ReviewStatus.NotReviewed)), JobKinds.JsonOptions),
                     TagsJson = JsonSerializer.SerializeToElement(block.Tags, JobKinds.JsonOptions),
-                    ReviewStatus = "not_reviewed",
+                    ReviewStatus = reviewed ? "reviewed" : "not_reviewed",
                     Version = inputVersion,
                     SearchText = NpgsqlTsVector.Empty
                 });
             }
             page.OcrJson = JsonSerializer.SerializeToElement(result.Value, JobKinds.JsonOptions);
             page.OcrStatus = "ready";
+            if (reviewed)
+                page.ReviewStatus = "reviewed";
             await db.SaveChangesAsync(cancellationToken);
             await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE research_chunk SET search_text = to_tsvector('russian', text) WHERE page_id = {page.Id}", cancellationToken);
             await EnqueueFinalizationAsync(document, job.OwnerUserId, cancellationToken);

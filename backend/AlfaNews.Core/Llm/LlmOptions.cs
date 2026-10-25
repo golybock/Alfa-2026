@@ -7,15 +7,31 @@ public sealed class LlmOptions
     public bool UseMock { get; set; } = true;
     public string BaseUrl { get; set; } = "";
     public string ApiKey { get; set; } = "";
-    public string DeepSeekModel { get; set; } = "deepseek/deepseek-v4.1-flash";
-    public string GlmModel { get; set; } = "z-ai/glm-5.3-flash";
-    public string DeepSeekReasoningLevel { get; set; } = "medium";
-    public string GlmReasoningLevel { get; set; } = "low";
-    public bool DeepSeekThinkingEnabled { get; set; } = true;
-    public bool TriageUseGlm { get; set; }
-    // Разбор новостей — основной расход; модель и рассуждения для него выбираются отдельно от карточек.
-    public string ExtractModel { get; set; } = "deepseek";
+    public const string DeepSeek = "deepseek/deepseek-v4.1-flash";
+    public const string Glm = "z-ai/glm-5.3-flash";
+
+    // Модели, разрешённые кейсом (приложение 3), в именах шлюза.
+    public static readonly IReadOnlySet<string> AllowedModels = new HashSet<string>(StringComparer.Ordinal)
+    {
+        DeepSeek, Glm, "google/gemma-4-26b-a4b-it", "qwen/qwen3.6-35b-a3b", "qwen/qwen3-vl-30b-a3b-instruct", "moonshotai/kimi-k2.6"
+    };
+
+    // Модель на каждое использование, полным именем шлюза. Починка разбора и фильтра заголовков идёт на модели своей задачи,
+    // остальные починки — на RepairModel. Распознаванию PDF нужна модель, принимающая изображения.
+    public string TriageModel { get; set; } = DeepSeek;
+    public string ExtractModel { get; set; } = DeepSeek;
+    public string AgentModel { get; set; } = DeepSeek;
+    public string RepairModel { get; set; } = DeepSeek;
+    public string CriticModel { get; set; } = Glm;
+    public string OcrModel { get; set; } = Glm;
+    public string ChatModel { get; set; } = DeepSeek;
+    public string ScopeGateModel { get; set; } = DeepSeek;
+    // Рассуждения включены у всех задач, кроме фильтра заголовков; для разбора новостей — отдельный переключатель.
+    // У GLM-5.3-Flash рассуждения принудительные, переключатели на неё не действуют.
+    public bool ThinkingEnabled { get; set; } = true;
     public bool ExtractThinkingEnabled { get; set; } = true;
+    public string ReasoningLevel { get; set; } = "medium";
+    public string GlmReasoningLevel { get; set; } = "low";
     public bool StructuredOutput { get; set; } = true;
     public int MaxOutputTokens { get; set; } = 32000;
     public int ChatMaxOutputTokens { get; set; } = 8000;
@@ -34,19 +50,50 @@ public sealed class LlmOptions
     public string CriticScope { get; set; } = "all_full";
     public string ConfigVersion { get; set; } = "llm-v1";
 
+    public string Model(LlmTask task, LlmTask originalTask) => task switch
+    {
+        LlmTask.Repair when originalTask is LlmTask.NewsTriage or LlmTask.NewsExtract => Model(originalTask, originalTask),
+        LlmTask.NewsTriage => TriageModel,
+        LlmTask.NewsExtract => ExtractModel,
+        LlmTask.Plan or LlmTask.Draft => AgentModel,
+        LlmTask.Repair => RepairModel,
+        LlmTask.Critic => CriticModel,
+        LlmTask.PdfOcr => OcrModel,
+        LlmTask.Chat => ChatModel,
+        LlmTask.ScopeGate => ScopeGateModel,
+        _ => throw new ArgumentOutOfRangeException(nameof(task))
+    };
+
+    public IReadOnlyDictionary<string, string> Models() => new Dictionary<string, string>(StringComparer.Ordinal)
+    {
+        ["triage"] = TriageModel,
+        ["extract"] = ExtractModel,
+        ["agent"] = AgentModel,
+        ["repair"] = RepairModel,
+        ["critic"] = CriticModel,
+        ["ocr"] = OcrModel,
+        ["chat"] = ChatModel,
+        ["scope_gate"] = ScopeGateModel
+    };
+
     public LlmRoute Route(LlmTask task, LlmTask originalTask)
     {
         var triage = originalTask == LlmTask.NewsTriage;
         var extract = originalTask == LlmTask.NewsExtract;
-        var glm = task is LlmTask.PdfOcr or LlmTask.Critic || triage && TriageUseGlm || extract && ExtractModel == "glm";
         var chat = originalTask is LlmTask.Chat or LlmTask.ScopeGate;
-        return new LlmRoute(glm ? GlmModel : DeepSeekModel,
-            glm ? GlmReasoningLevel : DeepSeekReasoningLevel,
+        var model = Model(task, originalTask);
+        var glm = model == Glm;
+        // Оценка цены для резерва бюджета: по семейству модели; для прочих разрешённых — по большей из известных.
+        var (input, output) = model == DeepSeek ? (DeepSeekInputEstimateRubPerMillion, DeepSeekOutputEstimateRubPerMillion)
+            : glm ? (GlmInputEstimateRubPerMillion, GlmOutputEstimateRubPerMillion)
+            : (Math.Max(DeepSeekInputEstimateRubPerMillion, GlmInputEstimateRubPerMillion),
+                Math.Max(DeepSeekOutputEstimateRubPerMillion, GlmOutputEstimateRubPerMillion));
+        return new LlmRoute(model,
+            glm ? GlmReasoningLevel : ReasoningLevel,
             triage ? 6000 : chat ? ChatMaxOutputTokens : MaxOutputTokens,
             task == LlmTask.Critic ? CriticTimeoutSeconds : TimeoutSeconds,
-            glm ? GlmInputEstimateRubPerMillion : DeepSeekInputEstimateRubPerMillion,
-            glm ? GlmOutputEstimateRubPerMillion : DeepSeekOutputEstimateRubPerMillion,
-            glm || !triage && DeepSeekThinkingEnabled && (!extract || ExtractThinkingEnabled));
+            input, output,
+            glm || !triage && ThinkingEnabled && (!extract || ExtractThinkingEnabled));
     }
 
     public void Validate()
@@ -56,11 +103,13 @@ public sealed class LlmOptions
             || MaxInputBytes <= 0 || ImageInputTokenReserve <= 0 || ReserveOutputTokens <= 0 || MaxParallelRequests is < 1 or > 16
             || DeepSeekInputEstimateRubPerMillion < 0 || DeepSeekOutputEstimateRubPerMillion < 0
             || GlmInputEstimateRubPerMillion < 0 || GlmOutputEstimateRubPerMillion < 0
-            || CriticScope is not ("all_full" or "top_only") || GlmReasoningLevel is not ("low" or "high") || ExtractModel is not ("deepseek" or "glm")
-            || string.IsNullOrWhiteSpace(ConfigVersion))
+            || CriticScope is not ("all_full" or "top_only") || GlmReasoningLevel is not ("low" or "high")
+            || ReasoningLevel is not ("low" or "medium" or "high") || string.IsNullOrWhiteSpace(ConfigVersion))
             throw new InvalidOperationException("Некорректные лимиты Llm.");
-        if (DeepSeekModel != "deepseek/deepseek-v4.1-flash" || GlmModel != "z-ai/glm-5.3-flash")
-            throw new InvalidOperationException("Разрешены только согласованные DeepSeek и GLM.");
+        var forbidden = Models().Where(pair => !AllowedModels.Contains(pair.Value)).Select(pair => $"{pair.Key}={pair.Value}").ToArray();
+        if (forbidden.Length > 0)
+            throw new InvalidOperationException(
+                $"Модели не из разрешённого списка: {string.Join(", ", forbidden)}. Разрешены: {string.Join(", ", AllowedModels.Order(StringComparer.Ordinal))}.");
     }
 }
 

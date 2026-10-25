@@ -5,7 +5,7 @@ namespace AlfaNews.Api.Access;
 
 public sealed class ApiAccessMiddleware(RequestDelegate next)
 {
-    public async Task InvokeAsync(HttpContext context, IConfiguration configuration)
+    public async Task InvokeAsync(HttpContext context, IConfiguration configuration, ILogger<ApiAccessMiddleware> logger)
     {
         try
         {
@@ -34,6 +34,18 @@ public sealed class ApiAccessMiddleware(RequestDelegate next)
             context.Response.StatusCode = exception.StatusCode;
             await context.Response.WriteAsJsonAsync(
                 new ApiError("invalid_input", "Некорректный запрос.", context.TraceIdentifier), context.RequestAborted);
+        }
+        catch (Exception exception) when (context.Request.Path.StartsWithSegments("/api") && !context.Response.HasStarted
+                                          && !context.RequestAborted.IsCancellationRequested)
+        {
+            // Контракт: все ошибки API — ApiError без подробностей; подробности только в логе по request_id.
+            logger.LogError(exception, "Необработанная ошибка API {Method} {Path}, request_id {RequestId}.",
+                context.Request.Method, context.Request.Path.Value, context.TraceIdentifier);
+            context.Response.Clear();
+            context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+            await context.Response.WriteAsJsonAsync(
+                new ApiError("internal_error", "Внутренняя ошибка сервера. Повторите попытку позже.", context.TraceIdentifier),
+                context.RequestAborted);
         }
     }
 

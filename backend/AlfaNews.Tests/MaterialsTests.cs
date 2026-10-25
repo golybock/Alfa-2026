@@ -60,6 +60,10 @@ public sealed class MaterialsTests(PostgresFixture fixture) : IClassFixture<Post
         Assert.Equal("CollectManualNews", job.Kind);
         Assert.Equal(id, job.Payload.GetProperty("request").GetProperty("source_id").GetString());
 
+        var sources = (await service.SourcesAsync(CancellationToken.None)).Items;
+        Assert.Contains(sources, source => source.Id == id && !source.IsSpecialized);
+        Assert.DoesNotContain(sources, source => source.Id == "fns-news");
+
         var list = await service.ListAsync(user.Id, "test", CancellationToken.None);
         var item = Assert.Single(list.Items);
         Assert.Equal((job.Id.ToString(), $"https://{host}/news/2", null, JobStatus.Queued), (item.JobId, item.Url, item.Title, item.Status));
@@ -120,6 +124,66 @@ public sealed class MaterialsTests(PostgresFixture fixture) : IClassFixture<Post
         Assert.Equal("news_empty", (await service.CollectManualAsync(id, server.BaseUrl + "/empty", CancellationToken.None)).ErrorCode);
         Assert.Equal("news_unavailable", (await service.CollectManualAsync(id, server.BaseUrl + "/down", CancellationToken.None)).ErrorCode);
         Assert.Equal(2, await db.NewsRawRows.CountAsync(row => row.SourceId == id));
+    }
+
+    [PostgresFact]
+    public async Task ReviewedResearchFromIndexMarksDocumentPagesChunksAndCharts()
+    {
+        await using var db = fixture.CreateDb();
+        (ResearchDocEntity Doc, ResearchChunkEntity Chunk) Add(string status)
+        {
+            var doc = new ResearchDocEntity
+            {
+                Id = Guid.NewGuid(),
+                Sha256 = Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N"),
+                FilePath = "files/x.pdf",
+                Title = "Обзор",
+                PageCount = 1,
+                OcrStatus = "ready",
+                ReviewStatus = "not_reviewed",
+                Version = "v1",
+                CreatedAt = DateTimeOffset.UtcNow
+            };
+            var page = new ResearchPageEntity
+            {
+                Id = Guid.NewGuid(),
+                DocumentId = doc.Id,
+                PageNo = 1,
+                ImagePath = "pages/x/1.png",
+                OcrStatus = status,
+                ReviewStatus = "not_reviewed"
+            };
+            var chunk = new ResearchChunkEntity
+            {
+                Id = Guid.NewGuid(),
+                PageId = page.Id,
+                LocalId = "B1",
+                Kind = "fact",
+                Text = "Текст обзора.",
+                ReviewStatus = "not_reviewed",
+                Version = "v1",
+                SearchText = NpgsqlTypes.NpgsqlTsVector.Empty,
+                TagsJson = JsonSerializer.SerializeToElement(new { }),
+                ChartData = JsonSerializer.SerializeToElement(new[] { new { chart = new { local_id = "G1" }, review_status = "not_reviewed" } })
+            };
+            db.ResearchDocRows.Add(doc);
+            db.ResearchPageRows.Add(page);
+            db.ResearchChunkRows.Add(chunk);
+            return (doc, chunk);
+        }
+        var listed = Add("ready");
+        var other = Add("ready");
+        await db.SaveChangesAsync();
+
+        Assert.Equal(3, await ReviewedResearch.ApplyAsync(db, [listed.Doc.Sha256], CancellationToken.None));
+        Assert.Equal(0, await ReviewedResearch.ApplyAsync(db, [listed.Doc.Sha256], CancellationToken.None));
+        db.ChangeTracker.Clear();
+        Assert.Equal("reviewed", (await db.ResearchDocRows.SingleAsync(row => row.Id == listed.Doc.Id)).ReviewStatus);
+        Assert.Equal("reviewed", (await db.ResearchPageRows.SingleAsync(row => row.DocumentId == listed.Doc.Id)).ReviewStatus);
+        var chunk = await db.ResearchChunkRows.SingleAsync(row => row.Id == listed.Chunk.Id);
+        Assert.Equal("reviewed", chunk.ReviewStatus);
+        Assert.Equal("reviewed", chunk.ChartData[0].GetProperty("review_status").GetString());
+        Assert.Equal("not_reviewed", (await db.ResearchDocRows.SingleAsync(row => row.Id == other.Doc.Id)).ReviewStatus);
     }
 
     private static ManualNewsRequest Request(string? sourceId, string url) => new(sourceId, url, null, null, null);

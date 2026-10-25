@@ -296,6 +296,16 @@
         },
         "retry_available": {
           "type": "boolean"
+        },
+        "insight_why_you": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [

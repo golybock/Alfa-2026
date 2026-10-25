@@ -112,11 +112,16 @@ services:
             Llm__UseMock: ${LLM_USE_MOCK:-true}
             Llm__BaseUrl: ${LLM_BASE_URL:-}
             Llm__ApiKey: ${LLM_API_KEY:-}
-            Llm__DeepSeekModel: ${DEEPSEEK_MODEL_ID:-deepseek/deepseek-v4.1-flash}
-            Llm__GlmModel: ${GLM_MODEL_ID:-z-ai/glm-5.3-flash}
+            Llm__TriageModel: ${LLM_TRIAGE_MODEL:-deepseek/deepseek-v4.1-flash}
+            Llm__ExtractModel: ${LLM_EXTRACT_MODEL:-deepseek/deepseek-v4.1-flash}
+            Llm__AgentModel: ${LLM_AGENT_MODEL:-deepseek/deepseek-v4.1-flash}
+            Llm__RepairModel: ${LLM_REPAIR_MODEL:-deepseek/deepseek-v4.1-flash}
+            Llm__CriticModel: ${LLM_CRITIC_MODEL:-z-ai/glm-5.3-flash}
+            Llm__OcrModel: ${LLM_OCR_MODEL:-z-ai/glm-5.3-flash}
+            Llm__ChatModel: ${LLM_CHAT_MODEL:-deepseek/deepseek-v4.1-flash}
+            Llm__ScopeGateModel: ${LLM_SCOPE_GATE_MODEL:-deepseek/deepseek-v4.1-flash}
             Llm__GlmReasoningLevel: ${LLM_GLM_REASONING_LEVEL:-low}
-            Llm__DeepSeekThinkingEnabled: ${LLM_DEEPSEEK_THINKING_ENABLED:-true}
-            Llm__ExtractModel: ${LLM_EXTRACT_MODEL:-deepseek}
+            Llm__ThinkingEnabled: ${LLM_THINKING_ENABLED:-true}
             Llm__ExtractThinkingEnabled: ${LLM_EXTRACT_THINKING_ENABLED:-true}
             Llm__MaxOutputTokens: "32000"
             Llm__ChatMaxOutputTokens: "8000"

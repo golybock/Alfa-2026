@@ -18,6 +18,7 @@ import jobDoneJson from "../../../fixtures/api/job-done.json";
 import jobFailedJson from "../../../fixtures/api/job-failed.json";
 import jobQueuedJson from "../../../fixtures/api/job-queued.json";
 import meJson from "../../../fixtures/api/me.json";
+import newsSourcesJson from "../../../fixtures/api/news-sources.json";
 import usersJson from "../../../fixtures/users.json";
 import type {
   AcceptedResponse,
@@ -30,6 +31,7 @@ import type {
   EvidenceDto,
   FeedResponse,
   InsightDto,
+  NewsSourcesResponse,
   InsightStepsResponse,
   JobResponse,
   MeResponse,
@@ -287,6 +289,10 @@ export const mockApi: Api = {
   listNews: async () => {
     requireSession();
     return manualNewsListJson as ManualNewsListResponse;
+  },
+  listNewsSources: async () => {
+    requireSession();
+    return newsSourcesJson as NewsSourcesResponse;
   },
   uploadDocument: async (_upload, onProgress) => {
     requireSession();

@@ -27,5 +27,6 @@ public sealed record InsightDto(
 	DateTimeOffset? NewsPeriodFrom = null,
 	DateTimeOffset? NewsPeriodTo = null,
 	IReadOnlyList<CompanyTraitDto>? CompanyTraits = null,
-	DateOnly? BankDataAsOf = null
+	DateOnly? BankDataAsOf = null,
+	string? WhyYou = null
 );

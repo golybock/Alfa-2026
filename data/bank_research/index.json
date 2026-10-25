@@ -7,7 +7,7 @@
     "source_url": null,
     "page_count": 4,
     "text_layer": "absent",
-    "review_status": "not_reviewed"
+    "review_status": "reviewed"
   },
   {
     "file_path": "data/ALFA-consumption.pdf",
@@ -17,7 +17,7 @@
     "source_url": null,
     "page_count": 4,
     "text_layer": "absent",
-    "review_status": "not_reviewed"
+    "review_status": "reviewed"
   },
   {
     "file_path": "data/ALFA-Macro_Insights-Policy_Rate_11Sep.pdf",
@@ -27,7 +27,7 @@
     "source_url": null,
     "page_count": 4,
     "text_layer": "absent",
-    "review_status": "not_reviewed"
+    "review_status": "reviewed"
   },
   {
     "file_path": "data/ALFA-macro_stat1H26.pdf",
@@ -37,7 +37,7 @@
     "source_url": null,
     "page_count": 5,
     "text_layer": "absent",
-    "review_status": "not_reviewed"
+    "review_status": "reviewed"
   },
   {
     "file_path": "data/ALFA_Russian_Steels_1К21PreviewUpdate_15Apr2021.pdf",
@@ -47,7 +47,7 @@
     "source_url": null,
     "page_count": 4,
     "text_layer": "absent",
-    "review_status": "not_reviewed"
+    "review_status": "reviewed"
   },
   {
     "file_path": "data/FI_Strategy_3Q26_22072026.pdf",
@@ -57,7 +57,7 @@
     "source_url": null,
     "page_count": 27,
     "text_layer": "absent",
-    "review_status": "not_reviewed"
+    "review_status": "reviewed"
   },
   {
     "file_path": "data/Gold_digest_August26.pdf",
@@ -67,7 +67,7 @@
     "source_url": null,
     "page_count": 8,
     "text_layer": "absent",
-    "review_status": "not_reviewed"
+    "review_status": "reviewed"
   },
   {
     "file_path": "data/Inflation_tracker_02.pdf",
@@ -77,7 +77,7 @@
     "source_url": null,
     "page_count": 3,
     "text_layer": "absent",
-    "review_status": "not_reviewed"
+    "review_status": "reviewed"
   },
   {
     "file_path": "data/Бонд_Бриф_14092026.pdf",
@@ -87,6 +87,6 @@
     "source_url": null,
     "page_count": 5,
     "text_layer": "absent",
-    "review_status": "not_reviewed"
+    "review_status": "reviewed"
   }
 ]
