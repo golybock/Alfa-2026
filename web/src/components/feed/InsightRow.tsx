@@ -2,8 +2,7 @@ import { formatDate } from "../../lib/dates";
 import type { FeedItemDto, Role } from "../../lib/types/api";
 import ImpactBadge from "../ui/ImpactBadge";
 import KindBadge from "../ui/KindBadge";
-import OpenInsightLink from "./OpenInsightLink";
-import PendingAnalysisNote from "./PendingAnalysisNote";
+import InsightStatusPanel from "./InsightStatusPanel";
 
 type InsightRowProps = { item: FeedItemDto; companyId: string; role: Role };
 
@@ -46,11 +45,7 @@ export default function InsightRow({ item, companyId, role }: InsightRowProps) {
             {formatDate(item.source.published_at)}
           </time>
         </p>
-        {item.analysis_status === "ready" ? (
-          <OpenInsightLink companyId={companyId} eventId={item.event_id} role={role} />
-        ) : (
-          <PendingAnalysisNote item={item} companyId={companyId} role={role} />
-        )}
+        <InsightStatusPanel item={item} companyId={companyId} role={role} />
       </div>
     </li>
   );

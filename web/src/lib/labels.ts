@@ -37,6 +37,14 @@ export const criticStatusLabels: Record<CriticStatus, string> = {
   skipped_error: "Без проверки критиком: ошибка проверки",
 };
 
+export const criticLineLabels: Record<CriticStatus, string> = {
+  passed: "Критик проверил вывод",
+  issues_found: "Критик нашёл замечания",
+  skipped_disabled: "Критик не запускался: проверка отключена",
+  skipped_budget: "Критик не запускался: не хватило бюджета",
+  skipped_error: "Критик не запускался: ошибка проверки",
+};
+
 export const confidenceLabels: Record<Confidence, string> = {
   low: "низкая",
   medium: "средняя",

@@ -6,6 +6,7 @@ import type { ChatRequest, FeedbackRequest, Role, UserActivityRequest } from "..
 
 const FEED_POLL_MS = 120_000;
 const JOB_POLL_MS = 3_000;
+const PENDING_FEED_POLL_MS = 10_000;
 const PREFETCH_STALE_MS = 30_000;
 
 export const queryKeys = {
@@ -24,7 +25,12 @@ export function useFeed(companyId: string, role: Role, polling = true) {
   return useQuery({
     queryKey: queryKeys.feed(companyId, role),
     queryFn: () => api.getFeed(companyId, role),
-    refetchInterval: polling ? FEED_POLL_MS : false,
+    refetchInterval: (query) =>
+      query.state.data?.items.some((item) => item.analysis_status === "queued" || item.analysis_status === "processing")
+        ? PENDING_FEED_POLL_MS
+        : polling
+          ? FEED_POLL_MS
+          : false,
   });
 }
 

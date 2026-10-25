@@ -39,7 +39,7 @@ import type {
 import type { Api } from "./client";
 import { ApiRequestError } from "./client";
 
-export type MockScenario = "pending" | "empty" | "collection-failed" | "no-bank" | "refusal" | "failed" | "chat-waiting" | "chat-failed" | "feed-1" | "feed-3" | "feed-5";
+export type MockScenario = "pending" | "completing" | "empty" | "collection-failed" | "no-bank" | "refusal" | "failed" | "chat-waiting" | "chat-failed" | "feed-1" | "feed-3" | "feed-5";
 
 type MockCredentials = { login: string; password: string };
 
@@ -67,7 +67,7 @@ function currentScenario(): MockScenario | null {
     return null;
   }
   const value = new URLSearchParams(window.location.search).get("mock");
-  const known: MockScenario[] = ["pending", "empty", "collection-failed", "no-bank", "refusal", "failed", "chat-waiting", "chat-failed", "feed-1", "feed-3", "feed-5"];
+  const known: MockScenario[] = ["pending", "completing", "empty", "collection-failed", "no-bank", "refusal", "failed", "chat-waiting", "chat-failed", "feed-1", "feed-3", "feed-5"];
   return known.find((scenario) => scenario === value) ?? null;
 }
 
@@ -141,6 +141,8 @@ function findInsightById(insightId: string): InsightDto {
   return insight;
 }
 
+let completingPolls = 0;
+
 function feedFor(companyId: string): FeedResponse {
   const scenario = currentScenario();
   if (scenario === "empty") {
@@ -148,6 +150,10 @@ function feedFor(companyId: string): FeedResponse {
   }
   if (scenario === "pending" && companyId === "U_DEMO_A") {
     return feedPendingJson as FeedResponse;
+  }
+  if (scenario === "completing" && companyId === "U_DEMO_A") {
+    completingPolls += 1;
+    return completingPolls <= 2 ? (feedPendingJson as FeedResponse) : (feedReadyJson as FeedResponse);
   }
   if (scenario === "collection-failed" && companyId === "U_DEMO_A") {
     return feedFailedJson as FeedResponse;
