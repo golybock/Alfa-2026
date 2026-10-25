@@ -10,5 +10,7 @@ public sealed record ChatAnswerDto(
 	IReadOnlyDictionary<string, EvidenceDto> Evidence,
 	string? RefusalReason,
 	IReadOnlyList<string> SuggestedQuestions,
-	int QuestionsRemaining
+	int QuestionsRemaining,
+	string? Answer = null,
+	IReadOnlyList<string>? Missing = null
 );

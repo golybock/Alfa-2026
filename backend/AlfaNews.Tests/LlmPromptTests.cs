@@ -44,8 +44,8 @@ public sealed class LlmPromptTests
     [InlineData(LlmTask.NewsExtract, "deepseek/deepseek-v4.1-flash", 32000)]
     [InlineData(LlmTask.Critic, "z-ai/glm-5.3-flash", 32000)]
     [InlineData(LlmTask.PdfOcr, "z-ai/glm-5.3-flash", 32000)]
-    [InlineData(LlmTask.Chat, "deepseek/deepseek-v4.1-flash", 8000)]
-    [InlineData(LlmTask.ScopeGate, "deepseek/deepseek-v4.1-flash", 8000)]
+    [InlineData(LlmTask.Chat, "deepseek/deepseek-v4.1-flash", 16000)]
+    [InlineData(LlmTask.ScopeGate, "deepseek/deepseek-v4.1-flash", 16000)]
     public void RoutesByTask(LlmTask task, string model, int tokens)
     {
         var route = new LlmOptions().Route(task, task);
@@ -55,14 +55,14 @@ public sealed class LlmPromptTests
     }
 
     [Fact]
-    public void ChatRepairKeepsOriginalRulesAndEightThousandTokenLimit()
+    public void ChatRepairKeepsOriginalRulesAndChatTokenLimit()
     {
         var request = Request(LlmTask.Chat);
         var prompt = new LlmPromptCatalog().Render(request, LlmTask.Repair, "broken", ["schema:invalid_json"]);
         Assert.Equal("ChatDraft", prompt.SchemaName);
-        Assert.Contains("authorized business insight", prompt.System);
+        Assert.Contains("business-insight card", prompt.System);
         Assert.Equal(prompt.System.IndexOf(prompt.Schema, StringComparison.Ordinal), prompt.System.LastIndexOf(prompt.Schema, StringComparison.Ordinal));
-        Assert.Equal(8000, new LlmOptions().Route(LlmTask.Repair, LlmTask.Chat).MaxOutputTokens);
+        Assert.Equal(16000, new LlmOptions().Route(LlmTask.Repair, LlmTask.Chat).MaxOutputTokens);
     }
 
     [Theory]
@@ -254,7 +254,7 @@ public sealed class LlmPromptTests
             })
         };
         var prompt = new LlmPromptCatalog().Render(request, request.Task);
-        var content = """{"claims":[{"id":"C1","text":"Рост на 10%.","origin":"source_fact","refs":["E1"],"confidence":null}],"suggested_questions":[]}""";
+        var content = """{"answer":"","claims":[{"id":"C1","text":"Рост на 10%.","origin":"source_fact","refs":["E1"],"confidence":null}],"missing":[],"suggested_questions":[]}""";
         Assert.Contains("claims:C1:unreviewed_chart_number", LlmOutputValidator.Validate<ChatDraft>(content, prompt, request, out _));
     }
 

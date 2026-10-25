@@ -17,7 +17,7 @@ namespace AlfaNews.Tests;
 
 public sealed class ChatDatabaseTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
-    private const string Answer = """{"claims":[{"id":"C1","text":"Ставка составила 14%.","origin":"source_fact","refs":["E1"],"confidence":null}],"suggested_questions":["Что будет со ставкой дальше?"]}""";
+    private const string Answer = """{"answer":"В новости указана ставка 14%.","claims":[{"id":"C1","text":"Ставка составила 14%.","origin":"source_fact","refs":["E1"],"confidence":null}],"missing":["Условия кредитов компании"],"suggested_questions":["Что будет со ставкой дальше?"]}""";
 
     [PostgresFact]
     public async Task InScopeQuestionGetsCheckedAnswerAndRepeatComesFromHistory()
@@ -30,6 +30,8 @@ public sealed class ChatDatabaseTests(PostgresFixture fixture) : IClassFixture<P
         Assert.Equal("ready", message.Status);
         var answer = message.AnswerJson!.Value.Deserialize<ChatAnswerDto>(JobKinds.JsonOptions)!;
         Assert.Equal(ChatAnswerStatus.Answer, answer.Status);
+        Assert.Equal("В новости указана ставка 14%.", answer.Answer);
+        Assert.Equal(["Условия кредитов компании"], answer.Missing);
         Assert.Null(answer.RefusalReason);
         Assert.Equal(ClaimVerification.CodePassed, Assert.Single(answer.Claims).VerificationStatus);
         Assert.Equal(["E1"], answer.Evidence.Keys);
@@ -64,13 +66,49 @@ public sealed class ChatDatabaseTests(PostgresFixture fixture) : IClassFixture<P
         Assert.Equal(3, refusal.SuggestedQuestions.Count);
         Assert.Equal((1, 0), (offTopic.Gates, offTopic.Chats));
 
-        var empty = new ChatClient("in_scope", """{"claims":[],"suggested_questions":["Какие условия у кредита?"]}""");
+        var empty = new ChatClient("in_scope", """{"answer":" ","claims":[],"missing":["Маржа компании"],"suggested_questions":["Какие условия у кредита?"]}""");
         var (gap, _, more) = await AskAndAnswerAsync(empty, insightId, "Какая маржа у компании?");
         await more.DisposeAsync();
         var missing = gap.AnswerJson!.Value.Deserialize<ChatAnswerDto>(JobKinds.JsonOptions)!;
         Assert.Equal(ChatAnswerStatus.Refusal, missing.Status);
         Assert.Contains("нет данных", missing.RefusalReason);
+        Assert.Equal(["Маржа компании"], missing.Missing);
         Assert.Equal(8, missing.QuestionsRemaining);
+    }
+
+    [PostgresFact]
+    public async Task GeneralAnswerNeedsNoClaimsAndInvalidClaimIsDroppedWithoutRepair()
+    {
+        var general = new ChatClient("in_scope", """{"answer":"Ключевая ставка — ориентир стоимости денег в экономике.","claims":[],"missing":[],"suggested_questions":[]}""");
+        var insightId = await CopyInsightAsync("general");
+        var (message, result, services) = await AskAndAnswerAsync(general, insightId, "Что такое ключевая ставка?");
+        await services.DisposeAsync();
+        Assert.Equal("done", result.Stage);
+        var answer = message.AnswerJson!.Value.Deserialize<ChatAnswerDto>(JobKinds.JsonOptions)!;
+        Assert.Equal(ChatAnswerStatus.Answer, answer.Status);
+        Assert.Empty(answer.Claims);
+        Assert.Empty(answer.Evidence);
+
+        var mixed = Answer.Replace("""],"missing""", """,{"id":"C2","text":"Ставка составит 15%.","origin":"source_fact","refs":["E1"],"confidence":null}],"missing""");
+        var client = new ChatClient("in_scope", mixed);
+        var (salvaged, keptResult, more) = await AskAndAnswerAsync(client, insightId, "Какая ставка указана?");
+        await more.DisposeAsync();
+        Assert.Equal(("done", null), (keptResult.Stage, keptResult.ErrorCode));
+        var kept = salvaged.AnswerJson!.Value.Deserialize<ChatAnswerDto>(JobKinds.JsonOptions)!;
+        Assert.Equal("C1", Assert.Single(kept.Claims).Id);
+        Assert.Equal(0, client.Repairs);
+    }
+
+    [PostgresFact]
+    public async Task AnswerNumberWithoutClaimGoesToRepair()
+    {
+        var client = new ChatClient("in_scope", Answer.Replace("В новости указана ставка 14%.", "Ставка вырастет до 16%."), RepairResponse: Answer);
+        var insightId = await CopyInsightAsync("answer-number");
+        var (message, _, services) = await AskAndAnswerAsync(client, insightId, "Что будет со ставкой?");
+        await services.DisposeAsync();
+        Assert.Equal("ready", message.Status);
+        Assert.Equal(1, client.Repairs);
+        Assert.Equal("В новости указана ставка 14%.", message.AnswerJson!.Value.Deserialize<ChatAnswerDto>(JobKinds.JsonOptions)!.Answer);
     }
 
     [PostgresFact]
@@ -86,7 +124,9 @@ public sealed class ChatDatabaseTests(PostgresFixture fixture) : IClassFixture<P
 
         await using var scope = services.CreateAsyncScope();
         var history = await scope.ServiceProvider.GetRequiredService<ChatService>().HistoryAsync(fixture.User, insightId, CancellationToken.None);
-        Assert.Equal(ChatAnswerStatus.Refusal, Assert.Single(history.Items).Answer.Status);
+        var failed = Assert.Single(history.Items).Answer;
+        Assert.Equal(ChatAnswerStatus.Failed, failed.Status);
+        Assert.Equal(10, failed.QuestionsRemaining);
         var foreign = await Assert.ThrowsAsync<AccessException>(() => scope.ServiceProvider.GetRequiredService<ChatService>()
             .AskAsync(fixture.User, fixture.ForeignInsightId, new ChatRequest("Почему?"), CancellationToken.None));
         Assert.Equal(403, foreign.StatusCode);

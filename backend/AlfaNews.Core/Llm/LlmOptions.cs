@@ -34,7 +34,7 @@ public sealed class LlmOptions
     public string GlmReasoningLevel { get; set; } = "low";
     public bool StructuredOutput { get; set; } = true;
     public int MaxOutputTokens { get; set; } = 32000;
-    public int ChatMaxOutputTokens { get; set; } = 8000;
+    public int ChatMaxOutputTokens { get; set; } = 16000;
     public int TimeoutSeconds { get; set; } = 240;
     public int CriticTimeoutSeconds { get; set; } = 120;
     public int MaxInputBytes { get; set; } = 200000;
@@ -99,7 +99,7 @@ public sealed class LlmOptions
     public void Validate()
     {
         if (DailyLimitRub is <= 0 or > 500 || MaxOutputTokens is <= 0 or > 32000
-            || ChatMaxOutputTokens is <= 0 or > 8000 || TimeoutSeconds <= 0 || CriticTimeoutSeconds <= 0
+            || ChatMaxOutputTokens is <= 0 or > 32000 || TimeoutSeconds <= 0 || CriticTimeoutSeconds <= 0
             || MaxInputBytes <= 0 || ImageInputTokenReserve <= 0 || ReserveOutputTokens <= 0 || MaxParallelRequests is < 1 or > 16
             || DeepSeekInputEstimateRubPerMillion < 0 || DeepSeekOutputEstimateRubPerMillion < 0
             || GlmInputEstimateRubPerMillion < 0 || GlmOutputEstimateRubPerMillion < 0

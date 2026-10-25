@@ -11,8 +11,8 @@ public sealed class PdfTools(PdfOptions options)
         var output = await RunAsync(options.PdfInfoPath, [path], cancellationToken);
         var line = output.Split('\n').SingleOrDefault(line => line.StartsWith("Pages:", StringComparison.Ordinal));
         if (line is null || !int.TryParse(line[6..].Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out var count)
-            || count is < 1 or > 50)
-            throw new AccessException(400, "invalid_input", "PDF должен содержать от 1 до 50 страниц.");
+            || count is < 1 or > PdfOptions.MaxPages)
+            throw new AccessException(400, "invalid_input", $"PDF должен содержать от 1 до {PdfOptions.MaxPages} страниц.");
         return count;
     }
 

@@ -12,7 +12,7 @@ public sealed record LlmSalvageResult(string Content, IReadOnlyList<string> Drop
 // Починка остаётся для ошибок всего ответа: схема, заголовок, пустые обязательные блоки, теги.
 public static class LlmSalvage
 {
-    public const string Version = "salvage-v3";
+    public const string Version = "salvage-v4";
     private static readonly string[] Sections = ["what_happened", "why_it_matters", "actions"];
     private static readonly Dictionary<string, string> ClaimReasons = new(StringComparer.Ordinal)
     {
@@ -34,6 +34,7 @@ public static class LlmSalvage
         {
             LlmTask.NewsExtract => News(content, request),
             LlmTask.Draft => Draft(content, errors, validate),
+            LlmTask.Chat => Chat(content, errors, validate),
             _ => null
         };
 
@@ -119,6 +120,26 @@ public static class LlmSalvage
         if (InsightChecks.Numbers(root["headline"]!.GetValue<string>()).Any(number => removed.Contains(number) && !kept.Contains(number)))
             return null;
         return new LlmSalvageResult(root.ToJsonString(), dropped);
+    }
+
+    // В ответе чата утверждения — опора связного текста, разделов нет: ошибочное утверждение просто убирается.
+    // Если текст держался на его числе, проверка ответа не пройдёт и останется починка.
+    private static LlmSalvageResult? Chat(string content, IReadOnlyList<string> errors, Func<string, IReadOnlyList<string>> validate)
+    {
+        var root = JsonNode.Parse(content)!.AsObject();
+        var claims = root["claims"]!.AsArray();
+        var dropped = new List<string>();
+        var ids = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var parts in errors.Select(error => error.Split(':')))
+            if (parts is ["claims", var id, var code] && ClaimReasons.ContainsKey(code) && ids.Add(id))
+                dropped.Add($"claim:{id}:{code}");
+        if (ids.Count == 0)
+            return null;
+        for (var index = claims.Count - 1; index >= 0; index--)
+            if (ids.Contains(claims[index]!["id"]!.GetValue<string>()))
+                claims.RemoveAt(index);
+        var cleaned = root.ToJsonString();
+        return validate(cleaned).Count == 0 ? new LlmSalvageResult(cleaned, dropped) : null;
     }
 
     private static void RemoveReferences(JsonObject root, HashSet<string> ids)
