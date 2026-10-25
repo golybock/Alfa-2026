@@ -66,6 +66,34 @@ public sealed class LlmSalvageTests
         Assert.Equal(["claim:C2:unknown_evidence"], salvage!.Dropped);
     }
 
+    [Fact]
+    public void DanglingClaimReferenceIsDroppedFromSections()
+    {
+        var draft = System.Text.Json.Nodes.JsonNode.Parse(Draft("Ставка сохранена → проверьте кредиты", ("C1", "Банк России сохранил ставку 16%."),
+            ("C2", "Спрос на кредиты снизится."), ("C3", "Проверьте условия кредитов.")))!;
+        draft["why_it_matters"]!.AsArray().Add("C7");
+        draft["consequences"]![0]!["claim_ids"]!.AsArray().Add("C8");
+        var (errors, value, salvage) = Validate<InsightDraft>(DraftRequest(), draft.ToJsonString());
+
+        Assert.Empty(errors);
+        Assert.Equal(["C2"], value!.WhyItMatters);
+        Assert.Equal(["C2", "C3"], Assert.Single(value.Consequences).ClaimIds);
+        Assert.Equal(["C1", "C2", "C3"], value.Claims.Select(claim => claim.Id));
+        Assert.Equal(["claim:C7:unknown_claim_id", "claim:C8:unknown_claim_id"], salvage!.Dropped);
+    }
+
+    [Fact]
+    public void DanglingOnlyActionStillGoesToRepair()
+    {
+        var draft = System.Text.Json.Nodes.JsonNode.Parse(Draft("Ставка сохранена → проверьте кредиты", ("C1", "Банк России сохранил ставку 16%."),
+            ("C2", "Спрос на кредиты снизится.")))!;
+        draft["actions"] = new System.Text.Json.Nodes.JsonArray("C9");
+        var (errors, _, salvage) = Validate<InsightDraft>(DraftRequest(), draft.ToJsonString());
+
+        Assert.Contains("claims:unknown_claim_id", errors);
+        Assert.Null(salvage);
+    }
+
     [Theory]
     [InlineData("Ставка 18% → проверьте кредиты", "card:what_happened_required")]
     [InlineData("Ставка выросла до 18%", null)]

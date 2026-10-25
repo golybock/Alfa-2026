@@ -5,7 +5,9 @@ WORKDIR /app
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
+COPY Directory.Build.props ./
 COPY ["tools/NewsCollector/NewsCollector.csproj", "tools/NewsCollector/"]
+COPY ["tools/NewsCollector/packages.lock.json", "tools/NewsCollector/"]
 RUN dotnet restore "tools/NewsCollector/NewsCollector.csproj"
 COPY . .
 WORKDIR "/src/tools/NewsCollector"

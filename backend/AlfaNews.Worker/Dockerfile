@@ -8,10 +8,14 @@ WORKDIR /app
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
+COPY Directory.Build.props ./
 COPY ["backend/AlfaNews.Worker/AlfaNews.Worker.csproj", "backend/AlfaNews.Worker/"]
+COPY ["backend/AlfaNews.Worker/packages.lock.json", "backend/AlfaNews.Worker/"]
 COPY ["backend/AlfaNews.Core/AlfaNews.Core.csproj", "backend/AlfaNews.Core/"]
+COPY ["backend/AlfaNews.Core/packages.lock.json", "backend/AlfaNews.Core/"]
 COPY ["backend/AlfaNews.Contracts/AlfaNews.Contracts.csproj", "backend/AlfaNews.Contracts/"]
-RUN dotnet restore "backend/AlfaNews.Worker/AlfaNews.Worker.csproj"
+COPY ["backend/AlfaNews.Contracts/packages.lock.json", "backend/AlfaNews.Contracts/"]
+RUN dotnet restore "backend/AlfaNews.Worker/AlfaNews.Worker.csproj" --locked-mode
 COPY backend/ backend/
 COPY contracts/schemas/ contracts/schemas/
 COPY .dockerignore .dockerignore
