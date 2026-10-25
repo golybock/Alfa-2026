@@ -15,6 +15,8 @@ export type IconName =
   | "panel"
   | "close"
   | "check"
+  | "checkCircle"
+  | "warning"
   | "arrowUpRight"
   | "chevronLeft"
   | "chevronDown"
