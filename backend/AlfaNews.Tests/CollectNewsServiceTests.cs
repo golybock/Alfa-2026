@@ -148,8 +148,22 @@ public sealed class CollectNewsServiceTests(PostgresFixture fixture) : IClassFix
         {
             await using var db = fixture.CreateDb();
             var loader = new SourceCatalogLoader(db);
-            Assert.Equal(3, await loader.LoadAsync(path, CancellationToken.None));
-            Assert.Equal(3, await loader.LoadAsync(path, CancellationToken.None));
+            Assert.Equal(3, (await loader.LoadAsync(path, CancellationToken.None)).Count);
+            var ids = await loader.LoadAsync(path, CancellationToken.None);
+            db.SourceRows.Add(new SourceEntity
+            {
+                Id = "cat_stale",
+                Name = "D",
+                FeedUrl = "https://d.example/rss",
+                Kind = "media",
+                AllowedHosts = JsonSerializer.SerializeToElement(new[] { "d.example" }),
+                Enabled = true,
+                PollSeconds = 3600,
+                Reliability = 1,
+                ValidationStatus = "checked"
+            });
+            await db.SaveChangesAsync();
+            Assert.True(await loader.DisableAbsentAsync(ids, CancellationToken.None) >= 1);
         }
         finally
         {
@@ -158,8 +172,9 @@ public sealed class CollectNewsServiceTests(PostgresFixture fixture) : IClassFix
 
         await using var check = fixture.CreateDb();
         var rows = await check.SourceRows.AsNoTracking().Where(row => row.Id.StartsWith("cat_")).ToDictionaryAsync(row => row.Id);
-        Assert.Equal(3, rows.Count);
+        Assert.Equal(4, rows.Count);
         Assert.True(rows["cat_on"].Enabled);
+        Assert.False(rows["cat_stale"].Enabled);
         Assert.False(rows["cat_off"].Enabled);
         Assert.False(rows["cat_rejected"].Enabled);
     }

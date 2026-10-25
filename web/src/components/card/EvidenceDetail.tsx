@@ -38,13 +38,13 @@ export default function EvidenceDetail({ id, evidence, limitations }: EvidenceDe
       {kind === "company_data" ? (
         <section>
           <h4 className="mb-2 text-[11px] font-medium uppercase tracking-wider text-zinc-500">Данные</h4>
-          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 rounded-2xl bg-zinc-100 p-4 text-sm">
+          <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 rounded-2xl bg-zinc-100 p-4 text-sm">
             <dt className="text-zinc-500">Признак</dt>
             <dd className="break-all font-mono">{evidence.key ?? "нет данных"}</dd>
             <dt className="text-zinc-500">Значение</dt>
             <dd className="break-all font-mono">{formatValue(evidence.value)}</dd>
             <dt className="text-zinc-500">Набор данных</dt>
-            <dd>{evidence.dataset ?? "нет данных"}</dd>
+            <dd className="break-all">{evidence.dataset ?? "нет данных"}</dd>
           </dl>
         </section>
       ) : null}

@@ -41,9 +41,6 @@ export default function ClaimRow({ claim, evidence, stacked = false, leading }: 
           {claim.origin === "ai_hypothesis" && claim.confidence ? (
             <p>Уверенность: {confidenceLabels[claim.confidence]}</p>
           ) : null}
-          {claim.verification_status === "not_confirmed" ? (
-            <strong className="rounded bg-amber-100 px-1.5 font-medium text-orange-700">Не подтверждено</strong>
-          ) : null}
           {unreviewed ? (
             <strong className="rounded bg-zinc-200 px-1.5 font-medium text-zinc-700">{reviewStatusLabels[unreviewed]}</strong>
           ) : null}

@@ -25,7 +25,7 @@ public sealed class SourceCatalogLoader(AlfaNewsDbContext db)
 {
     private static readonly JsonSerializerOptions JsonOptions = CreateJsonOptions();
 
-    public async Task<int> LoadAsync(string path, CancellationToken cancellationToken, bool? isSpecialized = null)
+    public async Task<IReadOnlyList<string>> LoadAsync(string path, CancellationToken cancellationToken, bool? isSpecialized = null)
     {
         var entries = JsonSerializer.Deserialize<List<SourceCatalogEntry>>(
             await File.ReadAllTextAsync(path, cancellationToken), JsonOptions)
@@ -49,8 +49,12 @@ public sealed class SourceCatalogLoader(AlfaNewsDbContext db)
             row.ValidationStatus = entry.ValidationStatus;
         }
         await db.SaveChangesAsync(cancellationToken);
-        return entries.Count;
+        return entries.Select(entry => entry.Id).ToArray();
     }
+
+    public Task<int> DisableAbsentAsync(IReadOnlyCollection<string> catalogIds, CancellationToken cancellationToken) => db.SourceRows
+        .Where(row => row.Enabled && !catalogIds.Contains(row.Id))
+        .ExecuteUpdateAsync(setters => setters.SetProperty(row => row.Enabled, false), cancellationToken);
 
     private static JsonSerializerOptions CreateJsonOptions()
     {

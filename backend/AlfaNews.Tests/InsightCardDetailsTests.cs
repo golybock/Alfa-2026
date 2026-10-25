@@ -62,9 +62,9 @@ public sealed class InsightCardDetailsTests
         string[] tool = [AgentTools.UnreviewedBankText, "Страны ФТС по компании не указаны."];
         ClaimDto Claim(string id, string reference) => new(id, "Текст.", Origin.SourceFact, [reference], ClaimVerification.CodePassed, null);
 
-        Assert.Equal(["Страны ФТС по компании не указаны."], InsightAgent.ShownLimitations(false, [Claim("C1", "E1")], evidence, tool));
+        Assert.Equal(["Страны ФТС по компании не указаны."], InsightAgent.ShownLimitations([Claim("C1", "E1")], evidence, tool));
         Assert.Equal(["Текст обзора банка не проверен вручную: Обзор ставки.", "Страны ФТС по компании не указаны."],
-            InsightAgent.ShownLimitations(false, [Claim("C1", "E1"), Claim("C2", "E3")], evidence, tool));
+            InsightAgent.ShownLimitations([Claim("C1", "E1"), Claim("C2", "E3")], evidence, tool));
     }
 
     private static RelevanceReasonDto Reason(string code, string label) => new(code, label, [], [], label);

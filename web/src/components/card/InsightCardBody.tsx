@@ -1,6 +1,7 @@
 import { formatDate, formatDateNumeric } from "../../lib/dates";
 import { criticLineLabels, reviewStatusLabels, roleLabels } from "../../lib/labels";
 import type { ClaimDto, EvidenceDto, EvidenceType, InsightDto } from "../../lib/types/api";
+import ClaimBadge from "../ui/ClaimBadge";
 import Icon from "../ui/Icon";
 import KindBadge from "../ui/KindBadge";
 import SourceLinkRow from "../ui/SourceLinkRow";
@@ -127,7 +128,14 @@ export default function InsightCardBody({ insight, onOpenWhy }: InsightCardBodyP
           </button>
         </div>
         <div className="min-w-0 flex-1">
-          {insight.why_you ? <p className="mb-3 text-sm font-medium text-zinc-900">{insight.why_you}</p> : null}
+          {insight.why_you ? (
+            <div className="@container mb-3">
+              <div className="grid items-start gap-2 @md:grid-cols-[150px_1fr] @md:gap-3">
+                <ClaimBadge kind="ai_inference" />
+                <p className="text-sm font-medium leading-6 text-zinc-900">{insight.why_you}</p>
+              </div>
+            </div>
+          ) : null}
           <ClaimList ids={insight.why_it_matters} claims={claims} evidence={insight.evidence} />
           {features.length > 0 ? (
             <ul className="mt-3 flex flex-wrap gap-2">

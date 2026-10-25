@@ -78,7 +78,7 @@ public sealed class InsightAgentDatabaseTests(PostgresFixture fixture) : IClassF
         var kept = AccessService.ReadReadyInsight(unfixed);
         Assert.Equal(ClaimVerification.NotConfirmed, kept.Claims.Single(claim => claim.Id == "C2").VerificationStatus);
         Assert.DoesNotContain("C2", kept.Actions);
-        Assert.Contains(kept.Limitations, item => item.Contains("не подтверждена", StringComparison.Ordinal));
+        Assert.DoesNotContain(kept.Limitations, item => item.Contains("не подтверждена", StringComparison.Ordinal));
     }
 
     [PostgresFact]

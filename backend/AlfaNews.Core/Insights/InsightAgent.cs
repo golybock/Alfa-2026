@@ -267,7 +267,7 @@ public sealed class InsightAgent(AlfaNewsDbContext db, LlmGateway gateway, Agent
         }).ToArray();
         var unconfirmed = claims.Where(claim => claim.VerificationStatus == ClaimVerification.NotConfirmed).Select(claim => claim.Id)
             .ToHashSet(StringComparer.Ordinal);
-        var shownLimitations = ShownLimitations(unconfirmed.Count > 0, claims, registry.Items, limitations);
+        var shownLimitations = ShownLimitations(claims, registry.Items, limitations);
         var requestCount = await db.LlmUsageRows.AsNoTracking().CountAsync(row => row.RunId == run.Id && row.Stage == "critic" && row.Attempt > 0,
             cancellationToken);
         return new InsightDto(insight.Id.ToString(), payload.EventId, payload.CompanyId, payload.Role, asOf, draft.Headline, relevance,
@@ -313,19 +313,17 @@ public sealed class InsightAgent(AlfaNewsDbContext db, LlmGateway gateway, Agent
         _ => value
     };
 
-    // На экране не больше трёх ограничений, и все их формирует код: отметка о неподтверждённых выводах,
-    // о непроверенном вручную тексте обзора банка — только если утверждение на него ссылается — и ограничения инструментов.
-    // Ограничения модели не показываются.
-    public static string[] ShownLimitations(bool hasUnconfirmed, IReadOnlyList<ClaimDto> claims,
+    // На экране не больше трёх ограничений, и все их формирует код: о непроверенном вручную тексте обзора банка — только если
+    // утверждение на него ссылается — и ограничения инструментов. Ограничения модели не показываются.
+    public static string[] ShownLimitations(IReadOnlyList<ClaimDto> claims,
         IReadOnlyDictionary<string, EvidenceDto> evidence, IEnumerable<string> toolLimitations)
     {
-        string[] critical = hasUnconfirmed ? ["Часть выводов не подтверждена проверкой критика и показана с отметкой «не подтверждено»."] : [];
         var unreviewed = claims.SelectMany(claim => claim.Refs).Distinct(StringComparer.Ordinal)
             .Select(reference => evidence.GetValueOrDefault(reference))
             .Where(item => item is { Type: EvidenceType.BankResearch } && item.ReviewStatus != ReviewStatus.Reviewed)
             .Select(item => item!.Source).Distinct(StringComparer.Ordinal).ToArray();
         string[] pdf = unreviewed.Length > 0 ? [$"Текст обзора банка не проверен вручную: {string.Join(", ", unreviewed)}."] : [];
-        return Unique(critical.Concat(pdf).Concat(toolLimitations.Where(item => item != AgentTools.UnreviewedBankText)))
+        return Unique(pdf.Concat(toolLimitations.Where(item => item != AgentTools.UnreviewedBankText)))
             .Take(InsightChecks.MaxLimitations).ToArray();
     }
 

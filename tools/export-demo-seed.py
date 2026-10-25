@@ -1,4 +1,5 @@
 import argparse
+import json
 import pathlib
 import re
 import subprocess
@@ -13,6 +14,11 @@ if re.fullmatch("[a-z0-9_]+", args.database) is None:
 root = pathlib.Path(__file__).resolve().parent.parent
 output = root / args.output
 copy = args.database + "_seed_export"
+catalog = [entry["id"] for name in ("sources.json", "sources-specialized.json")
+           for entry in json.loads((root / "data" / name).read_text(encoding="utf-8-sig"))]
+if any(re.fullmatch("[a-z0-9_-]+", source) is None for source in catalog):
+    raise ValueError("Invalid source id in catalog")
+allowed = ",".join("'" + source + "'" for source in catalog)
 cleanup = """
 DELETE FROM auth_session;
 DELETE FROM llm_cache;
@@ -33,6 +39,9 @@ try:
     run(f'dropdb -U "$POSTGRES_USER" --if-exists {copy} && createdb -U "$POSTGRES_USER" {copy}'
         f' && pg_dump -U "$POSTGRES_USER" -d {args.database} | psql -q -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d {copy}')
     run(f'psql -q -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d {copy}', cleanup)
+    foreign = run(f'psql -tA -U "$POSTGRES_USER" -d {copy} -c "SELECT count(*) FROM news_raw WHERE source_id NOT IN ({allowed})"')
+    if int(foreign.decode().strip()) > 0:
+        raise SystemExit(f"news_raw has {foreign.decode().strip()} rows from sources outside data/sources*.json")
     dump = run(f'pg_dump -U "$POSTGRES_USER" -d {copy} --no-owner --no-privileges | gzip -9')
 finally:
     run(f'dropdb -U "$POSTGRES_USER" --if-exists {copy}')

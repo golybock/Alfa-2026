@@ -10,25 +10,36 @@ public sealed class JobScheduler(IServiceScopeFactory scopes, IConfiguration con
     private async Task LoadSourceCatalogAsync(CancellationToken cancellationToken)
     {
         var inputPath = configuration["Data:InputPath"] ?? "data";
+        var catalogIds = new List<string>();
+        var complete = true;
         foreach (var file in new[] { "sources.json", "sources-specialized.json" })
         {
             var path = file == "sources.json" ? configuration["Sources:CatalogPath"] ?? Path.Combine(inputPath, file) : Path.Combine(inputPath, file);
             if (!File.Exists(path))
             {
                 logger.LogWarning("Каталог источников не найден: {Path}.", path);
+                complete = false;
                 continue;
             }
             try
             {
                 await using var scope = scopes.CreateAsyncScope();
-                var count = await scope.ServiceProvider.GetRequiredService<SourceCatalogLoader>().LoadAsync(path, cancellationToken, file == "sources-specialized.json");
-                logger.LogInformation("Каталог источников {File} загружен: {Count} записей.", file, count);
+                var ids = await scope.ServiceProvider.GetRequiredService<SourceCatalogLoader>().LoadAsync(path, cancellationToken, file == "sources-specialized.json");
+                catalogIds.AddRange(ids);
+                logger.LogInformation("Каталог источников {File} загружен: {Count} записей.", file, ids.Count);
             }
             catch (Exception exception) when (exception is not OperationCanceledException)
             {
                 logger.LogError("Не удалось загрузить каталог источников {File}: {ErrorType}.", file, exception.GetType().Name);
+                complete = false;
             }
         }
+        if (!complete)
+            return;
+        await using var disableScope = scopes.CreateAsyncScope();
+        var disabled = await disableScope.ServiceProvider.GetRequiredService<SourceCatalogLoader>().DisableAbsentAsync(catalogIds, cancellationToken);
+        if (disabled > 0)
+            logger.LogInformation("Выключено источников вне каталогов: {Count}.", disabled);
     }
 
     private async Task LoadTaxonomyAsync(CancellationToken cancellationToken)
