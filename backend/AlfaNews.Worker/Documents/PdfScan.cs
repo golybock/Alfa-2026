@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text.Json;
+using AlfaNews.Contracts.Domain;
 using AlfaNews.Contracts.Processing;
 using AlfaNews.Core.Data;
 using AlfaNews.Core.Documents;
@@ -71,5 +72,9 @@ public sealed class PdfScan(AlfaNewsDbContext db, PdfRegistration registration, 
                 logger.LogWarning("Не удалось зарегистрировать PDF: {ErrorType}.", exception.GetType().Name);
             }
         }
+        var reviewed = entries.Where(entry => entry.ReviewStatus == ReviewStatus.Reviewed).Select(entry => entry.Sha256).ToArray();
+        var marked = await ReviewedResearch.ApplyAsync(db, reviewed, cancellationToken);
+        if (marked > 0)
+            logger.LogInformation("Обзоры банка из index.json отмечены проверенными: обновлено строк {Count}.", marked);
     }
 }

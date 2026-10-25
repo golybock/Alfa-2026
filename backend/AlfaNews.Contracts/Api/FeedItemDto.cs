@@ -15,5 +15,6 @@ public sealed record FeedItemDto(
 	string? InsightHeadline = null,
 	ConsequenceType? Direction = null,
 	DateTimeOffset? QueuedAt = null,
-	bool RetryAvailable = false
+	bool RetryAvailable = false,
+	string? InsightWhyYou = null
 );

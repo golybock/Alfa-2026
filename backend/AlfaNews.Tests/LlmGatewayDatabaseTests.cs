@@ -40,7 +40,7 @@ public sealed class LlmGatewayDatabaseTests(PostgresFixture fixture) : IClassFix
         await using var services = Services(transport, options);
         var request = LlmPromptTests.Request(LlmTask.NewsExtract, fixture.JobId);
         var thinking = await GenerateAsync<NewsExtractionDraft>(services, request);
-        options.DeepSeekThinkingEnabled = false;
+        options.ThinkingEnabled = false;
         var direct = await GenerateAsync<NewsExtractionDraft>(services, request);
         var cached = await GenerateAsync<NewsExtractionDraft>(services, request);
         Assert.NotEqual(thinking.CacheKey, direct.CacheKey);

@@ -273,7 +273,7 @@ public sealed class InsightAgent(AlfaNewsDbContext db, LlmGateway gateway, Agent
             draft.BankView, claims, registry.Items, shownLimitations,
             draft.SuggestedQuestions.Take(3).ToArray(), run.Id.ToString(),
             new VerificationDto(CodeStatus.Passed, new CriticVerificationDto(criticStatus, requestCount, criticReason),
-                Math.Min(1, await RepairCountAsync(run.Id, cancellationToken))));
+                Math.Min(1, await RepairCountAsync(run.Id, cancellationToken))), WhyYou: InsightChecks.WhyYou(draft.WhyYou));
     }
 
     // Позиция банка: обзор на тему события не старше 60 дней; обзор 60–120 дней — только как датированная оценка и только

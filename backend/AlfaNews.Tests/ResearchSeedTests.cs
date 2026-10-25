@@ -8,7 +8,7 @@ namespace AlfaNews.Tests;
 public sealed class ResearchSeedTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     [PostgresFact]
-    public async Task MigratesRealPageResultsWithoutLlmAndPreservesUnreviewedStatus()
+    public async Task MigratesRealPageResultsWithoutLlmAndMarksThemReviewed()
     {
         using var stream = typeof(SeedBankResearchOcr).Assembly.GetManifestResourceStream("BankResearchOcrSeed")!;
         using var json = await JsonDocument.ParseAsync(stream);
@@ -17,12 +17,13 @@ public sealed class ResearchSeedTests(PostgresFixture fixture) : IClassFixture<P
         Assert.Equal(64, seed.GetProperty("pages").GetArrayLength());
         var ids = seed.GetProperty("documents").EnumerateArray().Select(row => row.GetProperty("id").GetGuid()).ToArray();
         await using var db = fixture.CreateDb();
-        Assert.Equal(9, await db.ResearchDocRows.CountAsync(row => ids.Contains(row.Id) && row.ReviewStatus == "not_reviewed"));
+        Assert.Equal(9, await db.ResearchDocRows.CountAsync(row => ids.Contains(row.Id) && row.ReviewStatus == "reviewed"));
         var pages = await db.ResearchPageRows.Where(row => ids.Contains(row.DocumentId)).ToArrayAsync();
         Assert.Equal(64, pages.Length);
         foreach (var page in pages)
         {
-            Assert.Equal("not_reviewed", page.ReviewStatus);
+            // Стартовый комплект проверен вручную (MarkBankResearchReviewed): отметка у распознанных страниц, без автора проверки.
+            Assert.Equal(page.OcrStatus == "ready" ? "reviewed" : "not_reviewed", page.ReviewStatus);
             Assert.Null(page.ReviewedBy);
             Assert.Null(page.ReviewedAt);
             if (page.OcrStatus == "ready")
@@ -43,11 +44,11 @@ public sealed class ResearchSeedTests(PostgresFixture fixture) : IClassFixture<P
         Assert.NotEmpty(chunks);
         Assert.All(chunks, chunk =>
         {
-            Assert.Equal("not_reviewed", chunk.ReviewStatus);
+            Assert.Equal("reviewed", chunk.ReviewStatus);
             Assert.Null(chunk.Embedding);
             Assert.NotNull(chunk.SearchText);
             foreach (var chart in chunk.ChartData.EnumerateArray())
-                Assert.Equal("not_reviewed", chart.GetProperty("review_status").GetString());
+                Assert.Equal("reviewed", chart.GetProperty("review_status").GetString());
         });
     }
 }

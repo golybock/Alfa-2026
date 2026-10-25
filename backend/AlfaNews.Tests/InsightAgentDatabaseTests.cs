@@ -35,6 +35,7 @@ public sealed class InsightAgentDatabaseTests(PostgresFixture fixture) : IClassF
         Assert.Contains(card.Evidence.Values, evidence => evidence.Type == EvidenceType.BankResearch);
         // Непроверенные обзоры найдены, но карточка на них не ссылается: отметки о них на экране нет.
         Assert.DoesNotContain(AgentTools.UnreviewedBankText, card.Limitations);
+        Assert.False(string.IsNullOrWhiteSpace(card.WhyYou));
         Assert.DoesNotContain(card.Limitations, item => item.StartsWith("Текст обзора банка", StringComparison.Ordinal));
         Assert.Contains(card.Evidence.Values, evidence => evidence.Type == EvidenceType.CompanyFeature && evidence.Key == "products");
         Assert.Equal(1, card.Relevance.Rank);
@@ -279,6 +280,7 @@ public sealed class InsightAgentDatabaseTests(PostgresFixture fixture) : IClassF
     private static string Draft(string inference, string origin = "ai_inference") => JsonSerializer.Serialize(new
     {
         headline = "Ставка сохранена: проверить условия кредита",
+        why_you = "У компании кредит в банке, и стоимость долга зависит от ставки.",
         what_happened = new[] { "C1" },
         why_it_matters = new[] { "C2" },
         consequences = Array.Empty<object>(),

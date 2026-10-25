@@ -226,6 +226,7 @@ export interface FeedItemDto {
   readonly direction?: ConsequenceType | null;
   readonly queued_at?: string | null;
   readonly retry_available?: boolean;
+  readonly insight_why_you?: string | null;
 }
 
 export interface FeedResponse {
@@ -298,6 +299,7 @@ export interface InsightDto {
   readonly news_period_to?: string | null;
   readonly company_traits?: ReadonlyArray<CompanyTraitDto> | null;
   readonly bank_data_as_of?: string | null;
+  readonly why_you?: string | null;
 }
 
 export interface InsightRequest {
@@ -357,13 +359,24 @@ export interface MeResponse {
 }
 
 export interface ModelConfigResponse {
-  readonly deep_seek_model: string;
-  readonly glm_model: string;
+  readonly models: Readonly<Record<string, string>>;
+  readonly thinking_enabled: boolean;
   readonly glm_reasoning: string;
   readonly general_max_tokens: number;
   readonly chat_max_tokens: number;
   readonly critic_enabled: boolean;
   readonly critic_scope: string;
+}
+
+export interface NewsSourceDto {
+  readonly id: string;
+  readonly name: string;
+  readonly feed_url: string;
+  readonly is_specialized: boolean;
+}
+
+export interface NewsSourcesResponse {
+  readonly items: ReadonlyArray<NewsSourceDto>;
 }
 
 export type OcrStatus = "queued" | "processing" | "ready" | "partial" | "failed";

@@ -86,7 +86,8 @@
       "insight_headline": "Фикстура: проверить условия финансирования перед пересмотром бюджета",
       "direction": "risk",
       "queued_at": null,
-      "retry_available": false
+      "retry_available": false,
+      "insight_why_you": "Компания работает с кредитом в банке, поэтому решение по ставке меняет стоимость её долга."
     }
   ],
   "last_collected_at": "2026-10-21T12:00:00+03:00",

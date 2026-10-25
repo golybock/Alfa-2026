@@ -128,6 +128,12 @@ public static class DocumentEndpoints
             var job = await news.EnqueueAsync(request, user.UserId, cancellationToken);
             return Results.Accepted($"/api/jobs/{job.Id}", new AcceptedResponse(job.Id.ToString(), $"/api/jobs/{job.Id}"));
         }).RequireAuthorization();
+        app.MapGet("/api/admin/news/sources", async (HttpContext http, AccessService access, ManualNewsService news,
+            CancellationToken cancellationToken) =>
+        {
+            await access.RequireMaterialsAsync(SessionAuthenticationHandler.CurrentUser(http.User), cancellationToken);
+            return await news.SourcesAsync(cancellationToken);
+        }).RequireAuthorization();
         app.MapGet("/api/admin/news", async (HttpContext http, AccessService access, ManualNewsService news, CancellationToken cancellationToken) =>
         {
             var user = SessionAuthenticationHandler.CurrentUser(http.User);

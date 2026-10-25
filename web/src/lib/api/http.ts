@@ -11,6 +11,7 @@ import type {
   InsightStepsResponse,
   JobResponse,
   MeResponse,
+  NewsSourcesResponse,
   PendingInsightResponse,
   ReviewAcceptedResponse,
 } from "../types/api";
@@ -44,6 +45,7 @@ export const httpApi: Api = {
   recordActivity: (insightId, request) => postEmpty(`/insights/${segment(insightId)}/activity`, request),
   addNews: (url) =>
     postAccepted("/admin/news", { source_id: null, url, title: null, text: null, published_at: null }),
+  listNewsSources: () => getJson<NewsSourcesResponse>("/admin/news/sources"),
   uploadDocument: ({ file, title, publishedOn }, onProgress) => {
     const form = new FormData();
     form.append("file", file);

@@ -86,7 +86,8 @@
       "insight_headline": null,
       "direction": null,
       "queued_at": null,
-      "retry_available": true
+      "retry_available": true,
+      "insight_why_you": null
     }
   ],
   "last_collected_at": "2026-10-21T12:00:00+03:00",

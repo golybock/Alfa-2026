@@ -44,9 +44,9 @@ public sealed class NewsProcessingTests(PostgresFixture fixture) : IClassFixture
     }
 
     [Theory]
-    [InlineData("deepseek", true, "deepseek/deepseek-v4.1-flash", true)]
-    [InlineData("deepseek", false, "deepseek/deepseek-v4.1-flash", false)]
-    [InlineData("glm", true, "z-ai/glm-5.3-flash", true)]
+    [InlineData(LlmOptions.DeepSeek, true, LlmOptions.DeepSeek, true)]
+    [InlineData(LlmOptions.DeepSeek, false, LlmOptions.DeepSeek, false)]
+    [InlineData(LlmOptions.Glm, true, LlmOptions.Glm, true)]
     public void ExtractionRouteIsChosenSeparatelyFromCards(string model, bool thinking, string expectedModel, bool expectedThinking)
     {
         var options = new LlmOptions { ExtractModel = model, ExtractThinkingEnabled = thinking };
@@ -69,8 +69,8 @@ public sealed class NewsProcessingTests(PostgresFixture fixture) : IClassFixture
         Assert.False(options.Route(LlmTask.Repair, LlmTask.NewsTriage).ThinkingEnabled);
         Assert.True(options.Route(LlmTask.NewsExtract, LlmTask.NewsExtract).ThinkingEnabled);
         Assert.Equal(6000, options.Route(LlmTask.Repair, LlmTask.NewsTriage).MaxOutputTokens);
-        options.TriageUseGlm = true;
-        Assert.Equal(options.GlmModel, options.Route(LlmTask.Repair, LlmTask.NewsTriage).Model);
+        options.TriageModel = LlmOptions.Glm;
+        Assert.Equal(LlmOptions.Glm, options.Route(LlmTask.Repair, LlmTask.NewsTriage).Model);
     }
 
     [PostgresFact]

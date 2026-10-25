@@ -31,8 +31,8 @@ public sealed class ResearchSearchDatabaseTests(PostgresFixture fixture) : IClas
         {
             Assert.False(string.IsNullOrWhiteSpace(hit.Title));
             Assert.True(hit.PageNo > 0);
-            Assert.Equal(ReviewStatus.NotReviewed, hit.ReviewStatus);
-            Assert.Empty(hit.ReviewedCharts);
+            // Стартовый комплект проверен вручную, поэтому его графики доступны агенту как проверенные.
+            Assert.Equal(ReviewStatus.Reviewed, hit.ReviewStatus);
         });
         using var down = new HttpClient(new DownHandler());
         var fullText = await new ResearchSearch(db, new NewsEmbeddings(down, new ConfigurationBuilder().Build()))

@@ -1,5 +1,5 @@
 namespace AlfaNews.Contracts.Api;
 
 public sealed record ModelConfigResponse(
-    string DeepSeekModel, string GlmModel, string GlmReasoning, int GeneralMaxTokens,
+    IReadOnlyDictionary<string, string> Models, bool ThinkingEnabled, string GlmReasoning, int GeneralMaxTokens,
     int ChatMaxTokens, bool CriticEnabled, string CriticScope);

@@ -15,6 +15,7 @@ export const queryKeys = {
   chat: (insightId: string) => ["chat", insightId] as const,
   steps: (insightId: string) => ["steps", insightId] as const,
   documents: ["documents"] as const,
+  newsSources: ["newsSources"] as const,
   document: (documentId: string) => ["document", documentId] as const,
 };
 
@@ -141,6 +142,14 @@ export function useUploadDocument() {
     mutationFn: ({ upload, onProgress }: { upload: DocumentUpload; onProgress: (fraction: number) => void }) =>
       api.uploadDocument(upload, onProgress),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.documents }),
+  });
+}
+
+export function useNewsSources() {
+  return useQuery({
+    queryKey: queryKeys.newsSources,
+    queryFn: () => api.listNewsSources(),
+    staleTime: Infinity,
   });
 }
 

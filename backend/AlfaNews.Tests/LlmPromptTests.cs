@@ -91,13 +91,48 @@ public sealed class LlmPromptTests
     }
 
     [Fact]
-    public void DeepSeekSwitchAppliesToRepairAndGlmAlwaysThinks()
+    public void ThinkingSwitchAppliesToRepairAndGlmAlwaysThinks()
     {
-        var options = new LlmOptions { DeepSeekThinkingEnabled = false };
+        var options = new LlmOptions { ThinkingEnabled = false };
         Assert.False(options.Route(LlmTask.NewsExtract, LlmTask.NewsExtract).ThinkingEnabled);
         Assert.False(options.Route(LlmTask.Repair, LlmTask.PdfOcr).ThinkingEnabled);
         Assert.True(options.Route(LlmTask.PdfOcr, LlmTask.PdfOcr).ThinkingEnabled);
         Assert.True(options.Route(LlmTask.Critic, LlmTask.Critic).ThinkingEnabled);
+    }
+
+    [Fact]
+    public void EveryUsageHasItsOwnModelAndRepairFollowsNewsTasks()
+    {
+        var defaults = new LlmOptions();
+        Assert.Equal(LlmOptions.Glm, defaults.Route(LlmTask.PdfOcr, LlmTask.PdfOcr).Model);
+        Assert.Equal(LlmOptions.Glm, defaults.Route(LlmTask.Critic, LlmTask.Critic).Model);
+        Assert.Equal(LlmOptions.DeepSeek, defaults.Route(LlmTask.Repair, LlmTask.PdfOcr).Model);
+        Assert.Equal(LlmOptions.DeepSeek, defaults.Route(LlmTask.Draft, LlmTask.Draft).Model);
+
+        var options = new LlmOptions
+        {
+            TriageModel = "google/gemma-4-26b-a4b-it",
+            ExtractModel = "qwen/qwen3.6-35b-a3b",
+            AgentModel = "moonshotai/kimi-k2.6",
+            RepairModel = LlmOptions.Glm,
+            CriticModel = LlmOptions.DeepSeek,
+            OcrModel = "qwen/qwen3-vl-30b-a3b-instruct",
+            ChatModel = "qwen/qwen3.6-35b-a3b",
+            ScopeGateModel = "google/gemma-4-26b-a4b-it"
+        };
+        options.Validate();
+        Assert.Equal("google/gemma-4-26b-a4b-it", options.Route(LlmTask.Repair, LlmTask.NewsTriage).Model);
+        Assert.Equal("qwen/qwen3.6-35b-a3b", options.Route(LlmTask.Repair, LlmTask.NewsExtract).Model);
+        Assert.Equal("moonshotai/kimi-k2.6", options.Route(LlmTask.Plan, LlmTask.Plan).Model);
+        Assert.Equal(LlmOptions.Glm, options.Route(LlmTask.Repair, LlmTask.Draft).Model);
+        Assert.Equal("qwen/qwen3-vl-30b-a3b-instruct", options.Route(LlmTask.PdfOcr, LlmTask.PdfOcr).Model);
+        Assert.Equal("google/gemma-4-26b-a4b-it", options.Route(LlmTask.ScopeGate, LlmTask.ScopeGate).Model);
+        // Неизвестное семейство резервирует бюджет по большей из известных оценок.
+        var kimi = options.Route(LlmTask.Draft, LlmTask.Draft);
+        Assert.Equal((options.DeepSeekInputEstimateRubPerMillion, options.DeepSeekOutputEstimateRubPerMillion), (kimi.InputRubPerMillion, kimi.OutputRubPerMillion));
+
+        options.AgentModel = "deepseek";
+        Assert.Contains("agent=deepseek", Assert.Throws<InvalidOperationException>(options.Validate).Message);
     }
 
     [Theory]
