@@ -81,10 +81,12 @@ data/                              входные CSV, девять PDF, кат�
   bank_research/index.json          метаданные имеющихся PDF по SHA-256
   taxonomy.json                    факторы, правила продуктов и чувствительность отраслей (черновик, загружается Worker при старте)
   reports/                         import_report.json, profile_candidates.json и сравнение покрытия
+  seed/                            снимок базы demo.sql.gz для запуска без ключа; PostgreSQL загружает его в пустую базу
 tools/
   NewsCollector/                   пока консольный шаблон; рабочий сбор находится в Core/Ingest
   export-research-seed.py           экспорт подтверждённого OCR из PostgreSQL во встроенный seed
-docs/                              описания реализации A02–A08, D04, D08 и модели данных
+  export-demo-seed.py               экспорт снимка базы в data/seed/demo.sql.gz (без сессий, кэша модели и полных текстов новостей)
+docs/                              продуктовые 00–05 и diagrams/, описания реализации A02–A13, D04, D08, модель данных, eval-report, test-scenarios
 compose.yaml                       PostgreSQL, TEI, migrate, API, Worker, web, nginx gateway
 .env.example                       имена настроек без рабочих секретов
 README.md                          локальный запуск и эксплуатационные оговорки
