@@ -13,7 +13,8 @@ public sealed class RebuildProfilesJobHandler(ProfileBuildService service, AlfaN
 
     public async Task<JobResult> HandleAsync(BackgroundJobEntity job, CancellationToken cancellationToken)
     {
-        await service.BuildAsync(job.Payload.Deserialize<RebuildProfilesJob>(JobKinds.JsonOptions)!, cancellationToken, job.Id);
+        await service.BuildAsync(job.Payload.Deserialize<RebuildProfilesJob>(JobKinds.JsonOptions)!, cancellationToken,
+            job.Id);
         var completed = await db.BackgroundJobRows.AsNoTracking()
             .SingleAsync(row => row.Id == job.Id && row.Status == "done", cancellationToken);
         return new JobResult(completed.Stage, completed.ResultType, completed.ResultId);

@@ -6,7 +6,8 @@ using AlfaNews.Core.Processing;
 
 namespace AlfaNews.Worker.News;
 
-public sealed class CollectManualNewsJobHandler(CollectNewsService service, NewsProcessingSchedule schedule) : IJobHandler
+public sealed class CollectManualNewsJobHandler(CollectNewsService service, NewsProcessingSchedule schedule)
+    : IJobHandler
 {
     public string Kind => JobKinds.Name<CollectManualNewsJob>();
 

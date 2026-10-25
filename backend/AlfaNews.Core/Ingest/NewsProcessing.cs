@@ -13,8 +13,13 @@ using Pgvector.EntityFrameworkCore;
 
 namespace AlfaNews.Core.Ingest;
 
-public sealed class NewsProcessing(AlfaNewsDbContext db, LlmGateway gateway, NewsEmbeddings embeddings, NewsSearch search,
-    FeedRefreshService feed, TimeProvider clock)
+public sealed class NewsProcessing(
+    AlfaNewsDbContext db,
+    LlmGateway gateway,
+    NewsEmbeddings embeddings,
+    NewsSearch search,
+    FeedRefreshService feed,
+    TimeProvider clock)
 {
     public async Task<JobResult> ProcessAsync(BackgroundJobEntity job, Guid id, CancellationToken cancellationToken)
     {
@@ -26,11 +31,13 @@ public sealed class NewsProcessing(AlfaNewsDbContext db, LlmGateway gateway, New
             return new JobResult("accepted");
         if (row.Status is "duplicate" or "rejected")
             return new JobResult(row.Status);
-        var source = await db.SourceRows.AsNoTracking().SingleOrDefaultAsync(source => source.Id == row.SourceId, cancellationToken);
+        var source = await db.SourceRows.AsNoTracking()
+            .SingleOrDefaultAsync(source => source.Id == row.SourceId, cancellationToken);
         var now = clock.GetUtcNow();
         var reason = source is null || !source.Enabled ? "source_disabled"
             : row.PublishedAt is null ? "no_published_date"
-            : row.PublishedAt < await NewsWindow.StartAsync(db, now, cancellationToken) || row.PublishedAt > NewsWindow.End(now) ? "outside_window"
+            : row.PublishedAt < await NewsWindow.StartAsync(db, now, cancellationToken) ||
+              row.PublishedAt > NewsWindow.End(now) ? "outside_window"
             : ArticleExtractor.IsBoilerplateOnly(row.Text) ? "boilerplate_body"
             : string.IsNullOrWhiteSpace(row.Text) ? "empty_body"
             : row.Importance == 3 ? "headline_irrelevant" : null;
@@ -46,17 +53,22 @@ public sealed class NewsProcessing(AlfaNewsDbContext db, LlmGateway gateway, New
         await db.SaveChangesAsync(cancellationToken);
         try
         {
-            var duplicate = await db.EventRows.SingleOrDefaultAsync(item => item.ContentSha256 == row.TextSha256, cancellationToken);
+            var duplicate =
+                await db.EventRows.SingleOrDefaultAsync(item => item.ContentSha256 == row.TextSha256,
+                    cancellationToken);
             if (duplicate is not null)
             {
-                if (!await db.EventSourceRows.AnyAsync(link => link.EventId == duplicate.Id && link.NewsRawId == id, cancellationToken))
+                if (!await db.EventSourceRows.AnyAsync(link => link.EventId == duplicate.Id && link.NewsRawId == id,
+                        cancellationToken))
                     db.EventSourceRows.Add(new EventSourceEntity { EventId = duplicate.Id, NewsRawId = id });
                 row.Status = "duplicate";
                 row.RejectionReason = "exact_content_duplicate";
-                row.FilterJson = JsonSerializer.SerializeToElement(new { stage = "exact_duplicate", event_id = duplicate.Id });
+                row.FilterJson =
+                    JsonSerializer.SerializeToElement(new { stage = "exact_duplicate", event_id = duplicate.Id });
                 await db.SaveChangesAsync(cancellationToken);
                 return new JobResult("duplicate");
             }
+
             var assessment = row.Embedding is null ? await AssessAsync(row, cancellationToken) : null;
             row.Embedding ??= assessment?.Vector;
             if (assessment is { ClearlyUnrelated: true })
@@ -70,22 +82,29 @@ public sealed class NewsProcessing(AlfaNewsDbContext db, LlmGateway gateway, New
                 });
                 return await RejectAsync(row, "e5_clearly_unrelated", cancellationToken);
             }
+
             if (row.Embedding is { } vector)
             {
-                if (await search.FindRetellingAsync(vector, row.PublishedAt!.Value, row.Title, row.Text, cancellationToken) is { } retelling)
+                if (await search.FindRetellingAsync(vector, row.PublishedAt!.Value, row.Title, row.Text,
+                        cancellationToken) is { } retelling)
                 {
-                    if (!await db.EventSourceRows.AnyAsync(link => link.EventId == retelling.EventId && link.NewsRawId == id, cancellationToken))
+                    if (!await db.EventSourceRows.AnyAsync(
+                            link => link.EventId == retelling.EventId && link.NewsRawId == id, cancellationToken))
                         db.EventSourceRows.Add(new EventSourceEntity { EventId = retelling.EventId, NewsRawId = id });
                     row.Status = "duplicate";
                     row.RejectionReason = "semantic_duplicate";
-                    row.FilterJson = JsonSerializer.SerializeToElement(new { stage = "e5_duplicate", event_id = retelling.EventId, retelling.Similarity });
+                    row.FilterJson = JsonSerializer.SerializeToElement(new
+                        { stage = "e5_duplicate", event_id = retelling.EventId, retelling.Similarity });
                     await db.SaveChangesAsync(cancellationToken);
                     return new JobResult("duplicate");
                 }
-                row.FilterJson = JsonSerializer.SerializeToElement(new { stage = "e5", decision = "extract_without_semantic_merge" });
+
+                row.FilterJson = JsonSerializer.SerializeToElement(new
+                    { stage = "e5", decision = "extract_without_semantic_merge" });
             }
             else
                 row.FilterJson = JsonSerializer.SerializeToElement(new { stage = "e5", decision = "e5_unavailable" });
+
             await db.SaveChangesAsync(cancellationToken);
             var factors = await db.FactorRows.AsNoTracking().OrderBy(item => item.Code)
                 .Select(item => new { code = item.Code, name = item.Name }).ToArrayAsync(cancellationToken);
@@ -99,9 +118,11 @@ public sealed class NewsProcessing(AlfaNewsDbContext db, LlmGateway gateway, New
                 commodities = Array.Empty<string>()
             });
             var lines = NewsLines.Split(row.Text);
-            var input = JsonSerializer.SerializeToElement(new { title = row.Title, lines = NewsLines.Numbered(lines), published_at = row.PublishedAt });
+            var input = JsonSerializer.SerializeToElement(new
+                { title = row.Title, lines = NewsLines.Numbered(lines), published_at = row.PublishedAt });
             var version = LlmPromptCatalog.Hash(input.GetRawText() + taxonomy.GetRawText());
-            var result = await gateway.GenerateAsync<NewsExtractionDraft>(new LlmRequest(job.Id, "news-extract:" + row.TextSha256,
+            var result = await gateway.GenerateAsync<NewsExtractionDraft>(new LlmRequest(job.Id,
+                "news-extract:" + row.TextSha256,
                 version, LlmTask.NewsExtract, new Dictionary<string, JsonElement>
                 {
                     ["INPUT_JSON"] = input,
@@ -109,7 +130,8 @@ public sealed class NewsProcessing(AlfaNewsDbContext db, LlmGateway gateway, New
                 }), cancellationToken);
             var draft = result.Value;
             var extraction = new NewsExtraction(draft.Headline, draft.EventDate, draft.Facts.Select(fact =>
-                new ExtractedFact(fact.Text, NewsLines.Resolve(lines, fact).Quote!, fact.Line, fact.Start, fact.End)).ToArray(),
+                    new ExtractedFact(fact.Text, NewsLines.Resolve(lines, fact).Quote!, fact.Line, fact.Start,
+                        fact.End)).ToArray(),
                 draft.Participants, draft.Tags, draft.Commentary);
             var eventId = Guid.NewGuid();
             try
@@ -134,25 +156,33 @@ public sealed class NewsProcessing(AlfaNewsDbContext db, LlmGateway gateway, New
                     foreach (var (kind, codes) in new[]
                              {
                                  ("factor", extraction.Tags.Factors), ("okved2", extraction.Tags.Okved2),
-                                 ("country", extraction.Tags.Countries), ("region", extraction.Tags.Regions), ("commodity", extraction.Tags.Commodities)
+                                 ("country", extraction.Tags.Countries), ("region", extraction.Tags.Regions),
+                                 ("commodity", extraction.Tags.Commodities)
                              })
-                        foreach (var code in codes.Distinct(StringComparer.Ordinal))
-                            db.EventTagRows.Add(new EventTagEntity { EventId = eventId, Kind = kind, Code = code });
+                    foreach (var code in codes.Distinct(StringComparer.Ordinal))
+                        db.EventTagRows.Add(new EventTagEntity { EventId = eventId, Kind = kind, Code = code });
                     row.Status = "accepted";
                     row.RejectionReason = null;
                     await db.SaveChangesAsync(cancellationToken);
-                    var search = extraction.Headline + " " + string.Join(" ", extraction.Facts.Select(fact => fact.Text));
-                    await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE event SET search_text = to_tsvector('russian', {search}) WHERE id = {eventId}", cancellationToken);
+                    var search = extraction.Headline + " " +
+                                 string.Join(" ", extraction.Facts.Select(fact => fact.Text));
+                    await db.Database.ExecuteSqlInterpolatedAsync(
+                        $"UPDATE event SET search_text = to_tsvector('russian', {search}) WHERE id = {eventId}",
+                        cancellationToken);
                     await transaction.CommitAsync(cancellationToken);
                 }
             }
             // Тот же текст из другого источника разобран параллельно и сохранён раньше: это точный дубль, а не сбой.
             catch (DbUpdateException exception) when (exception.InnerException is PostgresException
-            { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: "event_content_sha256_key" })
+                                                      {
+                                                          SqlState: PostgresErrorCodes.UniqueViolation,
+                                                          ConstraintName: "event_content_sha256_key"
+                                                      })
             {
                 db.ChangeTracker.Clear();
                 return await LinkDuplicateAsync(id, cancellationToken);
             }
+
             await feed.EnqueueForEventAsync(eventId, cancellationToken);
             return new JobResult("accepted");
         }
@@ -170,9 +200,11 @@ public sealed class NewsProcessing(AlfaNewsDbContext db, LlmGateway gateway, New
             });
             db.ChangeTracker.Clear();
             await db.NewsRawRows.Where(item => item.Id == id).ExecuteUpdateAsync(update => update
-                .SetProperty(item => item.Status, "failed").SetProperty(item => item.FilterJson, (JsonElement?)failureDetails)
-                .SetProperty(item => item.LastError,
-                    exception is LlmException ? ((LlmException)exception).Code : "news_processing_failed"), cancellationToken);
+                    .SetProperty(item => item.Status, "failed")
+                    .SetProperty(item => item.FilterJson, (JsonElement?)failureDetails)
+                    .SetProperty(item => item.LastError,
+                        exception is LlmException ? ((LlmException)exception).Code : "news_processing_failed"),
+                cancellationToken);
             throw;
         }
     }
@@ -180,8 +212,10 @@ public sealed class NewsProcessing(AlfaNewsDbContext db, LlmGateway gateway, New
     private async Task<JobResult> LinkDuplicateAsync(Guid id, CancellationToken cancellationToken)
     {
         var row = await db.NewsRawRows.SingleAsync(item => item.Id == id, cancellationToken);
-        var duplicate = await db.EventRows.AsNoTracking().SingleAsync(item => item.ContentSha256 == row.TextSha256, cancellationToken);
-        if (!await db.EventSourceRows.AnyAsync(link => link.EventId == duplicate.Id && link.NewsRawId == id, cancellationToken))
+        var duplicate = await db.EventRows.AsNoTracking()
+            .SingleAsync(item => item.ContentSha256 == row.TextSha256, cancellationToken);
+        if (!await db.EventSourceRows.AnyAsync(link => link.EventId == duplicate.Id && link.NewsRawId == id,
+                cancellationToken))
             db.EventSourceRows.Add(new EventSourceEntity { EventId = duplicate.Id, NewsRawId = id });
         row.Status = "duplicate";
         row.RejectionReason = "exact_content_duplicate";
@@ -204,7 +238,8 @@ public sealed class NewsProcessing(AlfaNewsDbContext db, LlmGateway gateway, New
         {
             return await embeddings.EvaluateAsync(row.Title, row.Text, cancellationToken);
         }
-        catch (Exception exception) when (exception is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        catch (Exception exception) when (exception is not OperationCanceledException ||
+                                          !cancellationToken.IsCancellationRequested)
         {
             return null;
         }

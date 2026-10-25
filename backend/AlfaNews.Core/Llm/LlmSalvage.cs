@@ -14,6 +14,7 @@ public static class LlmSalvage
 {
     public const string Version = "salvage-v4";
     private static readonly string[] Sections = ["what_happened", "why_it_matters", "actions"];
+
     private static readonly Dictionary<string, string> ClaimReasons = new(StringComparer.Ordinal)
     {
         ["number_not_in_evidence"] = "число не найдено в данных",
@@ -31,12 +32,12 @@ public static class LlmSalvage
 
     public static LlmSalvageResult? TryApply(string content, LlmRequest request, IReadOnlyList<string> errors,
         Func<string, IReadOnlyList<string>> validate) => request.Task switch
-        {
-            LlmTask.NewsExtract => News(content, request),
-            LlmTask.Draft => Draft(content, errors, validate),
-            LlmTask.Chat => Chat(content, errors, validate),
-            _ => null
-        };
+    {
+        LlmTask.NewsExtract => News(content, request),
+        LlmTask.Draft => Draft(content, errors, validate),
+        LlmTask.Chat => Chat(content, errors, validate),
+        _ => null
+    };
 
     public static string Describe(IReadOnlyList<string> dropped) => string.Join(", ", dropped
         .Select(item => item.Split(':')).Where(parts => parts is ["claim", _, _])
@@ -63,16 +64,19 @@ public static class LlmSalvage
             }
             else if (error is not null)
                 dropped.Add($"fact:{fact.Line}:{error["news:".Length..]}");
+
             if (error is not null)
                 facts.RemoveAt(index);
         }
+
         if (dropped.Count == 0 || facts.Count == 0)
             return null;
         dropped.Reverse();
         return new LlmSalvageResult(root.ToJsonString(), dropped);
     }
 
-    private static LlmSalvageResult? Draft(string content, IReadOnlyList<string> errors, Func<string, IReadOnlyList<string>> validate)
+    private static LlmSalvageResult? Draft(string content, IReadOnlyList<string> errors,
+        Func<string, IReadOnlyList<string>> validate)
     {
         var root = JsonNode.Parse(content)!.AsObject();
         var claims = root["claims"]!.AsArray();
@@ -91,6 +95,7 @@ public static class LlmSalvage
                 errors = validate(root.ToJsonString());
             }
         }
+
         // Убранное утверждение может открыть следующее (например, ссылку на него); три прохода хватает с запасом.
         for (var pass = 0; pass < 3; pass++)
         {
@@ -106,25 +111,30 @@ public static class LlmSalvage
                     droppedTexts.Add(claims[index]!["text"]!.GetValue<string>());
                     claims.RemoveAt(index);
                 }
+
             RemoveReferences(root, ids);
             errors = validate(root.ToJsonString());
         }
+
         if (dropped.Count == 0)
             return null;
         // Заголовок называет проверку, которая раскрывается первым действием: без единого действия карточка ему противоречит.
         if (hadActions && root["actions"]!.AsArray().Count == 0)
             return null;
         // Заголовок не должен держаться на убранном утверждении: его число, оставшееся без опоры, — повод для починки.
-        var kept = claims.SelectMany(claim => InsightChecks.Numbers(claim!["text"]!.GetValue<string>())).ToHashSet(StringComparer.Ordinal);
+        var kept = claims.SelectMany(claim => InsightChecks.Numbers(claim!["text"]!.GetValue<string>()))
+            .ToHashSet(StringComparer.Ordinal);
         var removed = droppedTexts.SelectMany(InsightChecks.Numbers).ToHashSet(StringComparer.Ordinal);
-        if (InsightChecks.Numbers(root["headline"]!.GetValue<string>()).Any(number => removed.Contains(number) && !kept.Contains(number)))
+        if (InsightChecks.Numbers(root["headline"]!.GetValue<string>())
+            .Any(number => removed.Contains(number) && !kept.Contains(number)))
             return null;
         return new LlmSalvageResult(root.ToJsonString(), dropped);
     }
 
     // В ответе чата утверждения — опора связного текста, разделов нет: ошибочное утверждение просто убирается.
     // Если текст держался на его числе, проверка ответа не пройдёт и останется починка.
-    private static LlmSalvageResult? Chat(string content, IReadOnlyList<string> errors, Func<string, IReadOnlyList<string>> validate)
+    private static LlmSalvageResult? Chat(string content, IReadOnlyList<string> errors,
+        Func<string, IReadOnlyList<string>> validate)
     {
         var root = JsonNode.Parse(content)!.AsObject();
         var claims = root["claims"]!.AsArray();
@@ -154,6 +164,7 @@ public static class LlmSalvage
             if (claimIds.Count == 0)
                 consequences.RemoveAt(index);
         }
+
         var bankView = root["bank_view"]!.AsObject();
         var bankIds = bankView["claim_ids"]!.AsArray();
         Filter(bankIds, ids);

@@ -13,15 +13,22 @@ namespace AlfaNews.Core.Chat;
 
 public sealed record ChatAskResult(ChatAnswerDto? Answer, AcceptedResponse? Accepted);
 
-public sealed class ChatService(AlfaNewsDbContext db, AccessService access, JobQueue jobs, UserActivityService activities,
+public sealed class ChatService(
+    AlfaNewsDbContext db,
+    AccessService access,
+    JobQueue jobs,
+    UserActivityService activities,
     TimeProvider clock)
 {
     public const int MaxQuestions = 10;
+
     public const int MaxQuestionLength = 1000;
+
     // Сбой не засчитывается в лимит вопросов, но каждая попытка тратит запросы модели: общее число попыток ограничено.
     public const int MaxAttempts = 2 * MaxQuestions;
 
-    public async Task<ChatAskResult> AskAsync(UserContext user, Guid insightId, ChatRequest request, CancellationToken cancellationToken)
+    public async Task<ChatAskResult> AskAsync(UserContext user, Guid insightId, ChatRequest request,
+        CancellationToken cancellationToken)
     {
         var question = request.Question?.Trim() ?? "";
         if (question.Length is 0 or > MaxQuestionLength)
@@ -30,7 +37,8 @@ public sealed class ChatService(AlfaNewsDbContext db, AccessService access, JobQ
         AccessService.ReadReadyInsight(insight);
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         var lockKey = $"chat:{user.UserId}:{insightId}";
-        await db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({lockKey}, 0))", cancellationToken);
+        await db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({lockKey}, 0))",
+            cancellationToken);
         var messages = await db.ChatMessageRows.AsNoTracking()
             .Where(row => row.UserId == user.UserId && row.InsightId == insightId).ToListAsync(cancellationToken);
         var remaining = Math.Max(0, MaxQuestions - Counted(messages.AsQueryable()).Count());
@@ -47,6 +55,7 @@ public sealed class ChatService(AlfaNewsDbContext db, AccessService access, JobQ
             if (existing is not null)
                 return new ChatAskResult(null, Accepted(existing));
         }
+
         if (remaining == 0 || messages.Count >= MaxAttempts)
             throw new AccessException(429, "question_limit", "По этой карточке задано максимальное число вопросов.");
         var message = new ChatMessageEntity
@@ -66,14 +75,18 @@ public sealed class ChatService(AlfaNewsDbContext db, AccessService access, JobQ
         return new ChatAskResult(null, Accepted(job));
     }
 
-    public async Task<ChatHistoryResponse> HistoryAsync(UserContext user, Guid insightId, CancellationToken cancellationToken)
+    public async Task<ChatHistoryResponse> HistoryAsync(UserContext user, Guid insightId,
+        CancellationToken cancellationToken)
     {
         var messages = await access.ReadChatHistoryAsync(user, insightId, cancellationToken);
         var remaining = Math.Max(0, MaxQuestions - Counted(messages.AsQueryable()).Count());
         // Сбой, после которого тот же вопрос задан снова, из истории убирается: повтор его заменяет.
         return new ChatHistoryResponse(messages.Where(row => row.Status is "ready" or "failed")
-            .Where(row => row.Status != "failed" || !messages.Any(later => later.Question == row.Question && later.CreatedAt > row.CreatedAt))
-            .Select(row => new ChatTurnDto(row.Id.ToString(), row.Question, row.CreatedAt, ReadAnswer(row, remaining))).ToArray());
+            .Where(row =>
+                row.Status != "failed" ||
+                !messages.Any(later => later.Question == row.Question && later.CreatedAt > row.CreatedAt))
+            .Select(row => new ChatTurnDto(row.Id.ToString(), row.Question, row.CreatedAt, ReadAnswer(row, remaining)))
+            .ToArray());
     }
 
     public static IQueryable<ChatMessageEntity> Counted(IQueryable<ChatMessageEntity> messages) =>
@@ -88,13 +101,15 @@ public sealed class ChatService(AlfaNewsDbContext db, AccessService access, JobQ
     {
         if (message is not { Status: "ready", AnswerJson: { } json })
             return new ChatAnswerDto(message.Id.ToString(), message.InsightId.ToString(), ChatAnswerStatus.Failed, [],
-                new Dictionary<string, EvidenceDto>(), "Не удалось подготовить ответ. Попробуйте задать вопрос ещё раз.", [], remaining,
+                new Dictionary<string, EvidenceDto>(),
+                "Не удалось подготовить ответ. Попробуйте задать вопрос ещё раз.", [], remaining,
                 Missing: []);
         var answer = json.Deserialize<ChatAnswerDto>(JobKinds.JsonOptions)!;
         return answer with { Missing = answer.Missing ?? [], QuestionsRemaining = remaining };
     }
 
-    private Task<BackgroundJobEntity?> LatestJobAsync(AnswerChatJob payload, Guid userId, CancellationToken cancellationToken)
+    private Task<BackgroundJobEntity?> LatestJobAsync(AnswerChatJob payload, Guid userId,
+        CancellationToken cancellationToken)
     {
         var kind = JobKinds.Name<AnswerChatJob>();
         var json = JsonSerializer.SerializeToElement(payload, JobKinds.JsonOptions);

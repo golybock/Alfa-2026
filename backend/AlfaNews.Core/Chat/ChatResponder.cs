@@ -13,7 +13,11 @@ using Microsoft.Extensions.Logging;
 
 namespace AlfaNews.Core.Chat;
 
-public sealed class ChatResponder(AlfaNewsDbContext db, LlmGateway gateway, TimeProvider clock, ILogger<ChatResponder> logger)
+public sealed class ChatResponder(
+    AlfaNewsDbContext db,
+    LlmGateway gateway,
+    TimeProvider clock,
+    ILogger<ChatResponder> logger)
 {
     public const string ChecksVersion = "chat-checks-v2";
     private const int HistoryTurns = 4;
@@ -24,15 +28,22 @@ public sealed class ChatResponder(AlfaNewsDbContext db, LlmGateway gateway, Time
     private const int MaxSuggestionLength = 150;
 
     private static readonly string[] DefaultQuestions =
-        ["Почему событие относится к нашей компании?", "Что стоит проверить в первую очередь?", "Каких данных не хватает?"];
+    [
+        "Почему событие относится к нашей компании?", "Что стоит проверить в первую очередь?",
+        "Каких данных не хватает?"
+    ];
 
-    public async Task<JobResult> AnswerAsync(BackgroundJobEntity job, AnswerChatJob payload, CancellationToken cancellationToken)
+    public async Task<JobResult> AnswerAsync(BackgroundJobEntity job, AnswerChatJob payload,
+        CancellationToken cancellationToken)
     {
-        if (!Guid.TryParse(payload.ChatTurnId, out var messageId) || !Guid.TryParse(payload.InsightId, out var insightId)
-            || !Guid.TryParse(payload.UserId, out var userId) || job.OwnerUserId != userId)
+        if (!Guid.TryParse(payload.ChatTurnId, out var messageId) || !Guid.TryParse(payload.InsightId,
+                                                                      out var insightId)
+                                                                  || !Guid.TryParse(payload.UserId, out var userId) ||
+                                                                  job.OwnerUserId != userId)
             return new JobResult("rejected", ErrorCode: "invalid_payload");
         var message = await db.ChatMessageRows.SingleOrDefaultAsync(row => row.Id == messageId, cancellationToken);
-        if (message is null || message.UserId != userId || message.InsightId != insightId || message.Question != payload.Question)
+        if (message is null || message.UserId != userId || message.InsightId != insightId ||
+            message.Question != payload.Question)
             return new JobResult("rejected", ErrorCode: "invalid_payload");
         if (message.Status == "ready")
             return Done(message);
@@ -72,17 +83,19 @@ public sealed class ChatResponder(AlfaNewsDbContext db, LlmGateway gateway, Time
         catch (Exception exception)
         {
             var code = exception is LlmException llm ? llm.Code : "chat_failed";
-            logger.LogWarning("Вопрос {MessageId}, задание {JobId}: {ErrorCode}, {ErrorType}.", message.Id, job.Id, code, exception.GetType().Name);
+            logger.LogWarning("Вопрос {MessageId}, задание {JobId}: {ErrorCode}, {ErrorType}.", message.Id, job.Id,
+                code, exception.GetType().Name);
             return await FailAsync(message, run, code);
         }
     }
 
-    private async Task<ChatAnswerDto> BuildAsync(BackgroundJobEntity job, ChatMessageEntity message, InsightEntity insight, InsightDto card,
+    private async Task<ChatAnswerDto> BuildAsync(BackgroundJobEntity job, ChatMessageEntity message,
+        InsightEntity insight, InsightDto card,
         Guid runId, CancellationToken cancellationToken)
     {
         var history = await db.ChatMessageRows.AsNoTracking()
             .Where(row => row.UserId == message.UserId && row.InsightId == message.InsightId && row.Status == "ready"
-                && row.CreatedAt < message.CreatedAt)
+                          && row.CreatedAt < message.CreatedAt)
             .OrderByDescending(row => row.CreatedAt).Take(HistoryTurns).ToListAsync(cancellationToken);
         var historyJson = JsonSerializer.SerializeToElement(history.OrderBy(row => row.CreatedAt).Select(row =>
         {
@@ -97,8 +110,10 @@ public sealed class ChatResponder(AlfaNewsDbContext db, LlmGateway gateway, Time
             };
         }), AgentTools.JsonOptions);
         var questionJson = JsonSerializer.SerializeToElement(message.Question);
-        var remaining = Math.Max(0, ChatService.MaxQuestions - await ChatService.Counted(db.ChatMessageRows.AsNoTracking()
-            .Where(row => row.UserId == message.UserId && row.InsightId == message.InsightId)).CountAsync(cancellationToken));
+        var remaining = Math.Max(0, ChatService.MaxQuestions - await ChatService.Counted(db.ChatMessageRows
+                .AsNoTracking()
+                .Where(row => row.UserId == message.UserId && row.InsightId == message.InsightId))
+            .CountAsync(cancellationToken));
 
         // Гейт получает только суть карточки: доказательства ему не нужны, а вход дешевле.
         var gateContext = JsonSerializer.SerializeToElement(new
@@ -110,7 +125,8 @@ public sealed class ChatResponder(AlfaNewsDbContext db, LlmGateway gateway, Time
             claims = card.Claims.Select(claim => claim.Text).ToArray(),
             suggested_questions = card.SuggestedQuestions
         }, AgentTools.JsonOptions);
-        var gate = (await gateway.GenerateAsync<ScopeGateResult>(new LlmRequest(job.Id, $"chat:{message.Id}:scope", insight.InputVersion,
+        var gate = (await gateway.GenerateAsync<ScopeGateResult>(new LlmRequest(job.Id, $"chat:{message.Id}:scope",
+            insight.InputVersion,
             LlmTask.ScopeGate, new Dictionary<string, JsonElement>
             {
                 ["CONTEXT_JSON"] = gateContext,
@@ -119,8 +135,8 @@ public sealed class ChatResponder(AlfaNewsDbContext db, LlmGateway gateway, Time
             }, insight.Id, RunId: runId), cancellationToken)).Value;
         if (gate.Label != ScopeLabel.InScope)
             return Refusal(message, gate.Label == ScopeLabel.Injection
-                ? "Не могу выполнить эту просьбу: она пытается изменить правила работы ассистента."
-                : "Я отвечаю только на вопросы об этом событии и о том, что оно значит для вашей компании.",
+                    ? "Не могу выполнить эту просьбу: она пытается изменить правила работы ассистента."
+                    : "Я отвечаю только на вопросы об этом событии и о том, что оно значит для вашей компании.",
                 Suggestions([], card, message.Question), remaining);
 
         var context = JsonSerializer.SerializeToElement(new
@@ -143,7 +159,8 @@ public sealed class ChatResponder(AlfaNewsDbContext db, LlmGateway gateway, Time
             evidence = AgentTools.ForContext(card.Evidence, null),
             limitations = card.Limitations
         }, AgentTools.JsonOptions);
-        var draft = (await gateway.GenerateAsync<ChatDraft>(new LlmRequest(job.Id, $"chat:{message.Id}:answer", insight.InputVersion,
+        var draft = (await gateway.GenerateAsync<ChatDraft>(new LlmRequest(job.Id, $"chat:{message.Id}:answer",
+            insight.InputVersion,
             LlmTask.Chat, new Dictionary<string, JsonElement>
             {
                 ["CONTEXT_JSON"] = context,
@@ -152,17 +169,21 @@ public sealed class ChatResponder(AlfaNewsDbContext db, LlmGateway gateway, Time
             }, insight.Id, ValidateOutput: json => Validate(json, card.Evidence), ValidationVersion: ChecksVersion,
             RunId: runId), cancellationToken)).Value;
         var suggestions = Suggestions(draft.SuggestedQuestions, card, message.Question);
-        var missing = draft.Missing.Select(item => item.Trim()).Where(item => item.Length is > 0 and <= MaxMissingLength)
+        var missing = draft.Missing.Select(item => item.Trim())
+            .Where(item => item.Length is > 0 and <= MaxMissingLength)
             .Distinct(StringComparer.OrdinalIgnoreCase).Take(MaxMissing).ToArray();
         var text = string.IsNullOrWhiteSpace(draft.Answer) ? null : draft.Answer.Trim();
         if (text is null && draft.Claims.Count == 0)
-            return Refusal(message, "В материалах карточки нет данных, чтобы ответить на этот вопрос.", suggestions, remaining, missing);
+            return Refusal(message, "В материалах карточки нет данных, чтобы ответить на этот вопрос.", suggestions,
+                remaining, missing);
         var claims = draft.Claims.Take(MaxClaims).ToArray();
         var refs = claims.SelectMany(claim => claim.Refs).ToHashSet(StringComparer.Ordinal);
         return new ChatAnswerDto(message.Id.ToString(), message.InsightId.ToString(), ChatAnswerStatus.Answer,
-            claims.Select(claim => new ClaimDto(claim.Id, claim.Text, claim.Origin, claim.Refs, ClaimVerification.CodePassed,
+            claims.Select(claim => new ClaimDto(claim.Id, claim.Text, claim.Origin, claim.Refs,
+                ClaimVerification.CodePassed,
                 claim.Confidence)).ToArray(),
-            card.Evidence.Where(pair => refs.Contains(pair.Key)).ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal),
+            card.Evidence.Where(pair => refs.Contains(pair.Key))
+                .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal),
             null, suggestions, remaining, text, missing);
     }
 
@@ -176,7 +197,8 @@ public sealed class ChatResponder(AlfaNewsDbContext db, LlmGateway gateway, Time
         if (answer.Length > MaxAnswerLength)
             errors.Add("answer:too_long");
         var supported = claims.SelectMany(claim => InsightChecks.Numbers(claim.GetProperty("text").GetString() ?? ""))
-            .Concat(claims.SelectMany(claim => claim.GetProperty("refs").EnumerateArray()).Select(item => item.GetString()!)
+            .Concat(claims.SelectMany(claim => claim.GetProperty("refs").EnumerateArray())
+                .Select(item => item.GetString()!)
                 .Where(evidence.ContainsKey).SelectMany(item => InsightChecks.EvidenceNumbers(evidence[item])))
             .ToHashSet(StringComparer.Ordinal);
         if (InsightChecks.Numbers(answer).Any(number => !supported.Contains(number)))
@@ -184,16 +206,18 @@ public sealed class ChatResponder(AlfaNewsDbContext db, LlmGateway gateway, Time
         return errors;
     }
 
-    private static ChatAnswerDto Refusal(ChatMessageEntity message, string reason, IReadOnlyList<string> suggestions, int remaining,
+    private static ChatAnswerDto Refusal(ChatMessageEntity message, string reason, IReadOnlyList<string> suggestions,
+        int remaining,
         IReadOnlyList<string>? missing = null) =>
-        new(message.Id.ToString(), message.InsightId.ToString(), ChatAnswerStatus.Refusal, [], new Dictionary<string, EvidenceDto>(),
+        new(message.Id.ToString(), message.InsightId.ToString(), ChatAnswerStatus.Refusal, [],
+            new Dictionary<string, EvidenceDto>(),
             reason, suggestions, remaining, null, missing ?? []);
 
     private static string[] Suggestions(IEnumerable<string> preferred, InsightDto card, string question) =>
         preferred.Concat(card.SuggestedQuestions).Concat(DefaultQuestions)
             .Select(item => item.Trim())
             .Where(item => item.Length is > 0 and <= MaxSuggestionLength
-                && !string.Equals(item, question.Trim(), StringComparison.OrdinalIgnoreCase))
+                           && !string.Equals(item, question.Trim(), StringComparison.OrdinalIgnoreCase))
             .Distinct(StringComparer.OrdinalIgnoreCase).Take(3).ToArray();
 
     private async Task<JobResult> FailAsync(ChatMessageEntity message, AgentRunEntity? run, string code)
@@ -204,6 +228,7 @@ public sealed class ChatResponder(AlfaNewsDbContext db, LlmGateway gateway, Time
             run.Status = "failed";
             run.FinishedAt = clock.GetUtcNow();
         }
+
         using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         await db.SaveChangesAsync(cleanup.Token);
         return new JobResult("failed", ErrorCode: code);

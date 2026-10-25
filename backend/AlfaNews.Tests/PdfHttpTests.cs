@@ -20,14 +20,19 @@ public sealed class PdfHttpTests(PostgresFixture fixture) : IClassFixture<Postgr
         await using (var db = fixture.CreateDb())
         {
             var hash = SessionService.HashToken(token);
-            await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE auth_session SET token_hash = {hash} WHERE id = {fixture.OperatorSessionId}");
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"UPDATE auth_session SET token_hash = {hash} WHERE id = {fixture.OperatorSessionId}");
         }
+
         var listener = new TcpListener(IPAddress.Loopback, 0);
         listener.Start();
         var port = ((IPEndPoint)listener.LocalEndpoint).Port;
         listener.Stop();
         var root = Path.Combine(Path.GetTempPath(), "alfanews-http-pdf-" + Guid.NewGuid().ToString("N"));
-        var start = new ProcessStartInfo("dotnet") { UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true };
+        var start = new ProcessStartInfo("dotnet")
+        {
+            UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true
+        };
         start.ArgumentList.Add("exec");
         start.ArgumentList.Add("--runtimeconfig");
         start.ArgumentList.Add(Path.Combine(AppContext.BaseDirectory, "AlfaNews.Tests.runtimeconfig.json"));
@@ -42,7 +47,8 @@ public sealed class PdfHttpTests(PostgresFixture fixture) : IClassFixture<Postgr
         using var process = Process.Start(start)!;
         var output = process.StandardOutput.ReadToEndAsync();
         var error = process.StandardError.ReadToEndAsync();
-        using var client = new HttpClient(new HttpClientHandler { UseCookies = false, AllowAutoRedirect = false }) { BaseAddress = new Uri($"http://127.0.0.1:{port}") };
+        using var client = new HttpClient(new HttpClientHandler { UseCookies = false, AllowAutoRedirect = false })
+            { BaseAddress = new Uri($"http://127.0.0.1:{port}") };
         try
         {
             for (var attempt = 0; attempt < 100; attempt++)
@@ -53,21 +59,32 @@ public sealed class PdfHttpTests(PostgresFixture fixture) : IClassFixture<Postgr
                     if ((await client.GetAsync("/openapi/v1.json")).IsSuccessStatusCode)
                         break;
                 }
-                catch (HttpRequestException) { }
+                catch (HttpRequestException)
+                {
+                }
+
                 await Task.Delay(100);
             }
+
             var bytes = PdfProcessingTests.CreatePdf(1);
             Assert.Equal(HttpStatusCode.Unauthorized, (await UploadAsync(client, bytes, null)).StatusCode);
             // В демонстрации загружать может и учётка компании: проверка доступа пройдена, отказ — только из-за не-PDF.
-            Assert.Equal(HttpStatusCode.UnsupportedMediaType, (await UploadAsync(client, "invalid"u8.ToArray(), fixture.Token)).StatusCode);
-            Assert.Equal(HttpStatusCode.Forbidden, (await UploadAsync(client, bytes, token, "https://foreign.example")).StatusCode);
-            Assert.Equal(HttpStatusCode.UnsupportedMediaType, (await UploadAsync(client, "invalid"u8.ToArray(), token)).StatusCode);
+            Assert.Equal(HttpStatusCode.UnsupportedMediaType,
+                (await UploadAsync(client, "invalid"u8.ToArray(), fixture.Token)).StatusCode);
+            Assert.Equal(HttpStatusCode.Forbidden,
+                (await UploadAsync(client, bytes, token, "https://foreign.example")).StatusCode);
+            Assert.Equal(HttpStatusCode.UnsupportedMediaType,
+                (await UploadAsync(client, "invalid"u8.ToArray(), token)).StatusCode);
             using var first = await UploadAsync(client, bytes, token);
             Assert.Equal(HttpStatusCode.Accepted, first.StatusCode);
-            var accepted = await first.Content.ReadFromJsonAsync<DocumentAcceptedResponse>(AlfaNews.Core.Processing.JobKinds.JsonOptions);
+            var accepted =
+                await first.Content.ReadFromJsonAsync<DocumentAcceptedResponse>(AlfaNews.Core.Processing.JobKinds
+                    .JsonOptions);
             using var second = await UploadAsync(client, bytes, token);
             Assert.Equal(HttpStatusCode.Accepted, second.StatusCode);
-            Assert.Equal(accepted, await second.Content.ReadFromJsonAsync<DocumentAcceptedResponse>(AlfaNews.Core.Processing.JobKinds.JsonOptions));
+            Assert.Equal(accepted,
+                await second.Content.ReadFromJsonAsync<DocumentAcceptedResponse>(AlfaNews.Core.Processing.JobKinds
+                    .JsonOptions));
             using var status = new HttpRequestMessage(HttpMethod.Get, $"/api/jobs/{accepted!.JobId}");
             status.Headers.Add("Cookie", $"alfa_session={token}");
             Assert.Equal(HttpStatusCode.OK, (await client.SendAsync(status)).StatusCode);
@@ -88,7 +105,8 @@ public sealed class PdfHttpTests(PostgresFixture fixture) : IClassFixture<Postgr
         }
     }
 
-    private static Task<HttpResponseMessage> UploadAsync(HttpClient client, byte[] bytes, string? token, string origin = "https://bank.example")
+    private static Task<HttpResponseMessage> UploadAsync(HttpClient client, byte[] bytes, string? token,
+        string origin = "https://bank.example")
     {
         var request = new HttpRequestMessage(HttpMethod.Post, "/api/admin/documents");
         request.Headers.Add("Origin", origin);

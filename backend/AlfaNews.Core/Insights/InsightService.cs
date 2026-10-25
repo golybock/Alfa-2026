@@ -26,20 +26,25 @@ public sealed class InsightService(AlfaNewsDbContext db, AccessService access, J
         var (eventGuid, current) = await FindAsync(user, companyId, eventId, role, cancellationToken);
         if (current is null)
         {
-            var queued = await FindActiveJobAsync(user, companyId, eventGuid, role, await EventInputVersionAsync(eventGuid, cancellationToken),
+            var queued = await FindActiveJobAsync(user, companyId, eventGuid, role,
+                await EventInputVersionAsync(eventGuid, cancellationToken),
                 cancellationToken);
             return queued is null
                 ? throw new AccessException(404, "insight_not_prepared", "Карточка ещё не подготовлена.")
                 : new InsightReadResult(null, new PendingInsightResponse(
-                    queued.Status == "running" ? AnalysisStatus.Processing : AnalysisStatus.Queued, queued.Id.ToString()));
+                    queued.Status == "running" ? AnalysisStatus.Processing : AnalysisStatus.Queued,
+                    queued.Id.ToString()));
         }
+
         return current.Status switch
         {
-            "ready" => new InsightReadResult(await WithCompanyAsync(AccessService.ReadReadyInsight(current), cancellationToken), null),
+            "ready" => new InsightReadResult(
+                await WithCompanyAsync(AccessService.ReadReadyInsight(current), cancellationToken), null),
             "failed" => throw AnalysisFailed(),
             _ => new InsightReadResult(null, new PendingInsightResponse(
                 Enum.Parse<AnalysisStatus>(current.Status, true),
-                (await FindActiveJobAsync(user, companyId, eventGuid, role, current.InputVersion, cancellationToken))?.Id.ToString()))
+                (await FindActiveJobAsync(user, companyId, eventGuid, role, current.InputVersion, cancellationToken))
+                ?.Id.ToString()))
         };
     }
 
@@ -48,7 +53,8 @@ public sealed class InsightService(AlfaNewsDbContext db, AccessService access, J
     {
         var (eventGuid, current) = await FindAsync(user, companyId, eventId, role, cancellationToken);
         if (current?.Status == "ready")
-            return new InsightEnsureResult(await WithCompanyAsync(AccessService.ReadReadyInsight(current), cancellationToken), null);
+            return new InsightEnsureResult(
+                await WithCompanyAsync(AccessService.ReadReadyInsight(current), cancellationToken), null);
         if (current?.Status == "failed")
             await PrepareRetryAsync(current, cancellationToken);
         var inputVersion = current?.InputVersion ?? await EventInputVersionAsync(eventGuid, cancellationToken);
@@ -65,11 +71,14 @@ public sealed class InsightService(AlfaNewsDbContext db, AccessService access, J
         if (profile is null)
             return insight;
         var company = profile.ProfileJson.Deserialize<CompanyProfile>(LlmOutputValidator.JsonOptions)!;
-        var group = company.GroupId is null ? null : await db.GroupProfileRows.AsNoTracking().Where(row => row.GroupId == company.GroupId)
-            .Select(row => (JsonElement?)row.ProfileJson).SingleOrDefaultAsync(cancellationToken);
+        var group = company.GroupId is null
+            ? null
+            : await db.GroupProfileRows.AsNoTracking().Where(row => row.GroupId == company.GroupId)
+                .Select(row => (JsonElement?)row.ProfileJson).SingleOrDefaultAsync(cancellationToken);
         return insight with
         {
-            CompanyTraits = CompanyTraits.Build(insight.Relevance, company, group?.Deserialize<GroupProfile>(LlmOutputValidator.JsonOptions)),
+            CompanyTraits = CompanyTraits.Build(insight.Relevance, company,
+                group?.Deserialize<GroupProfile>(LlmOutputValidator.JsonOptions)),
             BankDataAsOf = DateOnly.FromDateTime(profile.UpdatedAt.ToOffset(TimeSpan.FromHours(3)).DateTime)
         };
     }
@@ -100,13 +109,14 @@ public sealed class InsightService(AlfaNewsDbContext db, AccessService access, J
         jobs.FindActiveAsync(new GenerateInsightJob(companyId, eventId.ToString(), role, inputVersion), user.UserId,
             companyId, cancellationToken);
 
-    public async Task<InsightStepsResponse> StepsAsync(UserContext user, Guid insightId, CancellationToken cancellationToken)
+    public async Task<InsightStepsResponse> StepsAsync(UserContext user, Guid insightId,
+        CancellationToken cancellationToken)
     {
         var insight = await access.RequireInsightAsync(user, insightId, cancellationToken);
         AccessService.ReadReadyInsight(insight);
         var run = await db.AgentRunRows.AsNoTracking().Where(row => row.InsightId == insight.Id && row.Status == "done")
-            .OrderByDescending(row => row.FinishedAt).FirstOrDefaultAsync(cancellationToken)
-            ?? throw new AccessException(404, "not_found", "Шаги подготовки карточки не найдены.");
+                      .OrderByDescending(row => row.FinishedAt).FirstOrDefaultAsync(cancellationToken)
+                  ?? throw new AccessException(404, "not_found", "Шаги подготовки карточки не найдены.");
         var steps = await db.AgentStepRows.AsNoTracking().Where(row => row.RunId == run.Id).OrderBy(row => row.Ordinal)
             .ToListAsync(cancellationToken);
         var items = steps.Select(AgentStepView.ToDto).ToArray();
@@ -115,7 +125,8 @@ public sealed class InsightService(AlfaNewsDbContext db, AccessService access, J
 
     private async Task PrepareRetryAsync(InsightEntity insight, CancellationToken cancellationToken)
     {
-        var runs = await db.AgentRunRows.AsNoTracking().CountAsync(row => row.InsightId == insight.Id, cancellationToken);
+        var runs = await db.AgentRunRows.AsNoTracking()
+            .CountAsync(row => row.InsightId == insight.Id, cancellationToken);
         if (runs >= MaxRuns)
             throw new AccessException(409, "analysis_failed", "Подготовка карточки не удалась, повторы исчерпаны.");
         await db.InsightRows.Where(row => row.Id == insight.Id && row.Status == "failed")

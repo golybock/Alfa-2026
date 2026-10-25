@@ -26,7 +26,8 @@ public static partial class TextNormalizer
             .Where(pair => !IsTracking(pair.Split('=')[0]))
             .ToList();
         var builder = new UriBuilder(url) { Fragment = string.Empty, Query = string.Join('&', kept) };
-        return builder.Uri.GetLeftPart(UriPartial.Path) + (kept.Count > 0 ? "?" + string.Join('&', kept) : string.Empty);
+        return builder.Uri.GetLeftPart(UriPartial.Path) +
+               (kept.Count > 0 ? "?" + string.Join('&', kept) : string.Empty);
     }
 
     private static bool IsTracking(string key) =>

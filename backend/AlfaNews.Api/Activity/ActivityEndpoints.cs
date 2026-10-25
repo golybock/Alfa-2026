@@ -13,18 +13,21 @@ public static class ActivityEndpoints
         group.MapPost("/{id:guid}/activity", async (Guid id, UserActivityRequest request,
             HttpContext http, UserActivityService activities, CancellationToken cancellationToken) =>
         {
-            await activities.RecordAsync(SessionAuthenticationHandler.CurrentUser(http.User), id, request, cancellationToken);
+            await activities.RecordAsync(SessionAuthenticationHandler.CurrentUser(http.User), id, request,
+                cancellationToken);
             return Results.NoContent();
         });
         group.MapPost("/{id:guid}/feedback", async (Guid id, FeedbackRequest request,
             HttpContext http, FeedbackService feedback, CancellationToken cancellationToken) =>
         {
-            await feedback.SaveAsync(SessionAuthenticationHandler.CurrentUser(http.User), id, request, cancellationToken);
+            await feedback.SaveAsync(SessionAuthenticationHandler.CurrentUser(http.User), id, request,
+                cancellationToken);
             return Results.NoContent();
         });
         group.MapGet("/{id:guid}/evidence/{evidenceId}", async (Guid id, string evidenceId, HttpContext http,
-            AccessService access, CancellationToken cancellationToken) =>
-            Results.Ok(await access.RequireEvidenceAsync(SessionAuthenticationHandler.CurrentUser(http.User), id, evidenceId,
+                AccessService access, CancellationToken cancellationToken) =>
+            Results.Ok(await access.RequireEvidenceAsync(SessionAuthenticationHandler.CurrentUser(http.User), id,
+                evidenceId,
                 cancellationToken)));
     }
 }

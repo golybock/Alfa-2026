@@ -8,6 +8,7 @@ public sealed class NewsEmbeddings(HttpClient http, IConfiguration configuration
 {
     private readonly SemaphoreSlim gate = new(1);
     private float[][]? topics;
+
     private static readonly string[] TopicTexts =
     [
         "query: Экономика, бизнес, компании, банки, налоги, кредиты, инвестиции и регулирование.",
@@ -28,12 +29,14 @@ public sealed class NewsEmbeddings(HttpClient http, IConfiguration configuration
         {
             gate.Release();
         }
+
         var input = title + "\n" + text;
         var vector = (await EmbedAsync(["passage: " + input[..Math.Min(input.Length, 12000)]], cancellationToken))[0];
         var scores = topics.Select(topic => Cosine(vector, topic)).ToArray();
         var business = scores.Take(3).Max();
         var unrelated = scores.Skip(3).Max();
-        return new NewsEmbeddingResult(new Vector(vector), business, unrelated, unrelated >= 0.79 && unrelated - business >= 0.04);
+        return new NewsEmbeddingResult(new Vector(vector), business, unrelated,
+            unrelated >= 0.79 && unrelated - business >= 0.04);
     }
 
     public async Task<Vector> EmbedPassageAsync(string text, CancellationToken cancellationToken) =>
@@ -48,12 +51,14 @@ public sealed class NewsEmbeddings(HttpClient http, IConfiguration configuration
         var uri = new Uri(new Uri(baseUrl.TrimEnd('/') + "/"), "embed");
         if (uri.Scheme != "http" || !(uri.Host == "tei" || uri.IsLoopback))
             throw new InvalidOperationException("Для e5 требуется локальный TEI.");
-        using var response = await http.PostAsJsonAsync(uri, new { inputs, normalize = true, truncate = true }, cancellationToken);
+        using var response =
+            await http.PostAsJsonAsync(uri, new { inputs, normalize = true, truncate = true }, cancellationToken);
         response.EnsureSuccessStatusCode();
         var vectors = await response.Content.ReadFromJsonAsync<float[][]>(cancellationToken)
-            ?? throw new InvalidOperationException("Пустой ответ e5.");
+                      ?? throw new InvalidOperationException("Пустой ответ e5.");
         if (vectors.Length != inputs.Length || vectors.Any(vector => vector.Length != 768
-                || vector.Any(value => !float.IsFinite(value)) || vector.All(value => value == 0)))
+                                                                     || vector.Any(value => !float.IsFinite(value)) ||
+                                                                     vector.All(value => value == 0)))
             throw new InvalidOperationException("Неверная размерность ответа e5.");
         return vectors;
     }
@@ -69,8 +74,13 @@ public sealed class NewsEmbeddings(HttpClient http, IConfiguration configuration
             leftNorm += left[index] * left[index];
             rightNorm += right[index] * right[index];
         }
+
         return dot / Math.Sqrt(leftNorm * rightNorm);
     }
 }
 
-public sealed record NewsEmbeddingResult(Vector Vector, double BusinessScore, double UnrelatedScore, bool ClearlyUnrelated);
+public sealed record NewsEmbeddingResult(
+    Vector Vector,
+    double BusinessScore,
+    double UnrelatedScore,
+    bool ClearlyUnrelated);

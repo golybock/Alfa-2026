@@ -15,10 +15,11 @@ public sealed class AuthService(AlfaNewsDbContext db, TimeProvider timeProvider)
 
     public static string HashPassword(string password) => BCrypt.Net.BCrypt.HashPassword(password);
 
-    public async Task<LoginResult> LoginAsync(LoginRequest request, TimeSpan lifetime, CancellationToken cancellationToken)
+    public async Task<LoginResult> LoginAsync(LoginRequest request, TimeSpan lifetime,
+        CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Login) || string.IsNullOrEmpty(request.Password)
-            || request.Login.Length > 128 || request.Password.Length > 256)
+                                                     || request.Login.Length > 128 || request.Password.Length > 256)
             throw new AccessException(400, "invalid_input", "Укажите логин и пароль.");
 
         var login = request.Login.Trim();
@@ -28,7 +29,8 @@ public sealed class AuthService(AlfaNewsDbContext db, TimeProvider timeProvider)
         {
             // Учётки засевает Worker после импорта CSV; до этого вход отвечает «данные загружаются», а не «неверный пароль».
             if (!await db.CompanyRows.AsNoTracking().AnyAsync(row => row.ClType == "CLIENT", cancellationToken))
-                throw new AccessException(503, "data_not_ready", "Данные компаний ещё загружаются. Попробуйте войти через минуту.");
+                throw new AccessException(503, "data_not_ready",
+                    "Данные компаний ещё загружаются. Попробуйте войти через минуту.");
             throw new AccessException(401, "unauthorized", "Неверный логин или пароль.");
         }
 
@@ -61,7 +63,8 @@ public sealed class AuthService(AlfaNewsDbContext db, TimeProvider timeProvider)
 
     public async Task<MeResponse> MeAsync(UserContext context, CancellationToken cancellationToken)
     {
-        var user = await db.AppUserRows.AsNoTracking().SingleOrDefaultAsync(row => row.Id == context.UserId && row.Active,
+        var user = await db.AppUserRows.AsNoTracking().SingleOrDefaultAsync(
+            row => row.Id == context.UserId && row.Active,
             cancellationToken) ?? throw new AccessException(401, "unauthorized", "Требуется вход в систему.");
         return await ReadMeAsync(user, cancellationToken);
     }
@@ -76,9 +79,9 @@ public sealed class AuthService(AlfaNewsDbContext db, TimeProvider timeProvider)
     private async Task<MeResponse> ReadMeAsync(AppUserEntity user, CancellationToken cancellationToken)
     {
         var rows = await (from access in db.UserCompanyAccessRows.AsNoTracking()
-                          join company in db.CompanyRows.AsNoTracking() on access.CompanyId equals company.Id
-                          where access.UserId == user.Id && company.ClType == "CLIENT"
-                          select new { company.Id, company.MainOkvedName, access.Role }).ToListAsync(cancellationToken);
+            join company in db.CompanyRows.AsNoTracking() on access.CompanyId equals company.Id
+            where access.UserId == user.Id && company.ClType == "CLIENT"
+            select new { company.Id, company.MainOkvedName, access.Role }).ToListAsync(cancellationToken);
         var companies = rows.GroupBy(row => new { row.Id, row.MainOkvedName })
             .OrderBy(group => group.Key.Id, StringComparer.Ordinal)
             .Select(group => new CompanyAccessDto(
@@ -86,7 +89,8 @@ public sealed class AuthService(AlfaNewsDbContext db, TimeProvider timeProvider)
                 group.Key.MainOkvedName is null ? group.Key.Id : $"{group.Key.Id} · {group.Key.MainOkvedName}",
                 group.Select(row => row.Role).Distinct().Order(StringComparer.Ordinal).Select(ParseRole).ToList()))
             .ToList();
-        return new MeResponse(user.Id.ToString(), user.DisplayName, user.IsOperator, companies, AccessService.CanAddMaterials(user));
+        return new MeResponse(user.Id.ToString(), user.DisplayName, user.IsOperator, companies,
+            AccessService.CanAddMaterials(user));
     }
 
     private static Role ParseRole(string role) => role switch

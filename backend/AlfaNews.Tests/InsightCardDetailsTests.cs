@@ -14,10 +14,13 @@ public sealed class InsightCardDetailsTests
     [Fact]
     public void SavedCardWithoutNewFieldsGetsDirectionAndPeriodOnRead()
     {
-        var node = JsonNode.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Examples", "insight.json")))!.AsObject();
-        foreach (var name in new[] { "direction", "news_period_from", "news_period_to", "company_traits", "bank_data_as_of" })
+        var node = JsonNode.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Examples", "insight.json")))!
+            .AsObject();
+        foreach (var name in new[]
+                     { "direction", "news_period_from", "news_period_to", "company_traits", "bank_data_as_of" })
             node.Remove(name);
-        var card = AccessService.ReadReadyInsight(new InsightEntity { Status = "ready", BodyJson = JsonSerializer.SerializeToElement(node) });
+        var card = AccessService.ReadReadyInsight(new InsightEntity
+            { Status = "ready", BodyJson = JsonSerializer.SerializeToElement(node) });
 
         Assert.Equal(ConsequenceType.Risk, card.Direction);
         Assert.Equal(DateTimeOffset.Parse("2026-10-15T00:00:00+03:00"), card.NewsPeriodFrom);
@@ -34,10 +37,12 @@ public sealed class InsightCardDetailsTests
             Reason("product_loan", "Ваш продукт: кредит"),
             Reason("cp", "Ваши поставщики")
         ], []);
-        var traits = CompanyTraits.Build(relevance, Company("group_1"), new GroupProfile("group_1", ["U_1", "U_2"], 26_000_000_000m, 2, "v1"));
+        var traits = CompanyTraits.Build(relevance, Company("group_1"),
+            new GroupProfile("group_1", ["U_1", "U_2"], 26_000_000_000m, 2, "v1"));
 
         Assert.Equal(["okved", "product_loan", "cp", "group"], traits.Select(trait => trait.Code));
-        Assert.Equal(["Строительство зданий", "Кредит в банке", "Ваши поставщики", "Группа · 26,0 млрд ₽"], traits.Select(trait => trait.Label));
+        Assert.Equal(["Строительство зданий", "Кредит в банке", "Ваши поставщики", "Группа · 26,0 млрд ₽"],
+            traits.Select(trait => trait.Label));
         Assert.Equal(26_000_000_000m, traits[^1].AmountRub);
     }
 
@@ -55,20 +60,26 @@ public sealed class InsightCardDetailsTests
     {
         var evidence = new Dictionary<string, EvidenceDto>
         {
-            ["E1"] = new(EvidenceType.News, "Новость", null, "Ставка 16%.", null, null, null, null, "news", null, null, null, false, null, null),
-            ["E3"] = new(EvidenceType.BankResearch, "Обзор ставки", null, "Банк ожидает снижения.", new DateOnly(2026, 10, 1), "doc", 1, "c1",
+            ["E1"] = new(EvidenceType.News, "Новость", null, "Ставка 16%.", null, null, null, null, "news", null, null,
+                null, false, null, null),
+            ["E3"] = new(EvidenceType.BankResearch, "Обзор ставки", null, "Банк ожидает снижения.",
+                new DateOnly(2026, 10, 1), "doc", 1, "c1",
                 "bank_view", null, null, ReviewStatus.NotReviewed, false, null, null)
         };
         string[] tool = [AgentTools.UnreviewedBankText, "Страны ФТС по компании не указаны."];
-        ClaimDto Claim(string id, string reference) => new(id, "Текст.", Origin.SourceFact, [reference], ClaimVerification.CodePassed, null);
 
-        Assert.Equal(["Страны ФТС по компании не указаны."], InsightAgent.ShownLimitations(false, [Claim("C1", "E1")], evidence, tool));
+        ClaimDto Claim(string id, string reference) => new(id, "Текст.", Origin.SourceFact, [reference],
+            ClaimVerification.CodePassed, null);
+
+        Assert.Equal(["Страны ФТС по компании не указаны."],
+            InsightAgent.ShownLimitations(false, [Claim("C1", "E1")], evidence, tool));
         Assert.Equal(["Текст обзора банка не проверен вручную: Обзор ставки.", "Страны ФТС по компании не указаны."],
             InsightAgent.ShownLimitations(false, [Claim("C1", "E1"), Claim("C2", "E3")], evidence, tool));
     }
 
     private static RelevanceReasonDto Reason(string code, string label) => new(code, label, [], [], label);
 
-    private static CompanyProfile Company(string? groupId) => new("U_1", groupId, "41.20", "41", "Строительство", null, null, null, null,
+    private static CompanyProfile Company(string? groupId) => new("U_1", groupId, "41.20", "41", "Строительство", null,
+        null, null, null,
         null, ["loan"], [], NoPayments, NoPayments, "v1");
 }

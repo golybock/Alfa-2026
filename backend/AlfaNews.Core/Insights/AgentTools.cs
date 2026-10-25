@@ -39,17 +39,24 @@ public sealed class EvidenceRegistry
         return id;
     }
 
-    private static string Identity(EvidenceDto evidence) => JsonSerializer.Serialize(evidence with { Source = "" }, AgentTools.JsonOptions);
+    private static string Identity(EvidenceDto evidence) =>
+        JsonSerializer.Serialize(evidence with { Source = "" }, AgentTools.JsonOptions);
 }
 
-public sealed record ToolExecution(string Name, JsonElement Arguments, IReadOnlyList<string> EvidenceIds, IReadOnlyList<string> Limitations, string Summary);
+public sealed record ToolExecution(
+    string Name,
+    JsonElement Arguments,
+    IReadOnlyList<string> EvidenceIds,
+    IReadOnlyList<string> Limitations,
+    string Summary);
 
 public sealed record AgentScope(CompanyProfile Company, NewsExtraction News, Guid EventId, DateTimeOffset AsOf);
 
 public sealed class AgentTools(AlfaNewsDbContext db, ResearchSearch research, NewsSearch newsSearch)
 {
     // Подсказка модели при поиске обзоров; на экран карточки не попадает — там отметку ставит код, если обзор процитирован.
-    public const string UnreviewedBankText = "Фрагменты аналитики банка распознаны автоматически и не проверены вручную.";
+    public const string UnreviewedBankText =
+        "Фрагменты аналитики банка распознаны автоматически и не проверены вручную.";
 
     public const string EventTool = "get_event";
     public const string BankSearch = "search_bank_research";
@@ -57,22 +64,30 @@ public sealed class AgentTools(AlfaNewsDbContext db, ResearchSearch research, Ne
     private const int ContextQuoteLength = 600;
     public static JsonSerializerOptions JsonOptions { get; } = CreateJsonOptions();
 
-    public static IReadOnlyDictionary<string, JsonElement> Definitions { get; } = new Dictionary<string, JsonElement>(StringComparer.Ordinal)
-    {
-        ["get_company_profile"] = Schema("""{"type":"object","properties":{},"additionalProperties":false}"""),
-        ["get_event"] = Schema("""{"type":"object","properties":{},"additionalProperties":false}"""),
-        ["get_group_summary"] = Schema("""{"type":"object","properties":{},"additionalProperties":false}"""),
-        ["get_payment_exposure"] = Schema("""{"type":"object","properties":{"direction":{"enum":["incoming","outgoing"]},"okved2":{"type":["string","null"],"pattern":"^[0-9]{2}$"}},"required":["direction","okved2"],"additionalProperties":false}"""),
-        [BankSearch] = Schema("""{"type":"object","properties":{"query":{"type":"string","minLength":1,"maxLength":500},"factors":{"type":"array","items":{"type":"string"},"maxItems":10},"limit":{"type":"integer","minimum":1,"maximum":6}},"required":["query","factors","limit"],"additionalProperties":false}"""),
-        [SimilarNews] = Schema("""{"type":"object","properties":{"query":{"type":"string","minLength":1,"maxLength":500},"limit":{"type":"integer","minimum":1,"maximum":5}},"required":["query","limit"],"additionalProperties":false}""")
-    };
+    public static IReadOnlyDictionary<string, JsonElement> Definitions { get; } =
+        new Dictionary<string, JsonElement>(StringComparer.Ordinal)
+        {
+            ["get_company_profile"] = Schema("""{"type":"object","properties":{},"additionalProperties":false}"""),
+            ["get_event"] = Schema("""{"type":"object","properties":{},"additionalProperties":false}"""),
+            ["get_group_summary"] = Schema("""{"type":"object","properties":{},"additionalProperties":false}"""),
+            ["get_payment_exposure"] =
+                Schema(
+                    """{"type":"object","properties":{"direction":{"enum":["incoming","outgoing"]},"okved2":{"type":["string","null"],"pattern":"^[0-9]{2}$"}},"required":["direction","okved2"],"additionalProperties":false}"""),
+            [BankSearch] = Schema(
+                """{"type":"object","properties":{"query":{"type":"string","minLength":1,"maxLength":500},"factors":{"type":"array","items":{"type":"string"},"maxItems":10},"limit":{"type":"integer","minimum":1,"maximum":6}},"required":["query","factors","limit"],"additionalProperties":false}"""),
+            [SimilarNews] =
+                Schema(
+                    """{"type":"object","properties":{"query":{"type":"string","minLength":1,"maxLength":500},"limit":{"type":"integer","minimum":1,"maximum":5}},"required":["query","limit"],"additionalProperties":false}""")
+        };
 
     public static IReadOnlyDictionary<string, EvidenceDto> ForContext(IReadOnlyDictionary<string, EvidenceDto> evidence,
         IReadOnlySet<string>? only = null) => evidence.Where(pair => only is null || only.Contains(pair.Key))
         .ToDictionary(pair => pair.Key, pair => pair.Value.Quote is { Length: > ContextQuoteLength } quote
-            ? pair.Value with { Quote = quote[..ContextQuoteLength].TrimEnd() + "…" } : pair.Value, StringComparer.Ordinal);
+            ? pair.Value with { Quote = quote[..ContextQuoteLength].TrimEnd() + "…" }
+            : pair.Value, StringComparer.Ordinal);
 
-    public async Task<ToolExecution> ExecuteAsync(ToolCall call, AgentScope scope, EvidenceRegistry registry, CancellationToken cancellationToken)
+    public async Task<ToolExecution> ExecuteAsync(ToolCall call, AgentScope scope, EvidenceRegistry registry,
+        CancellationToken cancellationToken)
     {
         var company = scope.Company;
         var news = scope.News;
@@ -82,16 +97,19 @@ public sealed class AgentTools(AlfaNewsDbContext db, ResearchSearch research, Ne
         switch (call.Name)
         {
             case "get_company_profile":
-                ids.Add(registry.Add(Feature(company, "okved2", new { code = company.Okved2, name = Okved2Names.Find(company.Okved2) ?? company.IndustryName })));
+                ids.Add(registry.Add(Feature(company, "okved2",
+                    new { code = company.Okved2, name = Okved2Names.Find(company.Okved2) ?? company.IndustryName })));
                 ids.Add(registry.Add(Feature(company, "products", company.Products)));
                 ids.Add(registry.Add(Feature(company, "fts_countries", company.FtsCountries)));
                 if (company.Region is not null)
                     ids.Add(registry.Add(Feature(company, "region", company.Region)));
                 if (company.Lifecycle is not null)
                     ids.Add(registry.Add(Feature(company, "lifecycle", company.Lifecycle)));
-                limitations.Add("В данных нет долговой нагрузки, условий кредитных договоров, структуры затрат и выручки по направлениям.");
+                limitations.Add(
+                    "В данных нет долговой нагрузки, условий кредитных договоров, структуры затрат и выручки по направлениям.");
                 if (company.FtsCountries.Count == 0)
-                    limitations.Add("Страны ФТС по компании не указаны; это не доказывает отсутствие внешней торговли.");
+                    limitations.Add(
+                        "Страны ФТС по компании не указаны; это не доказывает отсутствие внешней торговли.");
                 summary = "Признаки компании из профиля.";
                 break;
             case EventTool:
@@ -104,12 +122,16 @@ public sealed class AgentTools(AlfaNewsDbContext db, ResearchSearch research, Ne
                 break;
             case SimilarNews:
                 var similarQuery = call.Arguments.GetProperty("query").GetString()!;
-                var hits = await newsSearch.SearchAsync(similarQuery, scope.EventId, FeedRanking.WindowStart(scope.AsOf).ToUniversalTime(),
+                var hits = await newsSearch.SearchAsync(similarQuery, scope.EventId,
+                    FeedRanking.WindowStart(scope.AsOf).ToUniversalTime(),
                     scope.AsOf.ToUniversalTime(), call.Arguments.GetProperty("limit").GetInt32(), cancellationToken);
                 foreach (var hit in hits)
-                    ids.Add(registry.Add(new EvidenceDto(EvidenceType.News, hit.SourceName, hit.Url, hit.Quote ?? hit.Headline,
-                        DateOnly.FromDateTime(hit.PublishedAt.ToOffset(TimeSpan.FromHours(3)).DateTime), null, null, null, "similar_news",
-                        JsonSerializer.SerializeToElement(new { headline = hit.Headline }), null, null, false, null, null)));
+                    ids.Add(registry.Add(new EvidenceDto(EvidenceType.News, hit.SourceName, hit.Url,
+                        hit.Quote ?? hit.Headline,
+                        DateOnly.FromDateTime(hit.PublishedAt.ToOffset(TimeSpan.FromHours(3)).DateTime), null, null,
+                        null, "similar_news",
+                        JsonSerializer.SerializeToElement(new { headline = hit.Headline }), null, null, false, null,
+                        null)));
                 if (hits.Count == 0)
                     limitations.Add("Похожих новостей за последние семь дней не найдено.");
                 summary = $"Найдено похожих новостей: {hits.Count}.";
@@ -124,26 +146,34 @@ public sealed class AgentTools(AlfaNewsDbContext db, ResearchSearch research, Ne
                 var shares = payment.Okved2 is { } code
                     ? exposure.SectorShares.Where(pair => pair.Key == code)
                     : exposure.SectorShares.OrderByDescending(pair => pair.Value).Take(5);
-                ids.Add(registry.Add(new EvidenceDto(EvidenceType.PaymentAggregate, "Платёжные агрегаты компании", null, null, null, null, null, null,
+                ids.Add(registry.Add(new EvidenceDto(EvidenceType.PaymentAggregate, "Платёжные агрегаты компании", null,
+                    null, null, null, null, null,
                     direction + ".sector_shares", JsonSerializer.SerializeToElement(new
                     {
                         direction,
                         coverage = Math.Round(exposure.Coverage, 6),
                         shares = shares.ToDictionary(pair => pair.Key, pair => Math.Round(pair.Value, 6))
                     }), company.DataVersion, null, false, null, null)));
-                limitations.Add("Доли рассчитаны по наблюдаемому внешнему платёжному обороту за 01.01–31.10.2026 без самопереводов; они не подтверждают поставки, закупки или тип отношений.");
+                limitations.Add(
+                    "Доли рассчитаны по наблюдаемому внешнему платёжному обороту за 01.01–31.10.2026 без самопереводов; они не подтверждают поставки, закупки или тип отношений.");
                 if (exposure.Coverage < 1)
-                    limitations.Add($"Покрытие профилями по направлению {(direction == "incoming" ? "входящих" : "исходящих")} платежей — {Math.Round(exposure.Coverage * 100).ToString("0", CultureInfo.InvariantCulture)}%; остальной оборот приходится на участников без карточки.");
+                    limitations.Add(
+                        $"Покрытие профилями по направлению {(direction == "incoming" ? "входящих" : "исходящих")} платежей — {Math.Round(exposure.Coverage * 100).ToString("0", CultureInfo.InvariantCulture)}%; остальной оборот приходится на участников без карточки.");
                 summary = "Платёжные доли по направлению " + direction + ".";
                 break;
             case BankSearch:
                 var search = call.Arguments.Deserialize<SearchResearchArguments>(JsonOptions)!;
                 var allowed = news.Tags.Factors.ToHashSet(StringComparer.Ordinal);
-                var found = await research.SearchAsync(search with { Factors = search.Factors.Where(allowed.Contains).ToArray() }, cancellationToken);
+                var found = await research.SearchAsync(
+                    search with { Factors = search.Factors.Where(allowed.Contains).ToArray() }, cancellationToken);
                 foreach (var hit in found)
-                    ids.Add(registry.Add(new EvidenceDto(EvidenceType.BankResearch, hit.Title, null, hit.Text, hit.PublishedOn,
-                        hit.DocumentId.ToString(), hit.PageNo, hit.ChunkId.ToString(), JsonSerializer.Serialize(hit.Kind, JsonOptions).Trim('"'),
-                        hit.ReviewedCharts.Count > 0 ? JsonSerializer.SerializeToElement(hit.ReviewedCharts, JsonOptions) : null, null,
+                    ids.Add(registry.Add(new EvidenceDto(EvidenceType.BankResearch, hit.Title, null, hit.Text,
+                        hit.PublishedOn,
+                        hit.DocumentId.ToString(), hit.PageNo, hit.ChunkId.ToString(),
+                        JsonSerializer.Serialize(hit.Kind, JsonOptions).Trim('"'),
+                        hit.ReviewedCharts.Count > 0
+                            ? JsonSerializer.SerializeToElement(hit.ReviewedCharts, JsonOptions)
+                            : null, null,
                         hit.ReviewStatus, false, null, $"/api/research/{hit.DocumentId}/pages/{hit.PageNo}")));
                 if (found.Any(hit => hit.ReviewStatus != ReviewStatus.Reviewed))
                     limitations.Add(UnreviewedBankText);
@@ -154,13 +184,18 @@ public sealed class AgentTools(AlfaNewsDbContext db, ResearchSearch research, Ne
             default:
                 throw new InvalidOperationException("Неизвестный инструмент агента.");
         }
-        return new ToolExecution(call.Name, call.Arguments, ids.Distinct(StringComparer.Ordinal).ToArray(), limitations, summary);
+
+        return new ToolExecution(call.Name, call.Arguments, ids.Distinct(StringComparer.Ordinal).ToArray(), limitations,
+            summary);
     }
 
     private static bool IsUsefulQuote(string quote) => quote.Any(char.IsDigit)
-        || quote.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Count(word => word.Any(char.IsLetter)) >= 5;
+                                                       || quote.Split((char[]?)null,
+                                                               StringSplitOptions.RemoveEmptyEntries)
+                                                           .Count(word => word.Any(char.IsLetter)) >= 5;
 
-    private async Task<string> GroupAsync(CompanyProfile company, EvidenceRegistry registry, List<string> ids, List<string> limitations,
+    private async Task<string> GroupAsync(CompanyProfile company, EvidenceRegistry registry, List<string> ids,
+        List<string> limitations,
         CancellationToken cancellationToken)
     {
         if (company.GroupId is null)
@@ -168,6 +203,7 @@ public sealed class AgentTools(AlfaNewsDbContext db, ResearchSearch research, Ne
             limitations.Add("Компания не входит в группу по GROUP_ID в доступных данных.");
             return "Группа не указана.";
         }
+
         var groupJson = await db.GroupProfileRows.AsNoTracking().Where(row => row.GroupId == company.GroupId)
             .Select(row => (JsonElement?)row.ProfileJson).SingleOrDefaultAsync(cancellationToken);
         var group = groupJson?.Deserialize<GroupProfile>(JsonOptions);
@@ -177,15 +213,20 @@ public sealed class AgentTools(AlfaNewsDbContext db, ResearchSearch research, Ne
             .Select(json => json.Deserialize<CompanyProfile>(JsonOptions)!.Okved2).Where(code => code.Length > 0)
             .GroupBy(code => code).OrderBy(code => code.Key, StringComparer.Ordinal)
             .ToDictionary(code => code.Key, code => code.Count());
-        ids.Add(registry.Add(new EvidenceDto(EvidenceType.GroupFeature, "Данные группы компании", null, null, null, null, null, null,
-            "group_summary", JsonSerializer.SerializeToElement(new { other_members = memberIds.Length, member_okved2 = sectors }),
+        ids.Add(registry.Add(new EvidenceDto(EvidenceType.GroupFeature, "Данные группы компании", null, null, null,
+            null, null, null,
+            "group_summary",
+            JsonSerializer.SerializeToElement(new { other_members = memberIds.Length, member_okved2 = sectors }),
             group?.DataVersion ?? company.DataVersion, null, false, null, null)));
-        limitations.Add("Состав группы известен только по GROUP_ID среди отфильтрованных компаний-клиентов; связи через физлиц не учитываются.");
+        limitations.Add(
+            "Состав группы известен только по GROUP_ID среди отфильтрованных компаний-клиентов; связи через физлиц не учитываются.");
         return $"Других компаний группы в данных: {memberIds.Length}.";
     }
 
-    private static EvidenceDto Feature(CompanyProfile company, string key, object value) => new(EvidenceType.CompanyFeature, "Данные компании",
-        null, null, null, null, null, null, key, JsonSerializer.SerializeToElement(value), company.DataVersion, null, false, null, null);
+    private static EvidenceDto Feature(CompanyProfile company, string key, object value) => new(
+        EvidenceType.CompanyFeature, "Данные компании",
+        null, null, null, null, null, null, key, JsonSerializer.SerializeToElement(value), company.DataVersion, null,
+        false, null, null);
 
     private static JsonElement Schema(string json) => JsonSerializer.Deserialize<JsonElement>(json);
 

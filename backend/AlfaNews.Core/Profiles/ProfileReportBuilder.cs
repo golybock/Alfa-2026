@@ -39,7 +39,9 @@ public static class ProfileReportBuilder
                 "Возможное изменение спроса на деятельность компаний этой отрасли.",
                 "Проверить конкретный канал на новых публикациях и подтвердить применимость к выбранной компании.",
                 null, null, "draft"));
-            if (sector.Candidates.Any(candidate => candidate.Company.Products.Any(product => product is "loan" or "leasing" or "guarantee" or "factoring")))
+            if (sector.Candidates.Any(candidate =>
+                    candidate.Company.Products.Any(product =>
+                        product is "loan" or "leasing" or "guarantee" or "factoring")))
                 drafts.Add(new SensitivityDraft(sector.Okved2, "Ключевая ставка", "key_rate",
                     "При наличии соответствующего продукта возможен канал стоимости нового финансирования.",
                     "Уточнить условия продукта и зависимость ставки договора от ключевой; текущая долговая нагрузка неизвестна.",
@@ -51,9 +53,12 @@ public static class ProfileReportBuilder
             if (sector.Candidates.Any(candidate => candidate.Company.FtsCountries.Count > 0))
                 drafts.Add(new SensitivityDraft(sector.Okved2, "Внешнеторговые изменения", null,
                     "Проверить применимость события к странам, указанным в данных ФТС.",
-                    "Направление торговли, валюты и конкретные операции не установлены данными профиля.", null, null, "draft"));
+                    "Направление торговли, валюты и конкретные операции не установлены данными профиля.", null, null,
+                    "draft"));
         }
-        var unmapped = companies.SelectMany(company => company.FtsCountries).Where(country => !CountryNames.IsKnown(country))
+
+        var unmapped = companies.SelectMany(company => company.FtsCountries)
+            .Where(country => !CountryNames.IsKnown(country))
             .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
         return new ProfileBuildReport(datasetVersion, dataVersion, algorithmVersion, companies.Count, groups.Count,
             sectors, drafts, unmapped,

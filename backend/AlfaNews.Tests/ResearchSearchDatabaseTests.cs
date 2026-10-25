@@ -17,14 +17,21 @@ public sealed class ResearchSearchDatabaseTests(PostgresFixture fixture) : IClas
     public async Task IndexesSeededChunksAndFusesFullTextWithVectors()
     {
         await using var db = fixture.CreateDb();
-        await new TaxonomyCatalogLoader(db).LoadAsync(Path.Combine(AppContext.BaseDirectory, "taxonomy.json"), CancellationToken.None);
-        var target = await db.ResearchChunkRows.AsNoTracking().Where(row => row.Text.Contains("ставк")).OrderBy(row => row.Id).FirstAsync();
+        await new TaxonomyCatalogLoader(db).LoadAsync(Path.Combine(AppContext.BaseDirectory, "taxonomy.json"),
+            CancellationToken.None);
+        var target = await db.ResearchChunkRows.AsNoTracking().Where(row => row.Text.Contains("ставк"))
+            .OrderBy(row => row.Id).FirstAsync();
         using var http = new HttpClient(new VectorHandler());
         var search = new ResearchSearch(db, new NewsEmbeddings(http, new ConfigurationBuilder().Build()));
-        Assert.Equal("stale", (await search.IndexAsync(new EmbedContentJob("research_chunk", target.Id.ToString(), "old"), CancellationToken.None)).Stage);
-        Assert.Equal("indexed", (await search.IndexAsync(new EmbedContentJob("research_chunk", target.Id.ToString(), target.Version), CancellationToken.None)).Stage);
+        Assert.Equal("stale",
+            (await search.IndexAsync(new EmbedContentJob("research_chunk", target.Id.ToString(), "old"),
+                CancellationToken.None)).Stage);
+        Assert.Equal("indexed",
+            (await search.IndexAsync(new EmbedContentJob("research_chunk", target.Id.ToString(), target.Version),
+                CancellationToken.None)).Stage);
         Assert.NotNull((await db.ResearchChunkRows.AsNoTracking().SingleAsync(row => row.Id == target.Id)).Embedding);
-        var hits = await search.SearchAsync(new SearchResearchArguments("позиция банка по ключевой ставке", ["key_rate"], 10), CancellationToken.None);
+        var hits = await search.SearchAsync(
+            new SearchResearchArguments("позиция банка по ключевой ставке", ["key_rate"], 10), CancellationToken.None);
         Assert.InRange(hits.Count, 1, 6);
         Assert.Contains(hits, hit => hit.ChunkId == target.Id);
         Assert.All(hits, hit =>
@@ -42,7 +49,8 @@ public sealed class ResearchSearchDatabaseTests(PostgresFixture fixture) : IClas
 
     private sealed class VectorHandler : HttpMessageHandler
     {
-        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
+            CancellationToken cancellationToken)
         {
             var input = await request.Content!.ReadFromJsonAsync<JsonElement>(cancellationToken);
             var vectors = input.GetProperty("inputs").EnumerateArray().Select(_ =>
@@ -57,7 +65,8 @@ public sealed class ResearchSearchDatabaseTests(PostgresFixture fixture) : IClas
 
     private sealed class DownHandler : HttpMessageHandler
     {
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
+            CancellationToken cancellationToken) =>
             throw new HttpRequestException("TEI недоступен.");
     }
 }

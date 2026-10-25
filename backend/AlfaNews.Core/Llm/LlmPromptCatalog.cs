@@ -13,13 +13,17 @@ public sealed partial class LlmPromptCatalog
     // Вход модели пишется с кириллицей как есть: по умолчанию JSON экранирует её в \uXXXX, и русский текст стоит
     // в несколько раз больше токенов (замер 24.10: справочник разбора 26 тыс. символов вместо 7,7 тыс.).
     // Символы разметки (<, >, &) по-прежнему экранируются: недоверенный текст не закроет тег <input_json>.
-    private static readonly JsonSerializerOptions PromptJson = new() { Encoder = JavaScriptEncoder.Create(UnicodeRanges.All) };
+    private static readonly JsonSerializerOptions PromptJson = new()
+        { Encoder = JavaScriptEncoder.Create(UnicodeRanges.All) };
+
     private const string SchemaByApi = "supplied by the API as the response_format JSON Schema; follow it exactly.";
     private readonly string root;
     private readonly JsonElement manifest;
     public string VersionHash => Hash(manifest.GetRawText());
 
-    public LlmPromptCatalog() : this(Path.Combine(AppContext.BaseDirectory, "Prompts")) { }
+    public LlmPromptCatalog() : this(Path.Combine(AppContext.BaseDirectory, "Prompts"))
+    {
+    }
 
     public LlmPromptCatalog(string directory)
     {
@@ -42,21 +46,25 @@ public sealed partial class LlmPromptCatalog
         var target = manifest.GetProperty("tasks").GetProperty(task.ToString());
         var schemaName = Path.GetFileName(original.GetProperty("schema").GetString()!);
         var schema = File.ReadAllText(Path.Combine(root, "schemas", schemaName));
-        var replacements = request.Values.ToDictionary(pair => pair.Key, pair => JsonSerializer.Serialize(pair.Value, PromptJson),
+        var replacements = request.Values.ToDictionary(pair => pair.Key,
+            pair => JsonSerializer.Serialize(pair.Value, PromptJson),
             StringComparer.Ordinal);
         replacements["OUTPUT_SCHEMA_JSON"] = schemaInPrompt ? schema : SchemaByApi;
         if (task == LlmTask.Repair)
         {
             var originalPrompt = Render(request, request.Task, schemaInPrompt: schemaInPrompt);
             replacements["ORIGINAL_SYSTEM_RULES"] = schemaInPrompt
-                ? originalPrompt.System.Replace(originalPrompt.Schema, "Use the target output schema supplied below.", StringComparison.Ordinal)
+                ? originalPrompt.System.Replace(originalPrompt.Schema, "Use the target output schema supplied below.",
+                    StringComparison.Ordinal)
                 : originalPrompt.System;
             replacements["ORIGINAL_INPUT_JSON"] = JsonSerializer.Serialize(request.Values, PromptJson);
             replacements["PREVIOUS_RESPONSE_JSON"] = PreviousResponse(previous);
             replacements["DIAGNOSTICS_JSON"] = JsonSerializer.Serialize((diagnostics ?? []).Take(12)
                 .Select(error => error[..Math.Min(error.Length, 240)]), PromptJson);
         }
-        var system = Replace(File.ReadAllText(Path.Combine(root, target.GetProperty("system").GetString()!)), replacements);
+
+        var system = Replace(File.ReadAllText(Path.Combine(root, target.GetProperty("system").GetString()!)),
+            replacements);
         var user = Replace(File.ReadAllText(Path.Combine(root, target.GetProperty("user").GetString()!)), replacements);
         var runtime = request.Runtime ?? new LlmRuntime();
         system += "\nServer runtime settings:\n" + JsonSerializer.Serialize(new
@@ -90,10 +98,17 @@ public sealed partial class LlmPromptCatalog
 
     private static string Replace(string template, IReadOnlyDictionary<string, string> replacements) =>
         Placeholder().Replace(template, match => replacements.TryGetValue(match.Groups[1].Value, out var value)
-            ? value : throw new ArgumentException("Не задан вход промпта: " + match.Groups[1].Value));
+            ? value
+            : throw new ArgumentException("Не задан вход промпта: " + match.Groups[1].Value));
 
     [GeneratedRegex("\\{\\{([A-Z_]+)\\}\\}", RegexOptions.CultureInvariant)]
     private static partial Regex Placeholder();
 }
 
-public sealed record LlmPrompt(string System, string User, string Schema, string SchemaName, string Version, string SchemaHash);
+public sealed record LlmPrompt(
+    string System,
+    string User,
+    string Schema,
+    string SchemaName,
+    string Version,
+    string SchemaHash);

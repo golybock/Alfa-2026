@@ -8,10 +8,13 @@ public sealed class CsvRecordReaderTests
     [Fact]
     public async Task ReadsBomQuotedDelimitersEscapedQuotesAndMultilineFields()
     {
-        await using var stream = new MemoryStream(Encoding.UTF8.GetBytes("\uFEFF\"id\";value\r\na;\"текст; с \"\"кавычкой\"\"\nи переносом\"\r\nb;"));
+        await using var stream =
+            new MemoryStream(
+                Encoding.UTF8.GetBytes("\uFEFF\"id\";value\r\na;\"текст; с \"\"кавычкой\"\"\nи переносом\"\r\nb;"));
         using var reader = new CsvRecordReader(stream);
         Assert.Equal(["id", "value"], Assert.IsType<string[]>(await reader.ReadAsync(CancellationToken.None)));
-        Assert.Equal(["a", "текст; с \"кавычкой\"\nи переносом"], Assert.IsType<string[]>(await reader.ReadAsync(CancellationToken.None)));
+        Assert.Equal(["a", "текст; с \"кавычкой\"\nи переносом"],
+            Assert.IsType<string[]>(await reader.ReadAsync(CancellationToken.None)));
         Assert.Equal(["b", ""], Assert.IsType<string[]>(await reader.ReadAsync(CancellationToken.None)));
         Assert.Null(await reader.ReadAsync(CancellationToken.None));
     }

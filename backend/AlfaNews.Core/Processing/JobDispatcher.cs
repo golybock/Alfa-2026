@@ -10,7 +10,8 @@ namespace AlfaNews.Core.Processing;
 
 public sealed class JobDispatcher(IServiceScopeFactory scopes, TimeProvider timeProvider, ILogger<JobDispatcher> logger)
 {
-    public Task<bool> DispatchNextAsync(CancellationToken cancellationToken) => DispatchNextAsync(null, cancellationToken);
+    public Task<bool> DispatchNextAsync(CancellationToken cancellationToken) =>
+        DispatchNextAsync(null, cancellationToken);
 
     public async Task<bool> DispatchNextAsync(IReadOnlyCollection<string>? kinds, CancellationToken cancellationToken)
     {
@@ -33,7 +34,8 @@ public sealed class JobDispatcher(IServiceScopeFactory scopes, TimeProvider time
                 _ = job.Payload.Deserialize(payloadType, JobKinds.JsonOptions)
                     ?? throw new JsonException("Пустые данные задания.");
                 await using var executionScope = scopes.CreateAsyncScope();
-                var handler = executionScope.ServiceProvider.GetServices<IJobHandler>().SingleOrDefault(candidate => candidate.Kind == job.Kind);
+                var handler = executionScope.ServiceProvider.GetServices<IJobHandler>()
+                    .SingleOrDefault(candidate => candidate.Kind == job.Kind);
                 if (handler is null)
                 {
                     job.Status = "failed";
@@ -67,8 +69,10 @@ public sealed class JobDispatcher(IServiceScopeFactory scopes, TimeProvider time
                 LlmException llm => llm.Code,
                 _ => "job_failed"
             };
-            logger.LogError("Ошибка задания {JobId} вида {Kind}: {ErrorType}.", job.Id, job.Kind, exception.GetType().Name);
+            logger.LogError("Ошибка задания {JobId} вида {Kind}: {ErrorType}.", job.Id, job.Kind,
+                exception.GetType().Name);
         }
+
         if (job.Status == "failed")
             job.Stage = "failed";
         if (deferred)
@@ -79,6 +83,7 @@ public sealed class JobDispatcher(IServiceScopeFactory scopes, TimeProvider time
         }
         else
             job.FinishedAt = timeProvider.GetUtcNow();
+
         await db.SaveChangesAsync(cancellationToken);
         return !deferred;
     }
@@ -91,14 +96,17 @@ public sealed class JobDispatcher(IServiceScopeFactory scopes, TimeProvider time
             var queued = db.BackgroundJobRows.AsNoTracking().Where(row => row.Status == "queued");
             if (kinds is not null)
                 queued = queued.Where(row => kinds.Contains(row.Kind));
-            var candidate = await queued.OrderByDescending(row => row.Priority).ThenBy(row => row.CreatedAt).ThenBy(row => row.Id)
+            var candidate = await queued.OrderByDescending(row => row.Priority).ThenBy(row => row.CreatedAt)
+                .ThenBy(row => row.Id)
                 .Select(row => (Guid?)row.Id).FirstOrDefaultAsync(cancellationToken);
             if (candidate is not { } id)
                 return null;
             var claimed = await db.BackgroundJobRows.Where(row => row.Id == id && row.Status == "queued")
                 .ExecuteUpdateAsync(update => update.SetProperty(row => row.Status, "running")
-                    .SetProperty(row => row.Stage, "running").SetProperty(row => row.StartedAt, (DateTimeOffset?)timeProvider.GetUtcNow())
-                    .SetProperty(row => row.FinishedAt, (DateTimeOffset?)null).SetProperty(row => row.Attempts, row => row.Attempts + 1)
+                    .SetProperty(row => row.Stage, "running")
+                    .SetProperty(row => row.StartedAt, (DateTimeOffset?)timeProvider.GetUtcNow())
+                    .SetProperty(row => row.FinishedAt, (DateTimeOffset?)null)
+                    .SetProperty(row => row.Attempts, row => row.Attempts + 1)
                     .SetProperty(row => row.LastError, (string?)null).SetProperty(row => row.ResultType, (string?)null)
                     .SetProperty(row => row.ResultId, (string?)null), cancellationToken);
             if (claimed == 1)

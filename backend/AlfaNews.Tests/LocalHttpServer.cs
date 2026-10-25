@@ -4,8 +4,14 @@ using System.Text;
 
 namespace AlfaNews.Tests;
 
-public sealed record LocalResponse(int Status, string Body, string ContentType = "text/html; charset=utf-8", string? Location = null,
-    int StallAfterBodyMs = 0, bool DeclareLongerBody = false, Encoding? BodyEncoding = null);
+public sealed record LocalResponse(
+    int Status,
+    string Body,
+    string ContentType = "text/html; charset=utf-8",
+    string? Location = null,
+    int StallAfterBodyMs = 0,
+    bool DeclareLongerBody = false,
+    Encoding? BodyEncoding = null);
 
 public sealed class LocalHttpServer : IDisposable
 {
@@ -55,6 +61,7 @@ public sealed class LocalHttpServer : IDisposable
             {
                 return;
             }
+
             var path = context.Request.Url!.PathAndQuery;
             lock (Requests)
                 Requests.Add(path);
@@ -76,7 +83,8 @@ public sealed class LocalHttpServer : IDisposable
                 else
                     context.Response.Close();
             }
-            catch (Exception exception) when (exception is HttpListenerException or IOException or ObjectDisposedException)
+            catch (Exception exception) when (exception is HttpListenerException or IOException
+                                                  or ObjectDisposedException)
             {
                 context.Response.Abort();
             }

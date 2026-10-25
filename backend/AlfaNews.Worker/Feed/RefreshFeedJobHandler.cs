@@ -19,5 +19,6 @@ public sealed class PrecomputeDemoJobHandler(FeedRefreshService service) : IJobH
     public string Kind => JobKinds.Name<PrecomputeDemoJob>();
 
     public Task<JobResult> HandleAsync(BackgroundJobEntity job, CancellationToken cancellationToken) =>
-        service.PrecomputeDemoAsync(job.Payload.Deserialize<PrecomputeDemoJob>(JobKinds.JsonOptions)!, cancellationToken);
+        service.PrecomputeDemoAsync(job.Payload.Deserialize<PrecomputeDemoJob>(JobKinds.JsonOptions)!,
+            cancellationToken);
 }

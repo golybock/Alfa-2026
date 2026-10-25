@@ -13,7 +13,8 @@ public static class CompanyProfileMapper
         ("CL_PRODUCT_DEP_MARK", "deposit"), ("CL_PRODUCT_ZPP_MARK", "payroll"), ("FACTORING_MARK", "factoring")
     ];
 
-    public static CompanyProfile Map(CompanyEntity company, PaymentExposure incoming, PaymentExposure outgoing, string dataVersion)
+    public static CompanyProfile Map(CompanyEntity company, PaymentExposure incoming, PaymentExposure outgoing,
+        string dataVersion)
     {
         var okved = company.MainOkvedCode.Trim();
         var okved2 = okved.Length >= 2 && char.IsAsciiDigit(okved[0]) && char.IsAsciiDigit(okved[1]) ? okved[..2] : "";
@@ -26,7 +27,8 @@ public static class CompanyProfileMapper
     }
 
     private static string? RawValue(JsonElement raw, string key) => raw.ValueKind == JsonValueKind.Object
-        && raw.TryGetProperty(key, out var value) && value.ValueKind == JsonValueKind.String
-            ? string.IsNullOrWhiteSpace(value.GetString()) ? null : value.GetString()!.Trim()
-            : null;
+                                                                    && raw.TryGetProperty(key, out var value) &&
+                                                                    value.ValueKind == JsonValueKind.String
+        ? string.IsNullOrWhiteSpace(value.GetString()) ? null : value.GetString()!.Trim()
+        : null;
 }

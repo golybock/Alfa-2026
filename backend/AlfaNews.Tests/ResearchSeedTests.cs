@@ -15,9 +15,11 @@ public sealed class ResearchSeedTests(PostgresFixture fixture) : IClassFixture<P
         var seed = json.RootElement;
         Assert.Equal(9, seed.GetProperty("documents").GetArrayLength());
         Assert.Equal(64, seed.GetProperty("pages").GetArrayLength());
-        var ids = seed.GetProperty("documents").EnumerateArray().Select(row => row.GetProperty("id").GetGuid()).ToArray();
+        var ids = seed.GetProperty("documents").EnumerateArray().Select(row => row.GetProperty("id").GetGuid())
+            .ToArray();
         await using var db = fixture.CreateDb();
-        Assert.Equal(9, await db.ResearchDocRows.CountAsync(row => ids.Contains(row.Id) && row.ReviewStatus == "reviewed"));
+        Assert.Equal(9,
+            await db.ResearchDocRows.CountAsync(row => ids.Contains(row.Id) && row.ReviewStatus == "reviewed"));
         var pages = await db.ResearchPageRows.Where(row => ids.Contains(row.DocumentId)).ToArrayAsync();
         Assert.Equal(64, pages.Length);
         foreach (var page in pages)
@@ -30,7 +32,8 @@ public sealed class ResearchSeedTests(PostgresFixture fixture) : IClassFixture<P
             {
                 Assert.NotNull(page.OcrJson);
                 var errors = PdfExtractionChecks.Validate(page.OcrJson.Value);
-                Assert.True(errors.Count == 0, $"PDF {page.DocumentId}, страница {page.PageNo}: {string.Join(',', errors)}");
+                Assert.True(errors.Count == 0,
+                    $"PDF {page.DocumentId}, страница {page.PageNo}: {string.Join(',', errors)}");
             }
             else
             {
@@ -38,6 +41,7 @@ public sealed class ResearchSeedTests(PostgresFixture fixture) : IClassFixture<P
                 Assert.False(string.IsNullOrWhiteSpace(page.LastError));
             }
         }
+
         Assert.Empty(await db.LlmUsageRows.ToArrayAsync());
         var pageIds = pages.Select(row => row.Id).ToArray();
         var chunks = await db.ResearchChunkRows.Where(row => pageIds.Contains(row.PageId)).ToArrayAsync();

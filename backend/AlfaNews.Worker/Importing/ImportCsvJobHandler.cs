@@ -13,7 +13,8 @@ public sealed class ImportCsvJobHandler(CsvImportService service, AlfaNewsDbCont
 
     public async Task<JobResult> HandleAsync(BackgroundJobEntity job, CancellationToken cancellationToken)
     {
-        await service.ImportAsync(job.Payload.Deserialize<ImportCsvJob>(JobKinds.JsonOptions)!, cancellationToken, job.Id);
+        await service.ImportAsync(job.Payload.Deserialize<ImportCsvJob>(JobKinds.JsonOptions)!, cancellationToken,
+            job.Id);
         var completed = await db.BackgroundJobRows.AsNoTracking()
             .SingleAsync(row => row.Id == job.Id && row.Status == "done", cancellationToken);
         return new JobResult(completed.Stage, completed.ResultType, completed.ResultId);

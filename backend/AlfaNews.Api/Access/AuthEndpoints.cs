@@ -14,7 +14,8 @@ public static class AuthEndpoints
         {
             var hours = configuration.GetValue("Auth:SessionHours", 12);
             var result = await auth.LoginAsync(request, TimeSpan.FromHours(hours), cancellationToken);
-            http.Response.Cookies.Append(SessionAuthenticationHandler.CookieName, result.Token, CookieOptions(http, result.ExpiresAt));
+            http.Response.Cookies.Append(SessionAuthenticationHandler.CookieName, result.Token,
+                CookieOptions(http, result.ExpiresAt));
             return Results.Ok(result.Me);
         });
 
@@ -26,7 +27,7 @@ public static class AuthEndpoints
         }).RequireAuthorization();
 
         group.MapGet("/me", async (HttpContext http, AuthService auth, CancellationToken cancellationToken) =>
-            Results.Ok(await auth.MeAsync(SessionAuthenticationHandler.CurrentUser(http.User), cancellationToken)))
+                Results.Ok(await auth.MeAsync(SessionAuthenticationHandler.CurrentUser(http.User), cancellationToken)))
             .RequireAuthorization();
     }
 

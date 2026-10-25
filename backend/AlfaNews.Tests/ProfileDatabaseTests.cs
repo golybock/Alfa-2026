@@ -19,7 +19,8 @@ public sealed class ProfileDatabaseTests(PostgresFixture fixture) : IClassFixtur
         using var input = new ProfileInput();
         await using var db = fixture.CreateDb();
         await input.SeedAsync(db);
-        var result = await new ProfileBuilder(db).BuildAsync(input.Job, input.ReportPath, false, CancellationToken.None);
+        var result =
+            await new ProfileBuilder(db).BuildAsync(input.Job, input.ReportPath, false, CancellationToken.None);
         Assert.False(result.Skipped);
         var a = await ReadCompanyAsync(db, input.A);
         Assert.Equal(100, a.Outgoing.TotalExternalAmount);
@@ -69,11 +70,14 @@ public sealed class ProfileDatabaseTests(PostgresFixture fixture) : IClassFixtur
         var initialReport = await File.ReadAllTextAsync(input.ReportPath);
         Assert.Contains("Профили отражают", initialReport);
         Assert.DoesNotContain("\\u041F", initialReport);
-        var initialTime = await db.CompanyProfileRows.Where(row => row.CompanyId == input.A).Select(row => row.UpdatedAt).SingleAsync();
+        var initialTime = await db.CompanyProfileRows.Where(row => row.CompanyId == input.A)
+            .Select(row => row.UpdatedAt).SingleAsync();
         var repeat = await builder.BuildAsync(input.Job, input.ReportPath, false, CancellationToken.None);
         Assert.Equal(first.Report.DataVersion, repeat.Report.DataVersion);
         Assert.Equal(initialReport, await File.ReadAllTextAsync(input.ReportPath));
-        Assert.Equal(initialTime, await db.CompanyProfileRows.Where(row => row.CompanyId == input.A).Select(row => row.UpdatedAt).SingleAsync());
+        Assert.Equal(initialTime,
+            await db.CompanyProfileRows.Where(row => row.CompanyId == input.A).Select(row => row.UpdatedAt)
+                .SingleAsync());
         Assert.True((await builder.BuildAsync(input.Job, input.ReportPath, true, CancellationToken.None)).Skipped);
         await File.WriteAllTextAsync(input.ReportPath, JsonSerializer.Serialize(first.Report, JsonOptions));
         Assert.Contains("\\u041F", await File.ReadAllTextAsync(input.ReportPath));
@@ -146,7 +150,8 @@ public sealed class ProfileDatabaseTests(PostgresFixture fixture) : IClassFixtur
         await input.SeedAsync(db);
         Directory.CreateDirectory(input.ReportPath);
         var builder = new ProfileBuilder(db);
-        var error = await Record.ExceptionAsync(() => builder.BuildAsync(input.Job, input.ReportPath, false, CancellationToken.None));
+        var error = await Record.ExceptionAsync(() =>
+            builder.BuildAsync(input.Job, input.ReportPath, false, CancellationToken.None));
         Assert.True(error is IOException or UnauthorizedAccessException, error?.ToString());
         Assert.False(await db.CompanyProfileRows.AnyAsync(row => row.CompanyId == input.A));
         Assert.False(await db.GroupProfileRows.AnyAsync(row => row.GroupId == input.Group));
@@ -176,11 +181,13 @@ public sealed class ProfileDatabaseTests(PostgresFixture fixture) : IClassFixtur
         using var input = new ProfileInput();
         await using var db = fixture.CreateDb();
         var builder = new ProfileBuilder(db);
-        await Assert.ThrowsAsync<InvalidOperationException>(() => builder.BuildAsync(input.Job, input.ReportPath, true, CancellationToken.None));
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            builder.BuildAsync(input.Job, input.ReportPath, true, CancellationToken.None));
         await input.SeedAsync(db);
         await db.PaymentRows.Where(row => row.Payer == input.A && row.Beneficiary == input.B)
             .ExecuteUpdateAsync(update => update.SetProperty(row => row.DatasetVersion, "other"));
-        await Assert.ThrowsAsync<InvalidOperationException>(() => builder.BuildAsync(input.Job, input.ReportPath, true, CancellationToken.None));
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            builder.BuildAsync(input.Job, input.ReportPath, true, CancellationToken.None));
         Assert.False(await db.CompanyProfileRows.AnyAsync(row => row.CompanyId == input.A));
         Assert.False(File.Exists(input.ReportPath));
     }
@@ -192,11 +199,20 @@ public sealed class ProfileDatabaseTests(PostgresFixture fixture) : IClassFixtur
         await using var db = fixture.CreateDb();
         await input.SeedAsync(db);
         await db.PaymentRows.Where(row => row.DatasetVersion == input.Job.DatasetVersion).ExecuteDeleteAsync();
-        await db.CompanyRows.Where(row => row.Id == input.B).ExecuteUpdateAsync(update => update.SetProperty(row => row.MainOkvedCode, ""));
+        await db.CompanyRows.Where(row => row.Id == input.B)
+            .ExecuteUpdateAsync(update => update.SetProperty(row => row.MainOkvedCode, ""));
         db.ChangeTracker.Clear();
         db.PaymentRows.AddRange(
-            new PaymentEntity { Payer = input.A, Beneficiary = input.B, PayAmt = 20, PayCnt = 1, DatasetVersion = input.Job.DatasetVersion },
-            new PaymentEntity { Payer = input.A, Beneficiary = input.C, PayAmt = 0, PayCnt = 1, DatasetVersion = input.Job.DatasetVersion });
+            new PaymentEntity
+            {
+                Payer = input.A, Beneficiary = input.B, PayAmt = 20, PayCnt = 1,
+                DatasetVersion = input.Job.DatasetVersion
+            },
+            new PaymentEntity
+            {
+                Payer = input.A, Beneficiary = input.C, PayAmt = 0, PayCnt = 1,
+                DatasetVersion = input.Job.DatasetVersion
+            });
         await db.SaveChangesAsync();
         await new ProfileBuilder(db).BuildAsync(input.Job, input.ReportPath, false, CancellationToken.None);
         var a = await ReadCompanyAsync(db, input.A);
@@ -227,7 +243,9 @@ public sealed class ProfileDatabaseTests(PostgresFixture fixture) : IClassFixtur
 
     private sealed class ProfileInput : IDisposable
     {
-        private readonly string directory = Path.Combine(Path.GetTempPath(), "alfanews_profiles_" + Guid.NewGuid().ToString("N"));
+        private readonly string directory =
+            Path.Combine(Path.GetTempPath(), "alfanews_profiles_" + Guid.NewGuid().ToString("N"));
+
         public RebuildProfilesJob Job { get; } = new(Guid.NewGuid().ToString("N"));
         public string A => Job.DatasetVersion + "_a";
         public string B => Job.DatasetVersion + "_b";
@@ -256,18 +274,19 @@ public sealed class ProfileDatabaseTests(PostgresFixture fixture) : IClassFixtur
             await db.SaveChangesAsync();
         }
 
-        private CompanyEntity Company(string id, string okved, string? group, decimal? revenue, JsonElement raw) => new()
-        {
-            Id = id,
-            ClType = "CLIENT",
-            MainOkvedCode = okved,
-            MainOkvedName = "Тестовая отрасль",
-            GroupId = group,
-            Revenue = revenue,
-            RawData = raw,
-            DatasetVersion = Job.DatasetVersion,
-            ImportedAt = DateTimeOffset.UtcNow
-        };
+        private CompanyEntity Company(string id, string okved, string? group, decimal? revenue, JsonElement raw) =>
+            new()
+            {
+                Id = id,
+                ClType = "CLIENT",
+                MainOkvedCode = okved,
+                MainOkvedName = "Тестовая отрасль",
+                GroupId = group,
+                Revenue = revenue,
+                RawData = raw,
+                DatasetVersion = Job.DatasetVersion,
+                ImportedAt = DateTimeOffset.UtcNow
+            };
 
         private PaymentEntity Payment(string payer, string beneficiary, decimal amount) => new()
         {

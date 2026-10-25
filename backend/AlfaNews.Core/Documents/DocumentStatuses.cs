@@ -7,5 +7,6 @@ public static class DocumentStatuses
     public const string KeyRequired = "llm_key_required";
 
     public static bool WaitsForKey(string status, IReadOnlyCollection<(string Status, string? LastError)> pages) =>
-        status == "failed" && pages.Count > 0 && pages.All(page => page.Status == "failed" && page.LastError == KeyRequired);
+        status == "failed" && pages.Count > 0 &&
+        pages.All(page => page.Status == "failed" && page.LastError == KeyRequired);
 }

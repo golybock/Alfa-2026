@@ -21,7 +21,8 @@ public sealed class AuthServiceTests(PostgresFixture fixture) : IClassFixture<Po
             DisplayName = "Тест"
         };
         db.AppUserRows.Add(user);
-        db.UserCompanyAccessRows.Add(new UserCompanyAccessEntity { UserId = user.Id, CompanyId = "test_company_a", Role = "cfo" });
+        db.UserCompanyAccessRows.Add(new UserCompanyAccessEntity
+            { UserId = user.Id, CompanyId = "test_company_a", Role = "cfo" });
         await db.SaveChangesAsync();
         var auth = new AuthService(db, TimeProvider.System);
 
@@ -29,7 +30,8 @@ public sealed class AuthServiceTests(PostgresFixture fixture) : IClassFixture<Po
             auth.LoginAsync(new LoginRequest(login, "wrong"), TimeSpan.FromHours(1), CancellationToken.None));
         Assert.Equal(401, wrong.StatusCode);
 
-        var result = await auth.LoginAsync(new LoginRequest(login, "correct-password"), TimeSpan.FromHours(1), CancellationToken.None);
+        var result = await auth.LoginAsync(new LoginRequest(login, "correct-password"), TimeSpan.FromHours(1),
+            CancellationToken.None);
         var company = Assert.Single(result.Me.Companies);
         Assert.Equal("test_company_a", company.CompanyId);
         Assert.Equal([Role.Cfo], company.Roles);
@@ -53,19 +55,22 @@ public sealed class AuthServiceTests(PostgresFixture fixture) : IClassFixture<Po
         var auth = new AuthService(db, TimeProvider.System);
         var lifetime = TimeSpan.FromHours(1);
 
-        var result = await seed.SeedAsync(["test_company_a", "test_company_b", "no_such_company"], CancellationToken.None);
+        var result = await seed.SeedAsync(["test_company_a", "test_company_b", "no_such_company"],
+            CancellationToken.None);
         Assert.Equal(["admin", "operator", "demo", "test_company_a", "test_company_b"], result.Logins);
         Assert.Equal(["no_such_company"], result.MissingCompanies);
         await seed.SeedAsync(["test_company_a", "test_company_b"], CancellationToken.None);
 
         foreach (var login in new[] { "admin", "operator" })
         {
-            var me = (await auth.LoginAsync(new LoginRequest(login, UserSeedService.Password), lifetime, CancellationToken.None)).Me;
+            var me = (await auth.LoginAsync(new LoginRequest(login, UserSeedService.Password), lifetime,
+                CancellationToken.None)).Me;
             Assert.True(me.IsOperator);
             Assert.Empty(me.Companies);
         }
 
-        var demo = (await auth.LoginAsync(new LoginRequest("demo", UserSeedService.Password), lifetime, CancellationToken.None)).Me;
+        var demo = (await auth.LoginAsync(new LoginRequest("demo", UserSeedService.Password), lifetime,
+            CancellationToken.None)).Me;
         Assert.False(demo.IsOperator);
         Assert.Equal(["test_company_a", "test_company_b"], demo.Companies.Select(company => company.CompanyId));
         Assert.All(demo.Companies, company => Assert.Equal([Role.Ceo, Role.Cfo], company.Roles));

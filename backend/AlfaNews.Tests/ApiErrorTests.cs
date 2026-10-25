@@ -15,9 +15,11 @@ public sealed class ApiErrorTests
         context.Request.Method = "GET";
         context.Request.Path = "/api/feed";
         context.Response.Body = new MemoryStream();
-        var middleware = new ApiAccessMiddleware(_ => throw new InvalidOperationException("секрет в тексте исключения"));
+        var middleware =
+            new ApiAccessMiddleware(_ => throw new InvalidOperationException("секрет в тексте исключения"));
 
-        await middleware.InvokeAsync(context, new ConfigurationBuilder().Build(), NullLogger<ApiAccessMiddleware>.Instance);
+        await middleware.InvokeAsync(context, new ConfigurationBuilder().Build(),
+            NullLogger<ApiAccessMiddleware>.Instance);
 
         Assert.Equal(500, context.Response.StatusCode);
         context.Response.Body.Position = 0;
@@ -36,6 +38,7 @@ public sealed class ApiErrorTests
         var middleware = new ApiAccessMiddleware(_ => throw new InvalidOperationException());
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            middleware.InvokeAsync(context, new ConfigurationBuilder().Build(), NullLogger<ApiAccessMiddleware>.Instance));
+            middleware.InvokeAsync(context, new ConfigurationBuilder().Build(),
+                NullLogger<ApiAccessMiddleware>.Instance));
     }
 }

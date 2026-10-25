@@ -32,12 +32,15 @@ var runCommand = args.FirstOrDefault() == "run-worker";
 var evaluationCommand = args.FirstOrDefault() == "llm-evaluate";
 var newsValidationCommand = args.FirstOrDefault() == "news-validate";
 var demoCommand = args.FirstOrDefault() == "precompute-demo";
-var manualCommand = importCommand || profilesCommand || retryCommand || evaluationCommand || newsValidationCommand || demoCommand;
+var manualCommand = importCommand || profilesCommand || retryCommand || evaluationCommand || newsValidationCommand ||
+                    demoCommand;
 var demoAsOf = DateTimeOffset.UtcNow;
-if (demoCommand && (args.Length > 2 || args.Length == 2 && !DateTimeOffset.TryParse(args[1], CultureInfo.InvariantCulture,
+if (demoCommand && (args.Length > 2 || args.Length == 2 && !DateTimeOffset.TryParse(args[1],
+        CultureInfo.InvariantCulture,
         DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out demoAsOf)))
     throw new ArgumentException("Использование: precompute-demo [as_of, например 2026-10-25T09:00:00Z].");
-if (newsValidationCommand && (args.Length != 4 || !int.TryParse(args[3], out var parseLimit) || parseLimit is < 1 or > 10))
+if (newsValidationCommand &&
+    (args.Length != 4 || !int.TryParse(args[3], out var parseLimit) || parseLimit is < 1 or > 10))
     throw new ArgumentException("Использование: news-validate <report.json> <source-id> <parse-limit:1-10>.");
 if (evaluationCommand && args.Length is not (3 or 4))
     throw new ArgumentException("Использование: llm-evaluate <cases.json> <report.json> [case1,case2].");
@@ -49,7 +52,8 @@ if (profilesCommand && args.Length != 2)
     throw new ArgumentException("Использование: rebuild-profiles <dataset_version>.");
 var builder = Host.CreateApplicationBuilder(manualCommand ? [] : runCommand ? args[1..] : args);
 builder.Services.AddAlfaNewsData(builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? throw new InvalidOperationException("Задайте ConnectionStrings__DefaultConnection."));
+                                 ?? throw new InvalidOperationException(
+                                     "Задайте ConnectionStrings__DefaultConnection."));
 builder.Services.AddSingleton(TimeProvider.System);
 var pdfOptions = new PdfOptions();
 builder.Configuration.GetSection("Storage").Bind(pdfOptions);
@@ -78,19 +82,22 @@ builder.Services.AddScoped<IJobHandler, EmbedContentJobHandler>();
 builder.Services.AddScoped<ResearchSearch>();
 builder.Services.AddScoped<IJobHandler, CollectNewsJobHandler>();
 builder.Services.AddScoped<IJobHandler, CollectManualNewsJobHandler>();
-builder.Services.AddSingleton(_ => new SafeFetcher(builder.Configuration.GetValue<bool>("Ingest:AllowPrivateAddresses")));
+builder.Services.AddSingleton(_ =>
+    new SafeFetcher(builder.Configuration.GetValue<bool>("Ingest:AllowPrivateAddresses")));
 builder.Services.AddScoped<SourceCatalogLoader>();
 builder.Services.AddScoped<CollectNewsService>();
 builder.Services.AddScoped<NewsProcessingSchedule>();
 builder.Services.AddScoped<NewsTriageService>();
 builder.Services.AddScoped<NewsProcessing>();
-builder.Services.AddSingleton(provider => new NewsEmbeddings(new HttpClient { Timeout = TimeSpan.FromSeconds(90) }, provider.GetRequiredService<IConfiguration>()));
+builder.Services.AddSingleton(provider => new NewsEmbeddings(new HttpClient { Timeout = TimeSpan.FromSeconds(90) },
+    provider.GetRequiredService<IConfiguration>()));
 builder.Services.AddScoped<IJobHandler, ParseNewsJobHandler>();
 builder.Services.AddScoped<IJobHandler, TriageNewsJobHandler>();
 var rankingOptions = new RankingOptions();
 builder.Configuration.GetSection("Ranking").Bind(rankingOptions);
 rankingOptions.CompanyIds = (builder.Configuration["Feed:CompanyIds"] ?? "")
-    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Distinct(StringComparer.Ordinal).ToArray();
+    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Distinct(StringComparer.Ordinal)
+    .ToArray();
 rankingOptions.Validate();
 builder.Services.AddSingleton(rankingOptions);
 builder.Services.AddScoped<TaxonomyCatalogLoader>();
@@ -131,15 +138,18 @@ if (manualCommand)
     await using var scope = host.Services.CreateAsyncScope();
     if (newsValidationCommand)
     {
-        await scope.ServiceProvider.GetRequiredService<NewsValidation>().RunAsync(args[1], args[2], int.Parse(args[3]), cancellation.Token);
+        await scope.ServiceProvider.GetRequiredService<NewsValidation>()
+            .RunAsync(args[1], args[2], int.Parse(args[3]), cancellation.Token);
         return;
     }
+
     if (evaluationCommand)
     {
         await scope.ServiceProvider.GetRequiredService<LlmEvaluation>().RunAsync(args[1], args[2], cancellation.Token,
             args.Length == 4 ? args[3].Split(',').ToHashSet(StringComparer.Ordinal) : null);
         return;
     }
+
     if (demoCommand)
     {
         if (rankingOptions.CompanyIds.Count == 0)
@@ -147,18 +157,22 @@ if (manualCommand)
         var demo = await scope.ServiceProvider.GetRequiredService<JobQueue>().EnqueueAsync(
             new PrecomputeDemoJob(rankingOptions.CompanyIds, demoAsOf), null, null, cancellation.Token);
         scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("PrecomputeDemo")
-            .LogInformation("Поставлен демо-снимок {JobId} на {AsOf}; его выполнит запущенный Worker.", demo.Id, demoAsOf);
+            .LogInformation("Поставлен демо-снимок {JobId} на {AsOf}; его выполнит запущенный Worker.", demo.Id,
+                demoAsOf);
         return;
     }
+
     if (retryCommand)
     {
-        var retried = await scope.ServiceProvider.GetRequiredService<JobQueue>().RetryAsync(Guid.Parse(args[1]), cancellation.Token);
+        var retried = await scope.ServiceProvider.GetRequiredService<JobQueue>()
+            .RetryAsync(Guid.Parse(args[1]), cancellation.Token);
         if (!retried)
             throw new InvalidOperationException("Задание не найдено либо не находится в состоянии failed/running.");
         scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("RetryJob")
             .LogInformation("Задание {JobId} возвращено в очередь.", args[1]);
         return;
     }
+
     if (importCommand)
         await scope.ServiceProvider.GetRequiredService<CsvImportService>().ImportAsync(
             new ImportCsvJob(args[1], args[2], args[3]), cancellation.Token);
@@ -166,4 +180,5 @@ if (manualCommand)
         new RebuildProfilesJob(importCommand ? args[3] : args[1]), cancellation.Token);
     return;
 }
+
 await host.RunAsync();

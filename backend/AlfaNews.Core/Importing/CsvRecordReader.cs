@@ -23,12 +23,14 @@ public sealed class CsvRecordReader(Stream stream) : IDisposable
                     throw new InvalidDataException("Незакрытая кавычка в CSV.");
                 return started ? throw new InvalidDataException("Незавершённая запись CSV.") : null;
             }
+
             started = true;
             if (firstLine)
             {
                 line = line.TrimStart('\uFEFF');
                 firstLine = false;
             }
+
             for (var index = 0; index < line.Length; index++)
             {
                 var character = line[index];
@@ -60,6 +62,7 @@ public sealed class CsvRecordReader(Stream stream) : IDisposable
                 else
                     field.Append(character);
             }
+
             if (quoted)
                 field.Append('\n');
             else

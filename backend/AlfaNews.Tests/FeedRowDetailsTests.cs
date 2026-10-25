@@ -19,7 +19,8 @@ public sealed class FeedRowDetailsTests(PostgresFixture fixture) : IClassFixture
     public async Task ReadyRowShowsCardHeadlineDirectionSignificanceAndCollectionFailure()
     {
         await using var db = fixture.CreateDb();
-        var eventId = await db.InsightRows.Where(row => row.Id == fixture.InsightId).Select(row => row.EventId).SingleAsync();
+        var eventId = await db.InsightRows.Where(row => row.Id == fixture.InsightId).Select(row => row.EventId)
+            .SingleAsync();
         await InsertSnapshotAsync(db, "test_company_a", eventId);
         var card = AccessService.ReadReadyInsight(await db.InsightRows.SingleAsync(row => row.Id == fixture.InsightId));
 
@@ -36,8 +37,8 @@ public sealed class FeedRowDetailsTests(PostgresFixture fixture) : IClassFixture
 
         var checkedAt = DateTimeOffset.UtcNow;
         await db.Database.ExecuteSqlInterpolatedAsync($"""
-            UPDATE source SET enabled = true, last_checked_at = {checkedAt}, last_success_at = {checkedAt.AddHours(-3)}, last_error = 'http_503'
-            """);
+                                                       UPDATE source SET enabled = true, last_checked_at = {checkedAt}, last_success_at = {checkedAt.AddHours(-3)}, last_error = 'http_503'
+                                                       """);
         var failing = await CreateFeed(db).GetAsync(fixture.User, "test_company_a", Role.Cfo, CancellationToken.None);
         Assert.True(failing.CollectionFailed);
         Assert.Equal(checkedAt.AddHours(-3).ToUnixTimeSeconds(), failing.LastCollectedAt?.ToUnixTimeSeconds());
@@ -47,23 +48,31 @@ public sealed class FeedRowDetailsTests(PostgresFixture fixture) : IClassFixture
     public async Task FailedCardIsRetriedTwiceThenStaysFailed()
     {
         await using var db = fixture.CreateDb();
-        var eventId = await db.InsightRows.Where(row => row.Id == fixture.ForeignInsightId).Select(row => row.EventId).SingleAsync();
+        var eventId = await db.InsightRows.Where(row => row.Id == fixture.ForeignInsightId).Select(row => row.EventId)
+            .SingleAsync();
         await db.Database.ExecuteSqlInterpolatedAsync($"""
-            UPDATE insight SET status = 'failed', body_json = NULL WHERE id = {fixture.ForeignInsightId};
-            INSERT INTO user_company_access (user_id, company_id, role) VALUES ({fixture.UserId}, 'test_company_b', 'cfo');
-            """);
+                                                       UPDATE insight SET status = 'failed', body_json = NULL WHERE id = {fixture.ForeignInsightId};
+                                                       INSERT INTO user_company_access (user_id, company_id, role) VALUES ({fixture.UserId}, 'test_company_b', 'cfo');
+                                                       """);
         await InsertSnapshotAsync(db, "test_company_b", eventId);
         var feed = CreateFeed(db);
-        var insights = new InsightService(db, new AccessService(db, TimeProvider.System), new JobQueue(db, TimeProvider.System));
+        var insights = new InsightService(db, new AccessService(db, TimeProvider.System),
+            new JobQueue(db, TimeProvider.System));
 
-        var row = Assert.Single((await feed.GetAsync(fixture.User, "test_company_b", Role.Cfo, CancellationToken.None)).Items);
+        var row = Assert.Single((await feed.GetAsync(fixture.User, "test_company_b", Role.Cfo, CancellationToken.None))
+            .Items);
         Assert.Equal(AnalysisStatus.Failed, row.AnalysisStatus);
         Assert.True(row.RetryAvailable);
 
-        var retry = await insights.EnsureAsync(fixture.User, "test_company_b", eventId.ToString(), Role.Cfo, CancellationToken.None);
+        var retry = await insights.EnsureAsync(fixture.User, "test_company_b", eventId.ToString(), Role.Cfo,
+            CancellationToken.None);
         Assert.NotNull(retry.Accepted);
-        Assert.Equal("queued", await db.InsightRows.Where(item => item.Id == fixture.ForeignInsightId).Select(item => item.Status).SingleAsync());
-        var queued = Assert.Single((await feed.GetAsync(fixture.User, "test_company_b", Role.Cfo, CancellationToken.None)).Items);
+        Assert.Equal("queued",
+            await db.InsightRows.Where(item => item.Id == fixture.ForeignInsightId).Select(item => item.Status)
+                .SingleAsync());
+        var queued =
+            Assert.Single((await feed.GetAsync(fixture.User, "test_company_b", Role.Cfo, CancellationToken.None))
+                .Items);
         Assert.Equal(AnalysisStatus.Queued, queued.AnalysisStatus);
         Assert.NotNull(queued.QueuedAt);
 
@@ -79,10 +88,12 @@ public sealed class FeedRowDetailsTests(PostgresFixture fixture) : IClassFixture
             });
         await db.SaveChangesAsync();
         await db.Database.ExecuteSqlInterpolatedAsync($"""
-            UPDATE insight SET status = 'failed' WHERE id = {fixture.ForeignInsightId};
-            UPDATE background_job SET status = 'failed' WHERE id = {Guid.Parse(retry.Accepted.JobId)};
-            """);
-        Assert.False(Assert.Single((await feed.GetAsync(fixture.User, "test_company_b", Role.Cfo, CancellationToken.None)).Items).RetryAvailable);
+                                                       UPDATE insight SET status = 'failed' WHERE id = {fixture.ForeignInsightId};
+                                                       UPDATE background_job SET status = 'failed' WHERE id = {Guid.Parse(retry.Accepted.JobId)};
+                                                       """);
+        Assert.False(Assert
+            .Single((await feed.GetAsync(fixture.User, "test_company_b", Role.Cfo, CancellationToken.None)).Items)
+            .RetryAvailable);
         var exhausted = await Assert.ThrowsAsync<AccessException>(() =>
             insights.EnsureAsync(fixture.User, "test_company_b", eventId.ToString(), Role.Cfo, CancellationToken.None));
         Assert.Equal("analysis_failed", exhausted.Code);
@@ -93,10 +104,12 @@ public sealed class FeedRowDetailsTests(PostgresFixture fixture) : IClassFixture
     {
         await using var db = fixture.CreateDb();
         var activities = new UserActivityService(db, new AccessService(db, TimeProvider.System), TimeProvider.System);
-        var request = new UserActivityRequest(Guid.NewGuid().ToString(), UserActivityType.ManagerContactRequested, null, null);
+        var request = new UserActivityRequest(Guid.NewGuid().ToString(), UserActivityType.ManagerContactRequested, null,
+            null);
         await activities.RecordAsync(fixture.User, fixture.InsightId, request, CancellationToken.None);
         Assert.Equal("manager_contact_requested",
-            await db.UserActivityRows.Where(row => row.Id == Guid.Parse(request.EventId)).Select(row => row.Kind).SingleAsync());
+            await db.UserActivityRows.Where(row => row.Id == Guid.Parse(request.EventId)).Select(row => row.Kind)
+                .SingleAsync());
     }
 
     [Fact]
@@ -110,29 +123,35 @@ public sealed class FeedRowDetailsTests(PostgresFixture fixture) : IClassFixture
             EvidenceRefs = JsonSerializer.SerializeToElement(refs),
             DurationMs = 10
         };
+
         var similar = AgentStepView.ToDto(Step("tool", AgentTools.SimilarNews, "Найдены похожие новости.", "E5", "E6"));
         Assert.Equal("Нашли похожие новости: 2", similar.Title);
-        var critic = AgentStepView.ToDto(Step("critic", null, "Недостаточно дневного бюджета модели для проверки критиком. Код: budget_exhausted."));
+        var critic = AgentStepView.ToDto(Step("critic", null,
+            "Недостаточно дневного бюджета модели для проверки критиком. Код: budget_exhausted."));
         Assert.Equal(AgentStepStatus.Skipped, critic.Status);
         Assert.DoesNotContain("budget_exhausted", critic.Summary);
         Assert.Equal(AgentStepStatus.Failed,
-            AgentStepView.ToDto(Step("repair", null, "Починка не прошла: invalid_output. Сохранена последняя корректная версия.")).Status);
-        Assert.Equal(AgentStepStatus.Done, AgentStepView.ToDto(Step("draft", null, "Черновик карточки прошёл проверки кодом.")).Status);
+            AgentStepView.ToDto(Step("repair", null,
+                "Починка не прошла: invalid_output. Сохранена последняя корректная версия.")).Status);
+        Assert.Equal(AgentStepStatus.Done,
+            AgentStepView.ToDto(Step("draft", null, "Черновик карточки прошёл проверки кодом.")).Status);
     }
 
     private static FeedService CreateFeed(AlfaNewsDbContext db) =>
-        new(db, new AccessService(db, TimeProvider.System), new JobQueue(db, TimeProvider.System), new FeedSettings(), TimeProvider.System);
+        new(db, new AccessService(db, TimeProvider.System), new JobQueue(db, TimeProvider.System), new FeedSettings(),
+            TimeProvider.System);
 
     private static async Task InsertSnapshotAsync(AlfaNewsDbContext db, string companyId, Guid eventId)
     {
-        var json = JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "Examples", "feed-ready.json")))!;
+        var json = JsonNode.Parse(
+            await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "Examples", "feed-ready.json")))!;
         var items = json["items"]!;
         items[0]!["event_id"] = eventId.ToString();
         var itemsJson = items.ToJsonString();
         var now = DateTimeOffset.UtcNow;
         await db.Database.ExecuteSqlInterpolatedAsync($"""
-            INSERT INTO feed_snapshot (company_id, as_of, news_period_from, news_period_to, input_version, items_json, last_updated_at, refresh_status)
-            VALUES ({companyId}, {now}, {now.AddDays(-7)}, {now}, 'v1', {itemsJson}::jsonb, {now}, 'idle')
-            """);
+                                                       INSERT INTO feed_snapshot (company_id, as_of, news_period_from, news_period_to, input_version, items_json, last_updated_at, refresh_status)
+                                                       VALUES ({companyId}, {now}, {now.AddDays(-7)}, {now}, 'v1', {itemsJson}::jsonb, {now}, 'idle')
+                                                       """);
     }
 }

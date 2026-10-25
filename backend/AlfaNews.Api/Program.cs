@@ -27,7 +27,8 @@ builder.Services.ConfigureHttpJsonOptions(options => ContractJson.Configure(opti
 builder.Services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = true);
 
 builder.Services.AddAlfaNewsData(builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? throw new InvalidOperationException("Задайте ConnectionStrings__DefaultConnection."));
+                                 ?? throw new InvalidOperationException(
+                                     "Задайте ConnectionStrings__DefaultConnection."));
 builder.Services.AddSingleton(TimeProvider.System);
 var pdfOptions = new PdfOptions();
 builder.Configuration.GetSection("Storage").Bind(pdfOptions);
@@ -53,7 +54,8 @@ builder.Services.AddScoped<UserActivityService>();
 builder.Services.AddScoped<ChatService>();
 builder.Services.AddScoped<FeedbackService>();
 builder.Services.AddAuthentication(SessionAuthenticationHandler.SchemeName)
-    .AddScheme<AuthenticationSchemeOptions, SessionAuthenticationHandler>(SessionAuthenticationHandler.SchemeName, _ => { });
+    .AddScheme<AuthenticationSchemeOptions, SessionAuthenticationHandler>(SessionAuthenticationHandler.SchemeName,
+        _ => { });
 builder.Services.AddAuthorization(options => options.AddPolicy(SessionAuthenticationHandler.OperatorPolicy,
     policy => policy.RequireAuthenticatedUser().RequireClaim("operator", "true")));
 
@@ -62,7 +64,8 @@ builder.Services.AddOpenApi();
 var app = builder.Build();
 
 await using (var scope = app.Services.CreateAsyncScope())
-    await scope.ServiceProvider.GetRequiredService<AlfaNewsDbContext>().Database.MigrateAsync(app.Lifetime.ApplicationStopping);
+    await scope.ServiceProvider.GetRequiredService<AlfaNewsDbContext>().Database
+        .MigrateAsync(app.Lifetime.ApplicationStopping);
 if (args.Contains("--migrate"))
     return;
 

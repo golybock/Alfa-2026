@@ -10,14 +10,19 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AlfaNews.Core.Documents;
 
-public sealed class PdfRegistration(AlfaNewsDbContext db, JobQueue queue, PdfOptions options, PdfTools tools, TimeProvider time)
+public sealed class PdfRegistration(
+    AlfaNewsDbContext db,
+    JobQueue queue,
+    PdfOptions options,
+    PdfTools tools,
+    TimeProvider time)
 {
     public async Task<DocumentAcceptedResponse> RegisterAsync(Stream input, string title, DateOnly? publishedOn,
         string? sourceUrl, Guid? uploadedBy, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(title) || title.Length > 500 || sourceUrl is { Length: > 2000 }
             || sourceUrl is not null && (!Uri.TryCreate(sourceUrl, UriKind.Absolute, out var uri)
-                || uri.Scheme is not ("http" or "https") || uri.UserInfo.Length > 0))
+                                         || uri.Scheme is not ("http" or "https") || uri.UserInfo.Length > 0))
             throw new AccessException(400, "invalid_input", "Некорректные метаданные PDF.");
         var relative = $"files/{Guid.NewGuid():N}.pdf";
         var path = options.Resolve(relative);
@@ -25,7 +30,8 @@ public sealed class PdfRegistration(AlfaNewsDbContext db, JobQueue queue, PdfOpt
         var retained = false;
         try
         {
-            await using (var output = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None, 65536, true))
+            await using (var output =
+                         new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None, 65536, true))
             {
                 var buffer = new byte[65536];
                 long size = 0;
@@ -38,6 +44,7 @@ public sealed class PdfRegistration(AlfaNewsDbContext db, JobQueue queue, PdfOpt
                     await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
                 }
             }
+
             string hash;
             await using (var file = File.OpenRead(path))
             {
@@ -47,8 +54,10 @@ public sealed class PdfRegistration(AlfaNewsDbContext db, JobQueue queue, PdfOpt
                 file.Position = 0;
                 hash = Convert.ToHexStringLower(await SHA256.HashDataAsync(file, cancellationToken));
             }
+
             await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
-            await db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({hash}, 0))", cancellationToken);
+            await db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({hash}, 0))",
+                cancellationToken);
             var existing = await db.ResearchDocRows.SingleOrDefaultAsync(row => row.Sha256 == hash, cancellationToken);
             if (existing is not null)
             {
@@ -58,10 +67,12 @@ public sealed class PdfRegistration(AlfaNewsDbContext db, JobQueue queue, PdfOpt
                     Directory.CreateDirectory(Path.GetDirectoryName(storedPath)!);
                     File.Move(path, storedPath);
                 }
+
                 var response = await ExistingAsync(existing, cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
                 return response;
             }
+
             var count = await tools.PageCountAsync(path, cancellationToken);
             var document = new ResearchDocEntity
             {
@@ -79,7 +90,8 @@ public sealed class PdfRegistration(AlfaNewsDbContext db, JobQueue queue, PdfOpt
                 CreatedAt = time.GetUtcNow()
             };
             db.ResearchDocRows.Add(document);
-            var job = await queue.EnqueueAsync(new IndexPdfJob(document.Id.ToString()), uploadedBy, null, cancellationToken);
+            var job = await queue.EnqueueAsync(new IndexPdfJob(document.Id.ToString()), uploadedBy, null,
+                cancellationToken);
             await transaction.CommitAsync(cancellationToken);
             retained = true;
             return new DocumentAcceptedResponse(document.Id.ToString(), job.Id.ToString(), ReviewStatus.NotReviewed);
@@ -91,16 +103,20 @@ public sealed class PdfRegistration(AlfaNewsDbContext db, JobQueue queue, PdfOpt
         }
     }
 
-    private async Task<DocumentAcceptedResponse> ExistingAsync(ResearchDocEntity document, CancellationToken cancellationToken)
+    private async Task<DocumentAcceptedResponse> ExistingAsync(ResearchDocEntity document,
+        CancellationToken cancellationToken)
     {
-        var payload = System.Text.Json.JsonSerializer.SerializeToElement(new IndexPdfJob(document.Id.ToString()), JobKinds.JsonOptions);
+        var payload =
+            System.Text.Json.JsonSerializer.SerializeToElement(new IndexPdfJob(document.Id.ToString()),
+                JobKinds.JsonOptions);
         var job = await db.BackgroundJobRows.Where(row => row.Kind == "IndexPdf" && row.Payload.Equals(payload))
             .OrderByDescending(row => row.CreatedAt).FirstOrDefaultAsync(cancellationToken);
         if (job is null)
         {
             var pages = await db.ResearchPageRows.AsNoTracking().Where(row => row.DocumentId == document.Id)
                 .Select(row => new { row.OcrStatus, row.LastError }).ToArrayAsync(cancellationToken);
-            var keyRequired = DocumentStatuses.WaitsForKey(document.OcrStatus, pages.Select(row => (row.OcrStatus, row.LastError)).ToArray());
+            var keyRequired = DocumentStatuses.WaitsForKey(document.OcrStatus,
+                pages.Select(row => (row.OcrStatus, row.LastError)).ToArray());
             job = new BackgroundJobEntity
             {
                 Id = Guid.NewGuid(),
@@ -113,11 +129,13 @@ public sealed class PdfRegistration(AlfaNewsDbContext db, JobQueue queue, PdfOpt
                 FinishedAt = time.GetUtcNow(),
                 ResultType = "document",
                 ResultId = document.Id.ToString(),
-                LastError = keyRequired ? DocumentStatuses.KeyRequired : document.OcrStatus == "failed" ? "processing_failed" : null
+                LastError = keyRequired ? DocumentStatuses.KeyRequired :
+                    document.OcrStatus == "failed" ? "processing_failed" : null
             };
             db.BackgroundJobRows.Add(job);
             await db.SaveChangesAsync(cancellationToken);
         }
+
         return new DocumentAcceptedResponse(document.Id.ToString(), job.Id.ToString(),
             Enum.Parse<ReviewStatus>(document.ReviewStatus.Replace("_", ""), true));
     }

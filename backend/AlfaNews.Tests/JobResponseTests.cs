@@ -35,14 +35,16 @@ public sealed class JobResponseTests
     [InlineData("invalid_payload")]
     public void ResponsePreservesSafeErrorCode(string code)
     {
-        var response = JobQueue.ToResponse(new BackgroundJobEntity { Status = "failed", Stage = "failed", LastError = code }, "r");
+        var response =
+            JobQueue.ToResponse(new BackgroundJobEntity { Status = "failed", Stage = "failed", LastError = code }, "r");
         Assert.Equal(code, response.Error!.Code);
     }
 
     [Fact]
     public void RegistersAllContractJobsAndPrioritizesFreshNewsAboveOcr()
     {
-        var types = typeof(ParseNewsJob).Assembly.GetTypes().Where(type => type.Namespace == typeof(ParseNewsJob).Namespace && type.Name.EndsWith("Job"));
+        var types = typeof(ParseNewsJob).Assembly.GetTypes().Where(type =>
+            type.Namespace == typeof(ParseNewsJob).Namespace && type.Name.EndsWith("Job"));
         foreach (var type in types)
             Assert.Equal(type, JobKinds.PayloadType(JobKinds.Name(type)));
         Assert.True(JobKinds.Priority<ParseNewsJob>() > JobKinds.Priority<OcrPdfPageJob>());

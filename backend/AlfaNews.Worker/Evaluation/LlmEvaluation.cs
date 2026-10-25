@@ -7,15 +7,20 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AlfaNews.Worker.Evaluation;
 
-public sealed class LlmEvaluation(AlfaNewsDbContext db, LlmGateway gateway, LlmOptions options,
-    TimeProvider timeProvider, ILogger<LlmEvaluation> logger)
+public sealed class LlmEvaluation(
+    AlfaNewsDbContext db,
+    LlmGateway gateway,
+    LlmOptions options,
+    TimeProvider timeProvider,
+    ILogger<LlmEvaluation> logger)
 {
     public async Task RunAsync(string inputPath, string reportPath, CancellationToken cancellationToken,
         IReadOnlySet<string>? selectedCases = null)
     {
         var input = await File.ReadAllTextAsync(inputPath, cancellationToken);
-        var suite = JsonSerializer.Deserialize<EvaluationSuite>(input, new JsonSerializerOptions(JsonSerializerDefaults.Web))
-            ?? throw new ArgumentException("Пустой набор проверок.");
+        var suite = JsonSerializer.Deserialize<EvaluationSuite>(input,
+                        new JsonSerializerOptions(JsonSerializerDefaults.Web))
+                    ?? throw new ArgumentException("Пустой набор проверок.");
         if (selectedCases?.Any(name => !suite.Cases.Any(test => test.Name == name)) == true)
             throw new ArgumentException("Неизвестное имя проверки.");
         var job = new BackgroundJobEntity
@@ -36,8 +41,11 @@ public sealed class LlmEvaluation(AlfaNewsDbContext db, LlmGateway gateway, LlmO
         {
             if (!Enum.TryParse<LlmTask>(test.Task, out var task) || task == LlmTask.Repair)
                 throw new ArgumentException("Неизвестная задача проверки.");
-            var image = test.ImagePath is null ? null : new LlmImage(await File.ReadAllBytesAsync(
-                Path.GetFullPath(test.ImagePath, Path.GetDirectoryName(Path.GetFullPath(inputPath))!), cancellationToken));
+            var image = test.ImagePath is null
+                ? null
+                : new LlmImage(await File.ReadAllBytesAsync(
+                    Path.GetFullPath(test.ImagePath, Path.GetDirectoryName(Path.GetFullPath(inputPath))!),
+                    cancellationToken));
             var candidates = new List<string>();
             var request = new LlmRequest(job.Id, suite.Name + ":" + test.Name, LlmPromptCatalog.Hash(input), task,
                 test.Values, Image: image, Runtime: new LlmRuntime(), CaptureResponse: candidates.Add);
@@ -91,7 +99,9 @@ public sealed class LlmEvaluation(AlfaNewsDbContext db, LlmGateway gateway, LlmO
                         replay = result.CacheHit;
                         break;
                 }
-                if (test.ExpectedLabel is not null && !string.Equals(label, test.ExpectedLabel, StringComparison.OrdinalIgnoreCase))
+
+                if (test.ExpectedLabel is not null &&
+                    !string.Equals(label, test.ExpectedLabel, StringComparison.OrdinalIgnoreCase))
                     error = "unexpected_label";
             }
             catch (LlmException exception)
@@ -99,6 +109,7 @@ public sealed class LlmEvaluation(AlfaNewsDbContext db, LlmGateway gateway, LlmO
                 error = exception.Code;
                 diagnostics = exception.Diagnostics;
             }
+
             results.Add(new
             {
                 test.Name,
@@ -114,6 +125,7 @@ public sealed class LlmEvaluation(AlfaNewsDbContext db, LlmGateway gateway, LlmO
                 failedCases++;
             logger.LogInformation("Проверка LLM {Name}: {Result}.", test.Name, error ?? "passed");
         }
+
         var usage = await db.LlmUsageRows.AsNoTracking().Where(row => db.AgentRunRows
                 .Any(run => run.Id == row.RunId && run.JobId == job.Id))
             .OrderBy(row => row.CreatedAt).Select(row => new
@@ -157,15 +169,23 @@ public sealed class LlmEvaluation(AlfaNewsDbContext db, LlmGateway gateway, LlmO
         var directory = Path.GetDirectoryName(Path.GetFullPath(reportPath))!;
         Directory.CreateDirectory(directory);
         await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(report, new JsonSerializerOptions
-        { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower }), cancellationToken);
+            { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower }), cancellationToken);
     }
 
     public sealed record EvaluationSuite(string Name, IReadOnlyList<EvaluationCase> Cases);
-    public sealed record EvaluationCase(string Name, string Task, IReadOnlyDictionary<string, JsonElement> Values,
-        string? ImagePath = null, string? ExpectedLabel = null, string? PreviousResponse = null,
+
+    public sealed record EvaluationCase(
+        string Name,
+        string Task,
+        IReadOnlyDictionary<string, JsonElement> Values,
+        string? ImagePath = null,
+        string? ExpectedLabel = null,
+        string? PreviousResponse = null,
         IReadOnlyList<string>? Diagnostics = null);
 
-    private Task<LlmResult<T>> ExecuteAsync<T>(LlmRequest request, EvaluationCase test, CancellationToken cancellationToken) =>
-        test.PreviousResponse is null ? gateway.GenerateAsync<T>(request, cancellationToken)
+    private Task<LlmResult<T>> ExecuteAsync<T>(LlmRequest request, EvaluationCase test,
+        CancellationToken cancellationToken) =>
+        test.PreviousResponse is null
+            ? gateway.GenerateAsync<T>(request, cancellationToken)
             : gateway.RepairAsync<T>(request, test.PreviousResponse, test.Diagnostics ?? [], cancellationToken);
 }

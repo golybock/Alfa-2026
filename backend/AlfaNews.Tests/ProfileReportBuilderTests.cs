@@ -13,7 +13,9 @@ public sealed class ProfileReportBuilderTests
         var b = Company("U_71942", "16.10") with { Products = ["deposit"], FtsCountries = ["КИТАЙ"] };
         var extra = Company("U_258515", "46.90") with { Products = ["loan", "leasing"] };
         CompanyProfile[] companies = [extra, Company("unselected", "46.72"), b, a];
-        var groups = companies.Select(company => new GroupProfile(company.GroupId!, [company.CompanyId], 20000000000m, 1, "v1")).ToArray();
+        var groups = companies
+            .Select(company => new GroupProfile(company.GroupId!, [company.CompanyId], 20000000000m, 1, "v1"))
+            .ToArray();
 
         var report = ProfileReportBuilder.Create("dataset", "v1", "test", companies, groups);
 
@@ -28,7 +30,8 @@ public sealed class ProfileReportBuilderTests
         Assert.Contains(candidates[2].Limitations, limitation => limitation.Contains("Дополнительная"));
         Assert.Contains(report.SensitivityDraft, draft => draft.Okved2 == "41" && draft.FactorCode == "key_rate");
         Assert.Contains(report.SensitivityDraft, draft => draft.Okved2 == "16" && draft.Channel.Contains("депозитном"));
-        Assert.Contains(report.SensitivityDraft, draft => draft.Okved2 == "16" && draft.Topic == "Внешнеторговые изменения");
+        Assert.Contains(report.SensitivityDraft,
+            draft => draft.Okved2 == "16" && draft.Topic == "Внешнеторговые изменения");
         Assert.All(report.SensitivityDraft, draft =>
         {
             Assert.Equal("draft", draft.Status);

@@ -9,11 +9,13 @@ namespace AlfaNews.Core.Documents;
 // и каждый обход PDF, а страницы, распознанные позже, наследуют её от документа (PdfProcessing). Содержимое и версии не меняются.
 public static partial class ReviewedResearch
 {
-    public static async Task<int> ApplyAsync(AlfaNewsDbContext db, IReadOnlyCollection<string> sha256, CancellationToken cancellationToken)
+    public static async Task<int> ApplyAsync(AlfaNewsDbContext db, IReadOnlyCollection<string> sha256,
+        CancellationToken cancellationToken)
     {
         var changed = 0;
         foreach (var statement in Statements(sha256))
-            changed += await db.Database.ExecuteSqlRawAsync(statement.Replace("{", "{{").Replace("}", "}}"), cancellationToken);
+            changed += await db.Database.ExecuteSqlRawAsync(statement.Replace("{", "{{").Replace("}", "}}"),
+                cancellationToken);
         return changed;
     }
 
@@ -28,18 +30,18 @@ public static partial class ReviewedResearch
         [
             $"UPDATE research_doc SET review_status = 'reviewed' WHERE sha256 = ANY({hashes}) AND review_status <> 'reviewed'",
             $"""
-            UPDATE research_page AS page SET review_status = 'reviewed'
-            FROM research_doc AS doc
-            WHERE page.document_id = doc.id AND doc.sha256 = ANY({hashes}) AND page.ocr_status = 'ready' AND page.review_status <> 'reviewed'
-            """,
+             UPDATE research_page AS page SET review_status = 'reviewed'
+             FROM research_doc AS doc
+             WHERE page.document_id = doc.id AND doc.sha256 = ANY({hashes}) AND page.ocr_status = 'ready' AND page.review_status <> 'reviewed'
+             """,
             $$"""
-            UPDATE research_chunk AS chunk SET review_status = 'reviewed',
-                chart_data = COALESCE((SELECT jsonb_agg(jsonb_set(chart, '{review_status}', '"reviewed"')) FROM jsonb_array_elements(chunk.chart_data) AS chart), '[]'::jsonb)
-            FROM research_page AS page JOIN research_doc AS doc ON doc.id = page.document_id
-            WHERE chunk.page_id = page.id AND doc.sha256 = ANY({{hashes}})
-                AND (chunk.review_status <> 'reviewed' OR chunk.chart_data::text LIKE '%"review_status": "not_reviewed"%'
-                    OR chunk.chart_data::text LIKE '%"review_status": "partially_reviewed"%')
-            """
+              UPDATE research_chunk AS chunk SET review_status = 'reviewed',
+                  chart_data = COALESCE((SELECT jsonb_agg(jsonb_set(chart, '{review_status}', '"reviewed"')) FROM jsonb_array_elements(chunk.chart_data) AS chart), '[]'::jsonb)
+              FROM research_page AS page JOIN research_doc AS doc ON doc.id = page.document_id
+              WHERE chunk.page_id = page.id AND doc.sha256 = ANY({{hashes}})
+                  AND (chunk.review_status <> 'reviewed' OR chunk.chart_data::text LIKE '%"review_status": "not_reviewed"%'
+                      OR chunk.chart_data::text LIKE '%"review_status": "partially_reviewed"%')
+              """
         ];
     }
 

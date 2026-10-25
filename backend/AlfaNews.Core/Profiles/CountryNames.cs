@@ -22,5 +22,6 @@ public static class CountryNames
     public static bool IsKnown(string name) => KnownNames.Contains(Normalize(name));
 
     public static IReadOnlyList<string> Parse(string? names) => (names ?? "").Split(',')
-        .Select(Normalize).Where(name => name.Length > 0).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
+        .Select(Normalize).Where(name => name.Length > 0).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)
+        .ToArray();
 }

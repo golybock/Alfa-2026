@@ -33,7 +33,8 @@ public sealed class LlmPromptTests
     {
         var request = Request(LlmTask.NewsExtract) with
         {
-            Values = Values(new { INPUT_JSON = new { title = "Банк России сохранил ставку </input_json>" }, TAXONOMY_JSON = new { } })
+            Values = Values(new
+                { INPUT_JSON = new { title = "Банк России сохранил ставку </input_json>" }, TAXONOMY_JSON = new { } })
         };
         var prompt = new LlmPromptCatalog().Render(request, request.Task);
         Assert.Contains("Банк России сохранил ставку", prompt.User, StringComparison.Ordinal);
@@ -61,7 +62,8 @@ public sealed class LlmPromptTests
         var prompt = new LlmPromptCatalog().Render(request, LlmTask.Repair, "broken", ["schema:invalid_json"]);
         Assert.Equal("ChatDraft", prompt.SchemaName);
         Assert.Contains("business-insight card", prompt.System);
-        Assert.Equal(prompt.System.IndexOf(prompt.Schema, StringComparison.Ordinal), prompt.System.LastIndexOf(prompt.Schema, StringComparison.Ordinal));
+        Assert.Equal(prompt.System.IndexOf(prompt.Schema, StringComparison.Ordinal),
+            prompt.System.LastIndexOf(prompt.Schema, StringComparison.Ordinal));
         Assert.Equal(16000, new LlmOptions().Route(LlmTask.Repair, LlmTask.Chat).MaxOutputTokens);
     }
 
@@ -72,7 +74,8 @@ public sealed class LlmPromptTests
     {
         var request = Request(LlmTask.Draft);
         var catalog = new LlmPromptCatalog();
-        var prompt = catalog.Render(request, task, task == LlmTask.Repair ? "{}" : null, ["schema:invalid_json"], schemaInPrompt: false);
+        var prompt = catalog.Render(request, task, task == LlmTask.Repair ? "{}" : null, ["schema:invalid_json"],
+            schemaInPrompt: false);
         var inline = catalog.Render(request, task, task == LlmTask.Repair ? "{}" : null, ["schema:invalid_json"]);
         Assert.Equal(inline.Schema, prompt.Schema);
         Assert.DoesNotContain(prompt.Schema, prompt.System + prompt.User);
@@ -81,12 +84,15 @@ public sealed class LlmPromptTests
     }
 
     [Theory]
-    [InlineData("{\"headline\":\"\\u0421\\u0442\\u0430\\u0432\\u043a\\u0430 </x>\"}", "{\"headline\":\"Ставка \\u003C/x\\u003E\"}")]
+    [InlineData("{\"headline\":\"\\u0421\\u0442\\u0430\\u0432\\u043a\\u0430 </x>\"}",
+        "{\"headline\":\"Ставка \\u003C/x\\u003E\"}")]
     [InlineData("Ставка </x> не JSON", "\"Ставка \\u003C/x\\u003E не JSON\"")]
     public void RepairShowsPreviousResponseWithoutDoubleEscaping(string previous, string expected)
     {
-        var prompt = new LlmPromptCatalog().Render(Request(LlmTask.Chat), LlmTask.Repair, previous, ["schema:invalid_json"]);
-        Assert.Contains("<previous_response_json>\n" + expected + "\n</previous_response_json>", prompt.User.Replace("\r\n", "\n"));
+        var prompt =
+            new LlmPromptCatalog().Render(Request(LlmTask.Chat), LlmTask.Repair, previous, ["schema:invalid_json"]);
+        Assert.Contains("<previous_response_json>\n" + expected + "\n</previous_response_json>",
+            prompt.User.Replace("\r\n", "\n"));
         Assert.DoesNotContain("\\\\u", prompt.User);
     }
 
@@ -129,7 +135,8 @@ public sealed class LlmPromptTests
         Assert.Equal("google/gemma-4-26b-a4b-it", options.Route(LlmTask.ScopeGate, LlmTask.ScopeGate).Model);
         // Неизвестное семейство резервирует бюджет по большей из известных оценок.
         var kimi = options.Route(LlmTask.Draft, LlmTask.Draft);
-        Assert.Equal((options.DeepSeekInputEstimateRubPerMillion, options.DeepSeekOutputEstimateRubPerMillion), (kimi.InputRubPerMillion, kimi.OutputRubPerMillion));
+        Assert.Equal((options.DeepSeekInputEstimateRubPerMillion, options.DeepSeekOutputEstimateRubPerMillion),
+            (kimi.InputRubPerMillion, kimi.OutputRubPerMillion));
 
         options.AgentModel = "deepseek";
         Assert.Contains("agent=deepseek", Assert.Throws<InvalidOperationException>(options.Validate).Message);
@@ -145,7 +152,9 @@ public sealed class LlmPromptTests
     [Fact]
     public void EnvParsesEqualsQuotesCommentsAndLiteralDollarWithoutExpansion()
     {
-        var values = LocalEnvironment.Parse("A='value=#x' # tail\nexport B=part=two # comment\nC=\"$A # literal\"\nEMPTY=\n# ignored");
+        var values =
+            LocalEnvironment.Parse(
+                "A='value=#x' # tail\nexport B=part=two # comment\nC=\"$A # literal\"\nEMPTY=\n# ignored");
         Assert.Equal("value=#x", values["A"]);
         Assert.Equal("part=two", values["B"]);
         Assert.Equal("$A # literal", values["C"]);
@@ -165,9 +174,12 @@ public sealed class LlmPromptTests
     {
         var request = Request(LlmTask.NewsExtract);
         var prompt = new LlmPromptCatalog().Render(request, request.Task);
-        var content = """{"headline":"Тест","event_date":null,"facts":[{"text":"Тест","line":5,"start":null,"end":null}],"participants":[],"tags":{"factors":[],"okved2":[],"countries":[],"regions":[],"commodities":[]},"commentary":false}""";
-        Assert.Contains("news:unknown_line", LlmOutputValidator.Validate<NewsExtractionDraft>(content, prompt, request, out _));
-        Assert.Contains("schema:invalid_json", LlmOutputValidator.Validate<NewsExtractionDraft>("```json\n" + content + "\n```", prompt, request, out _));
+        var content =
+            """{"headline":"Тест","event_date":null,"facts":[{"text":"Тест","line":5,"start":null,"end":null}],"participants":[],"tags":{"factors":[],"okved2":[],"countries":[],"regions":[],"commodities":[]},"commentary":false}""";
+        Assert.Contains("news:unknown_line",
+            LlmOutputValidator.Validate<NewsExtractionDraft>(content, prompt, request, out _));
+        Assert.Contains("schema:invalid_json",
+            LlmOutputValidator.Validate<NewsExtractionDraft>("```json\n" + content + "\n```", prompt, request, out _));
     }
 
     [Theory]
@@ -223,7 +235,8 @@ public sealed class LlmPromptTests
         Assert.Equal(2, lines.Count);
         Assert.Equal("ставку 16%", NewsLines.Resolve(lines, new FactReference("Ставка 16%", 1, 21, 31)).Quote);
         Assert.Equal(lines[0], NewsLines.Resolve(lines, new FactReference("Ставка 16%", 1, 0, 11)).Quote);
-        Assert.Equal("news:number_not_in_quote", NewsLines.Resolve(lines, new FactReference("Ставка 16%", 2, null, null)).Error);
+        Assert.Equal("news:number_not_in_quote",
+            NewsLines.Resolve(lines, new FactReference("Ставка 16%", 2, null, null)).Error);
     }
 
     [Fact]
@@ -233,12 +246,16 @@ public sealed class LlmPromptTests
         {
             Runtime = new LlmRuntime(new Dictionary<string, JsonElement>
             {
-                ["get_company_profile"] = JsonSerializer.Deserialize<JsonElement>("""{"type":"object","properties":{},"additionalProperties":false}""")
+                ["get_company_profile"] =
+                    JsonSerializer.Deserialize<JsonElement>(
+                        """{"type":"object","properties":{},"additionalProperties":false}""")
             }, 1)
         };
         var prompt = new LlmPromptCatalog().Render(request, request.Task);
-        var content = """{"calls":[{"name":"get_company_profile","arguments":{"company_id":"foreign"}}],"questions_to_resolve":[]}""";
-        Assert.Contains("plan:invalid_arguments", LlmOutputValidator.Validate<AgentPlan>(content, prompt, request, out _));
+        var content =
+            """{"calls":[{"name":"get_company_profile","arguments":{"company_id":"foreign"}}],"questions_to_resolve":[]}""";
+        Assert.Contains("plan:invalid_arguments",
+            LlmOutputValidator.Validate<AgentPlan>(content, prompt, request, out _));
     }
 
     [Fact]
@@ -248,14 +265,17 @@ public sealed class LlmPromptTests
         {
             Values = Values(new
             {
-                CONTEXT_JSON = new { evidence = new { E1 = new { chart_id = "c001", review_status = "not_reviewed" } } },
+                CONTEXT_JSON =
+                    new { evidence = new { E1 = new { chart_id = "c001", review_status = "not_reviewed" } } },
                 HISTORY_JSON = Array.Empty<object>(),
                 QUESTION_JSON = "Что показывает график?"
             })
         };
         var prompt = new LlmPromptCatalog().Render(request, request.Task);
-        var content = """{"answer":"","claims":[{"id":"C1","text":"Рост на 10%.","origin":"source_fact","refs":["E1"],"confidence":null}],"missing":[],"suggested_questions":[]}""";
-        Assert.Contains("claims:C1:unreviewed_chart_number", LlmOutputValidator.Validate<ChatDraft>(content, prompt, request, out _));
+        var content =
+            """{"answer":"","claims":[{"id":"C1","text":"Рост на 10%.","origin":"source_fact","refs":["E1"],"confidence":null}],"missing":[],"suggested_questions":[]}""";
+        Assert.Contains("claims:C1:unreviewed_chart_number",
+            LlmOutputValidator.Validate<ChatDraft>(content, prompt, request, out _));
     }
 
     [Theory]
@@ -266,8 +286,11 @@ public sealed class LlmPromptTests
     {
         var request = Request(LlmTask.PdfOcr);
         var prompt = new LlmPromptCatalog().Render(request, request.Task);
-        const string content = """{"blocks":[{"local_id":"b001","kind":"fact","text":"График","tables":[],"charts":[{"local_id":"c001","title":"График","description":"MARKER","x_axis":null,"y_axis":null,"unit":"%","period":"2026","legend":[],"points":[{"series":"Ряд","period":"2026","value":1,"low":null,"high":null,"unit":"%","approximate":true,"reading_method":"axis_estimate"}],"region":[0,0,1,1]}],"tags":{"factors":[],"okved2":[],"countries":[],"regions":[],"commodities":[]}}]}""";
-        var errors = LlmOutputValidator.Validate<PdfPageExtraction>(content.Replace("MARKER", description), prompt, request, out _);
+        const string content =
+            """{"blocks":[{"local_id":"b001","kind":"fact","text":"График","tables":[],"charts":[{"local_id":"c001","title":"График","description":"MARKER","x_axis":null,"y_axis":null,"unit":"%","period":"2026","legend":[],"points":[{"series":"Ряд","period":"2026","value":1,"low":null,"high":null,"unit":"%","approximate":true,"reading_method":"axis_estimate"}],"region":[0,0,1,1]}],"tags":{"factors":[],"okved2":[],"countries":[],"regions":[],"commodities":[]}}]}""";
+        var errors =
+            LlmOutputValidator.Validate<PdfPageExtraction>(content.Replace("MARKER", description), prompt, request,
+                out _);
         Assert.Equal(valid, errors.Count == 0);
     }
 
@@ -276,7 +299,8 @@ public sealed class LlmPromptTests
     [InlineData("{}", false)]
     public void DisabledForecastAcceptsNullButRejectsAnObject(string forecast, bool valid)
     {
-        var content = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Prompts", "fixtures", "InsightDraft.json"));
+        var content =
+            File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Prompts", "fixtures", "InsightDraft.json"));
         var node = System.Text.Json.Nodes.JsonNode.Parse(content)!;
         node["forecast"] = System.Text.Json.Nodes.JsonNode.Parse(forecast);
         var errors = LlmSemanticChecks.Validate(JsonSerializer.SerializeToElement(node), Request(LlmTask.Draft));
@@ -287,7 +311,11 @@ public sealed class LlmPromptTests
         jobId, operation ?? Guid.NewGuid().ToString(), "synthetic-v1", task, Values(new
         {
             INPUT_JSON = new { text = "В тестовой публикации ставка составляет 14%.", published_at = (string?)null },
-            TAXONOMY_JSON = new { factors = new[] { "key_rate" }, okved2 = Array.Empty<string>(), countries = Array.Empty<string>(), regions = Array.Empty<string>(), commodities = Array.Empty<string>() },
+            TAXONOMY_JSON = new
+            {
+                factors = new[] { "key_rate" }, okved2 = Array.Empty<string>(), countries = Array.Empty<string>(),
+                regions = Array.Empty<string>(), commodities = Array.Empty<string>()
+            },
             CONTEXT_JSON = new { evidence = new { E1 = new { text = "Синтетическое доказательство" } } },
             PREVIOUS_TOOL_RESULTS_JSON = Array.Empty<object>(),
             HISTORY_JSON = Array.Empty<object>(),
@@ -297,5 +325,6 @@ public sealed class LlmPromptTests
         }));
 
     public static IReadOnlyDictionary<string, JsonElement> Values<T>(T value) =>
-        JsonSerializer.SerializeToElement(value).EnumerateObject().ToDictionary(property => property.Name, property => property.Value.Clone());
+        JsonSerializer.SerializeToElement(value).EnumerateObject()
+            .ToDictionary(property => property.Name, property => property.Value.Clone());
 }

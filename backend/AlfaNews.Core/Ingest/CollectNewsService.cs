@@ -7,11 +7,20 @@ using Npgsql;
 
 namespace AlfaNews.Core.Ingest;
 
-public sealed record CollectSummary(string SourceId, int Collected, int Rejected, int Failed, int Skipped, string? Error);
+public sealed record CollectSummary(
+    string SourceId,
+    int Collected,
+    int Rejected,
+    int Failed,
+    int Skipped,
+    string? Error);
 
 public sealed record ManualCollectResult(string Stage, string? ErrorCode = null);
 
-public sealed class CollectNewsService(AlfaNewsDbContext db, SafeFetcher fetcher, TimeProvider timeProvider,
+public sealed class CollectNewsService(
+    AlfaNewsDbContext db,
+    SafeFetcher fetcher,
+    TimeProvider timeProvider,
     ILogger<CollectNewsService> logger)
 {
     private const int MinFeedTextLength = 400;
@@ -27,26 +36,34 @@ public sealed class CollectNewsService(AlfaNewsDbContext db, SafeFetcher fetcher
         foreach (var source in sources)
         {
             var summary = await CollectSourceAsync(source, cancellationToken);
-            logger.LogInformation("Источник {SourceId}: собрано {Collected}, отклонено {Rejected}, ошибок {Failed}, пропущено {Skipped}, сбой ленты {Error}.",
-                summary.SourceId, summary.Collected, summary.Rejected, summary.Failed, summary.Skipped, summary.Error ?? "нет");
+            logger.LogInformation(
+                "Источник {SourceId}: собрано {Collected}, отклонено {Rejected}, ошибок {Failed}, пропущено {Skipped}, сбой ленты {Error}.",
+                summary.SourceId, summary.Collected, summary.Rejected, summary.Failed, summary.Skipped,
+                summary.Error ?? "нет");
             summaries.Add(summary);
         }
+
         return summaries;
     }
 
     // Новость, добавленная пользователем по ссылке: важность 1 без фильтра заголовков, дата из статьи, иначе время загрузки.
     // Уже собранная по RSS статья, отсеянная фильтром заголовков или ещё не проверенная, поднимается до важности 1.
-    public async Task<ManualCollectResult> CollectManualAsync(string sourceId, string url, CancellationToken cancellationToken)
+    public async Task<ManualCollectResult> CollectManualAsync(string sourceId, string url,
+        CancellationToken cancellationToken)
     {
-        var source = await db.SourceRows.AsNoTracking().SingleOrDefaultAsync(row => row.Id == sourceId && row.Enabled, cancellationToken);
+        var source = await db.SourceRows.AsNoTracking()
+            .SingleOrDefaultAsync(row => row.Id == sourceId && row.Enabled, cancellationToken);
         var canonical = TryCanonical(url);
         if (source is null || canonical is null)
             return new ManualCollectResult("failed", "news_unavailable");
-        var existing = await db.NewsRawRows.SingleOrDefaultAsync(row => row.CanonicalUrl == canonical, cancellationToken);
+        var existing =
+            await db.NewsRawRows.SingleOrDefaultAsync(row => row.CanonicalUrl == canonical, cancellationToken);
         if (existing is not null)
         {
             if (existing.Importance != 1 && (existing.Status == "queued"
-                || existing.Status == "rejected" && existing.RejectionReason is "headline_irrelevant" or "e5_clearly_unrelated"))
+                                             || existing.Status == "rejected" &&
+                                             existing.RejectionReason is "headline_irrelevant"
+                                                 or "e5_clearly_unrelated"))
             {
                 existing.Status = "queued";
                 existing.Importance = 1;
@@ -54,6 +71,7 @@ public sealed class CollectNewsService(AlfaNewsDbContext db, SafeFetcher fetcher
                 await db.SaveChangesAsync(cancellationToken);
                 return new ManualCollectResult("collected");
             }
+
             return new ManualCollectResult("duplicate");
         }
 
@@ -66,9 +84,13 @@ public sealed class CollectNewsService(AlfaNewsDbContext db, SafeFetcher fetcher
         }
         catch (FetchException exception)
         {
-            logger.LogWarning("Ручная новость, источник {SourceId}: статья не загружена, {Code}.", source.Id, exception.Code);
-            return exception.Code == "empty_body" ? new ManualCollectResult("rejected", "news_empty") : new ManualCollectResult("failed", "news_unavailable");
+            logger.LogWarning("Ручная новость, источник {SourceId}: статья не загружена, {Code}.", source.Id,
+                exception.Code);
+            return exception.Code == "empty_body"
+                ? new ManualCollectResult("rejected", "news_empty")
+                : new ManualCollectResult("failed", "news_unavailable");
         }
+
         if (ArticleExtractor.IsBoilerplateOnly(article.Text))
             return new ManualCollectResult("rejected", "news_empty");
         var published = (article.PublishedAt ?? fetchedAt).ToUniversalTime();
@@ -114,9 +136,11 @@ public sealed class CollectNewsService(AlfaNewsDbContext db, SafeFetcher fetcher
         }
 
         var recent = entries
-            .Where(entry => entry.PublishedAt is null || (entry.PublishedAt >= now - NewsWindow && entry.PublishedAt <= now + ClockSkew))
+            .Where(entry => entry.PublishedAt is null ||
+                            (entry.PublishedAt >= now - NewsWindow && entry.PublishedAt <= now + ClockSkew))
             .OrderByDescending(entry => entry.PublishedAt ?? DateTimeOffset.MaxValue).ToList();
-        var candidates = recent.Select(entry => (Entry: entry, Url: TryCanonical(entry.Url))).Where(pair => pair.Url is not null).ToList();
+        var candidates = recent.Select(entry => (Entry: entry, Url: TryCanonical(entry.Url)))
+            .Where(pair => pair.Url is not null).ToList();
         var urls = candidates.Select(pair => pair.Url!).ToList();
         var known = (await db.NewsRawRows.AsNoTracking().Where(row => urls.Contains(row.CanonicalUrl))
             .Select(row => row.CanonicalUrl).ToListAsync(cancellationToken)).ToHashSet(StringComparer.Ordinal);
@@ -129,6 +153,7 @@ public sealed class CollectNewsService(AlfaNewsDbContext db, SafeFetcher fetcher
                 skipped++;
                 continue;
             }
+
             var outcome = await StoreAsync(source, hosts, entry, url!, cancellationToken);
             switch (outcome)
             {
@@ -138,6 +163,7 @@ public sealed class CollectNewsService(AlfaNewsDbContext db, SafeFetcher fetcher
                 default: skipped++; break;
             }
         }
+
         source.LastSuccessAt = now;
         source.LastError = failed > 0 && collected == 0 ? "articles_failed" : null;
         await db.SaveChangesAsync(cancellationToken);
@@ -164,7 +190,8 @@ public sealed class CollectNewsService(AlfaNewsDbContext db, SafeFetcher fetcher
         }
         catch (FetchException exception) when (exception.Transient)
         {
-            logger.LogWarning("Источник {SourceId}: временная ошибка {Code}, повтор в следующем цикле.", source.Id, exception.Code);
+            logger.LogWarning("Источник {SourceId}: временная ошибка {Code}, повтор в следующем цикле.", source.Id,
+                exception.Code);
             return StoreOutcome.Skipped;
         }
         catch (FetchException exception)
@@ -186,7 +213,8 @@ public sealed class CollectNewsService(AlfaNewsDbContext db, SafeFetcher fetcher
         }
 
         var normalized = TextNormalizer.Normalize(text);
-        var rejectedForDate = published is null || published < fetchedAt - NewsWindow || published > fetchedAt + ClockSkew;
+        var rejectedForDate = published is null || published < fetchedAt - NewsWindow ||
+                              published > fetchedAt + ClockSkew;
         var boilerplate = ArticleExtractor.IsBoilerplateOnly(text);
         var row = new NewsRawEntity
         {
@@ -200,7 +228,8 @@ public sealed class CollectNewsService(AlfaNewsDbContext db, SafeFetcher fetcher
             FetchedAt = fetchedAt,
             Status = rejectedForDate || boilerplate ? "rejected" : "queued",
             Importance = source.IsSpecialized ? 1 : null,
-            RejectionReason = rejectedForDate ? (published is null ? "no_published_date" : "outside_window") : boilerplate ? "boilerplate_body" : null
+            RejectionReason = rejectedForDate ? (published is null ? "no_published_date" : "outside_window") :
+                boilerplate ? "boilerplate_body" : null
         };
         var saved = await SaveAsync(row, cancellationToken);
         return saved switch
@@ -224,18 +253,34 @@ public sealed class CollectNewsService(AlfaNewsDbContext db, SafeFetcher fetcher
             var postgres = exception.InnerException as PostgresException;
             if (postgres?.SqlState == PostgresErrorCodes.UniqueViolation)
                 return SaveResult.Duplicate;
-            logger.LogError("Источник {SourceId}: не удалось сохранить статью, {ErrorType}, код {SqlState}, ограничение {Constraint}.",
-                row.SourceId, exception.InnerException?.GetType().Name ?? exception.GetType().Name, postgres?.SqlState ?? "n/a",
+            logger.LogError(
+                "Источник {SourceId}: не удалось сохранить статью, {ErrorType}, код {SqlState}, ограничение {Constraint}.",
+                row.SourceId, exception.InnerException?.GetType().Name ?? exception.GetType().Name,
+                postgres?.SqlState ?? "n/a",
                 postgres?.ConstraintName ?? "n/a");
             return SaveResult.Error;
         }
+
         return SaveResult.Saved;
     }
 
     private static string? TryCanonical(string url) =>
-        Uri.TryCreate(url, UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https" ? TextNormalizer.CanonicalUrl(uri) : null;
+        Uri.TryCreate(url, UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https"
+            ? TextNormalizer.CanonicalUrl(uri)
+            : null;
 
-    private enum StoreOutcome { Collected, Rejected, Failed, Skipped }
+    private enum StoreOutcome
+    {
+        Collected,
+        Rejected,
+        Failed,
+        Skipped
+    }
 
-    private enum SaveResult { Saved, Duplicate, Error }
+    private enum SaveResult
+    {
+        Saved,
+        Duplicate,
+        Error
+    }
 }

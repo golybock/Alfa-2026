@@ -23,7 +23,8 @@ public sealed class OpenAiApiClient(HttpClient http, LlmOptions options) : ILlmC
                 new JsonObject
                 {
                     ["type"] = "image_url",
-                    ["image_url"] = new JsonObject { ["url"] = $"data:{image.MediaType};base64,{Convert.ToBase64String(image.Bytes)}" }
+                    ["image_url"] = new JsonObject
+                        { ["url"] = $"data:{image.MediaType};base64,{Convert.ToBase64String(image.Bytes)}" }
                 });
         var body = new JsonObject
         {
@@ -62,7 +63,8 @@ public sealed class OpenAiApiClient(HttpClient http, LlmOptions options) : ILlmC
             using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
             status = (int)response.StatusCode;
             if (response.Headers.TryGetValues("x-litellm-response-cost", out var costs)
-                && decimal.TryParse(costs.FirstOrDefault(), NumberStyles.Float, CultureInfo.InvariantCulture, out var cost)
+                && decimal.TryParse(costs.FirstOrDefault(), NumberStyles.Float, CultureInfo.InvariantCulture,
+                    out var cost)
                 && cost >= 0)
                 headerCost = cost;
             await response.Content.LoadIntoBufferAsync(4 * 1024 * 1024, timeout.Token);
@@ -74,34 +76,43 @@ public sealed class OpenAiApiClient(HttpClient http, LlmOptions options) : ILlmC
             }
             catch (JsonException)
             {
-                return new LlmClientResponse(Error: response.IsSuccessStatusCode ? "invalid_envelope" : Error(status.Value, raw),
-                    Transient: !BudgetExceeded(raw) && (status == 429 || status >= 500), ActualCostRub: headerCost, HttpStatus: status);
+                return new LlmClientResponse(
+                    Error: response.IsSuccessStatusCode ? "invalid_envelope" : Error(status.Value, raw),
+                    Transient: !BudgetExceeded(raw) && (status == 429 || status >= 500), ActualCostRub: headerCost,
+                    HttpStatus: status);
             }
+
             var usage = Property(envelope, "usage");
             var actualCost = Decimal(usage, "cost") ?? headerCost;
             var inputTokens = Long(usage, "prompt_tokens") ?? 0;
             var outputTokens = Long(usage, "completion_tokens") ?? 0;
             var reasoningTokens = Long(Property(usage, "completion_tokens_details"), "reasoning_tokens");
             if (!response.IsSuccessStatusCode)
-                return new LlmClientResponse(Error: Error(status.Value, raw), Transient: !BudgetExceeded(raw) && (status == 429 || status >= 500),
+                return new LlmClientResponse(Error: Error(status.Value, raw),
+                    Transient: !BudgetExceeded(raw) && (status == 429 || status >= 500),
                     InputTokens: inputTokens, OutputTokens: outputTokens, ReasoningTokens: reasoningTokens,
                     ActualCostRub: actualCost, HttpStatus: status);
             var choices = Property(envelope, "choices");
-            var choice = choices.ValueKind == JsonValueKind.Array && choices.GetArrayLength() > 0 ? choices[0] : default;
+            var choice = choices.ValueKind == JsonValueKind.Array && choices.GetArrayLength() > 0
+                ? choices[0]
+                : default;
             var finish = String(choice, "finish_reason");
             var text = String(Property(choice, "message"), "content");
-            var error = finish == "length" ? "output_length" : finish != "stop" ? "invalid_finish_reason"
+            var error = finish == "length" ? "output_length"
+                : finish != "stop" ? "invalid_finish_reason"
                 : string.IsNullOrWhiteSpace(text) ? "empty_response" : null;
             return new LlmClientResponse(text, error, InputTokens: inputTokens, OutputTokens: outputTokens,
                 ReasoningTokens: reasoningTokens, ActualCostRub: actualCost, HttpStatus: status, FinishReason: finish);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            return new LlmClientResponse(Error: "llm_timeout", Transient: true, ActualCostRub: headerCost, HttpStatus: status);
+            return new LlmClientResponse(Error: "llm_timeout", Transient: true, ActualCostRub: headerCost,
+                HttpStatus: status);
         }
         catch (HttpRequestException)
         {
-            return new LlmClientResponse(Error: "llm_transport", Transient: true, ActualCostRub: headerCost, HttpStatus: status);
+            return new LlmClientResponse(Error: "llm_transport", Transient: true, ActualCostRub: headerCost,
+                HttpStatus: status);
         }
     }
 
@@ -116,6 +127,7 @@ public sealed class OpenAiApiClient(HttpClient http, LlmOptions options) : ILlmC
                 keyCheckedAt = now;
                 keySpend = await ReadKeySpendAsync(now, cancellationToken);
             }
+
             return keySpend;
         }
         finally
@@ -138,40 +150,56 @@ public sealed class OpenAiApiClient(HttpClient http, LlmOptions options) : ILlmC
             using var response = await http.SendAsync(request, timeout.Token);
             if (!response.IsSuccessStatusCode)
                 return null;
-            var info = Property(JsonSerializer.Deserialize<JsonElement>(await response.Content.ReadAsStringAsync(timeout.Token)), "info");
+            var info = Property(
+                JsonSerializer.Deserialize<JsonElement>(await response.Content.ReadAsStringAsync(timeout.Token)),
+                "info");
             return Decimal(info, "spend") is { } spend && Decimal(info, "max_budget") is { } maxBudget
-                ? new LlmKeySpend(spend, maxBudget, now) : null;
+                ? new LlmKeySpend(spend, maxBudget, now)
+                : null;
         }
         catch (Exception exception) when (exception is HttpRequestException or JsonException
-                                              || exception is OperationCanceledException && !cancellationToken.IsCancellationRequested)
+                                          || exception is OperationCanceledException &&
+                                          !cancellationToken.IsCancellationRequested)
         {
             return null;
         }
     }
 
     // LiteLLM отказывает по бюджету ключа кодом 400 (иногда 429) с типом budget_exceeded: это не временный сбой.
-    private static bool BudgetExceeded(string raw) => raw.Contains("budget_exceeded", StringComparison.OrdinalIgnoreCase)
-        || raw.Contains("budget", StringComparison.OrdinalIgnoreCase) && raw.Contains("exceeded", StringComparison.OrdinalIgnoreCase);
+    private static bool BudgetExceeded(string raw) =>
+        raw.Contains("budget_exceeded", StringComparison.OrdinalIgnoreCase)
+        || raw.Contains("budget", StringComparison.OrdinalIgnoreCase) &&
+        raw.Contains("exceeded", StringComparison.OrdinalIgnoreCase);
 
-    private static string Error(int status, string raw) => BudgetExceeded(raw) ? "budget_exhausted" : status switch
-    {
-        401 or 403 => "llm_key_required",
-        429 => "llm_rate_limited",
-        >= 500 => "llm_unavailable",
-        _ => "llm_request_rejected"
-    };
+    private static string Error(int status, string raw) => BudgetExceeded(raw)
+        ? "budget_exhausted"
+        : status switch
+        {
+            401 or 403 => "llm_key_required",
+            429 => "llm_rate_limited",
+            >= 500 => "llm_unavailable",
+            _ => "llm_request_rejected"
+        };
 
     private static JsonElement Property(JsonElement value, string name) =>
         value.ValueKind == JsonValueKind.Object && value.TryGetProperty(name, out var child) ? child : default;
 
-    private static string? String(JsonElement value, string name) => Property(value, name) is { ValueKind: JsonValueKind.String } child
-        ? child.GetString() : null;
+    private static string? String(JsonElement value, string name) =>
+        Property(value, name) is { ValueKind: JsonValueKind.String } child
+            ? child.GetString()
+            : null;
 
-    private static long? Long(JsonElement value, string name) => Property(value, name) is { ValueKind: JsonValueKind.Number } child
-        && child.TryGetInt64(out var number) && number >= 0 ? number : null;
+    private static long? Long(JsonElement value, string name) =>
+        Property(value, name) is { ValueKind: JsonValueKind.Number } child
+        && child.TryGetInt64(out var number) && number >= 0
+            ? number
+            : null;
 
-    private static decimal? Decimal(JsonElement value, string name) => Property(value, name) is { ValueKind: JsonValueKind.Number } child
-        && child.TryGetDecimal(out var number) && number >= 0 ? number : null;
+    private static decimal? Decimal(JsonElement value, string name) =>
+        Property(value, name) is { ValueKind: JsonValueKind.Number } child
+        && child.TryGetDecimal(out var number) && number >= 0
+            ? number
+            : null;
 
     public void Dispose()
     {

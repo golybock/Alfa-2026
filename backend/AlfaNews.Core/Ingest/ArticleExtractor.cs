@@ -25,8 +25,10 @@ public static class ArticleExtractor
     {
         var document = new HtmlParser().ParseDocument(html);
         var title = TextNormalizer.Normalize(document.QuerySelector("h1")?.TextContent
-            ?? document.QuerySelector("meta[property='og:title']")?.GetAttribute("content") ?? document.Title ?? string.Empty);
-        var published = ReadTime(document.QuerySelector("meta[property='article:published_time']")?.GetAttribute("content"))
+                                             ?? document.QuerySelector("meta[property='og:title']")
+                                                 ?.GetAttribute("content") ?? document.Title ?? string.Empty);
+        var published =
+            ReadTime(document.QuerySelector("meta[property='article:published_time']")?.GetAttribute("content"))
             ?? ReadTime(document.QuerySelector("time[datetime]")?.GetAttribute("datetime"));
 
         if (BodySelectors.TryGetValue(url.Host, out var selector))
@@ -40,7 +42,8 @@ public static class ArticleExtractor
         if (!article.Completed)
             throw new FetchException("empty_body", false, "Не удалось выделить текст статьи.");
         var readerPublished = article.PublicationDate is { } date && date.Year > 2000
-            ? new DateTimeOffset(DateTime.SpecifyKind(date, date.Kind == DateTimeKind.Unspecified ? DateTimeKind.Utc : date.Kind))
+            ? new DateTimeOffset(DateTime.SpecifyKind(date,
+                date.Kind == DateTimeKind.Unspecified ? DateTimeKind.Utc : date.Kind))
             : (DateTimeOffset?)null;
         return Build(string.IsNullOrWhiteSpace(article.Title) ? title : TextNormalizer.Normalize(article.Title),
             article.TextContent ?? string.Empty, published ?? readerPublished);
@@ -50,9 +53,12 @@ public static class ArticleExtractor
         text.TrimStart().StartsWith("Copyright", StringComparison.OrdinalIgnoreCase)
         && text.Contains("Все права защищены", StringComparison.OrdinalIgnoreCase);
 
-    private static ArticleContent Build(string title, string text, DateTimeOffset? published, int minLength = MinTextLength)
+    private static ArticleContent Build(string title, string text, DateTimeOffset? published,
+        int minLength = MinTextLength)
     {
-        var normalized = text.Contains('\n') ? string.Join("\n", text.Split('\n').Select(TextNormalizer.Normalize)) : TextNormalizer.Normalize(text);
+        var normalized = text.Contains('\n')
+            ? string.Join("\n", text.Split('\n').Select(TextNormalizer.Normalize))
+            : TextNormalizer.Normalize(text);
         if (IsBoilerplateOnly(normalized))
             throw new FetchException("boilerplate_body", false, "Вместо текста статьи получен футер сайта.");
         if (TextNormalizer.Normalize(normalized).Length < minLength)
@@ -62,5 +68,7 @@ public static class ArticleExtractor
 
     private static DateTimeOffset? ReadTime(string? value) =>
         !string.IsNullOrWhiteSpace(value) && DateTimeOffset.TryParse(value, CultureInfo.InvariantCulture,
-            DateTimeStyles.AssumeUniversal, out var parsed) ? parsed : null;
+            DateTimeStyles.AssumeUniversal, out var parsed)
+            ? parsed
+            : null;
 }

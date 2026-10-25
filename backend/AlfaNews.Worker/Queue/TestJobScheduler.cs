@@ -2,7 +2,10 @@ using AlfaNews.Core.Processing;
 
 namespace AlfaNews.Worker.Queue;
 
-public sealed class TestJobScheduler(IServiceScopeFactory scopes, IConfiguration configuration, ILogger<TestJobScheduler> logger) : BackgroundService
+public sealed class TestJobScheduler(
+    IServiceScopeFactory scopes,
+    IConfiguration configuration,
+    ILogger<TestJobScheduler> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {

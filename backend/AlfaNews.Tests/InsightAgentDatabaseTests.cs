@@ -36,8 +36,10 @@ public sealed class InsightAgentDatabaseTests(PostgresFixture fixture) : IClassF
         // Непроверенные обзоры найдены, но карточка на них не ссылается: отметки о них на экране нет.
         Assert.DoesNotContain(AgentTools.UnreviewedBankText, card.Limitations);
         Assert.False(string.IsNullOrWhiteSpace(card.WhyYou));
-        Assert.DoesNotContain(card.Limitations, item => item.StartsWith("Текст обзора банка", StringComparison.Ordinal));
-        Assert.Contains(card.Evidence.Values, evidence => evidence.Type == EvidenceType.CompanyFeature && evidence.Key == "products");
+        Assert.DoesNotContain(card.Limitations,
+            item => item.StartsWith("Текст обзора банка", StringComparison.Ordinal));
+        Assert.Contains(card.Evidence.Values,
+            evidence => evidence.Type == EvidenceType.CompanyFeature && evidence.Key == "products");
         Assert.Equal(1, card.Relevance.Rank);
         Assert.Equal(2, client.Plans);
         Assert.Contains("\"role\":\"cfo\"", client.LastDraftContext);
@@ -45,13 +47,16 @@ public sealed class InsightAgentDatabaseTests(PostgresFixture fixture) : IClassF
         Assert.DoesNotContain("\"bank_research\"", client.LastCriticContext);
         Assert.Contains("\"bank_research\"", client.LastDraftContext);
         await using var db = fixture.CreateDb();
-        var steps = await db.AgentStepRows.AsNoTracking().Where(row => row.RunId == Guid.Parse(card.TraceId)).OrderBy(row => row.Ordinal).ToListAsync();
-        Assert.Equal(["plan", "tool", "tool", "tool", "tool", "plan", "draft", "critic"], steps.Select(step => step.Stage));
+        var steps = await db.AgentStepRows.AsNoTracking().Where(row => row.RunId == Guid.Parse(card.TraceId))
+            .OrderBy(row => row.Ordinal).ToListAsync();
+        Assert.Equal(["plan", "tool", "tool", "tool", "tool", "plan", "draft", "critic"],
+            steps.Select(step => step.Stage));
         Assert.Equal("search_bank_research", steps[3].ToolName);
         Assert.Equal("search_similar_news", steps[4].ToolName);
         Assert.NotNull(steps[3].ArgumentsJson);
         Assert.NotNull(steps[3].ResultJson);
-        var again = await RunAsync(new AgentClient(CriticResponse: """{"issues":[]}"""), Role.Cfo, "test_company_a", "shared");
+        var again = await RunAsync(new AgentClient(CriticResponse: """{"issues":[]}"""), Role.Cfo, "test_company_a",
+            "shared");
         Assert.Equal(insight.Id, again.Insight.Id);
         var otherRole = new AgentClient(CriticResponse: """{"issues":[]}""");
         var (ceo, _) = await RunAsync(otherRole, Role.Ceo, "test_company_a", "shared");
@@ -63,7 +68,9 @@ public sealed class InsightAgentDatabaseTests(PostgresFixture fixture) : IClassF
     [PostgresFact]
     public async Task CriticIssueGetsOneRepairAndUnfixedClaimStaysUnconfirmed()
     {
-        var client = new AgentClient(CriticResponse: """{"issues":[{"claim_id":"C2","code":"unsupported_claim","explanation":"Связь не обоснована."}]}""",
+        var client = new AgentClient(
+            CriticResponse:
+            """{"issues":[{"claim_id":"C2","code":"unsupported_claim","explanation":"Связь не обоснована."}]}""",
             RepairResponse: Draft("Компании стоит уточнить условия кредитного договора."));
         var (insight, _) = await RunAsync(client, Role.Ceo);
         var card = AccessService.ReadReadyInsight(insight);
@@ -72,7 +79,9 @@ public sealed class InsightAgentDatabaseTests(PostgresFixture fixture) : IClassF
         Assert.Equal(ClaimVerification.CodePassed, card.Claims.Single(claim => claim.Id == "C2").VerificationStatus);
         Assert.Equal(ClaimVerification.CriticPassed, card.Claims.Single(claim => claim.Id == "C1").VerificationStatus);
 
-        var failing = new AgentClient(CriticResponse: """{"issues":[{"claim_id":"C2","code":"unsupported_claim","explanation":"Связь не обоснована."}]}""",
+        var failing = new AgentClient(
+            CriticResponse:
+            """{"issues":[{"claim_id":"C2","code":"unsupported_claim","explanation":"Связь не обоснована."}]}""",
             RepairResponse: "{}", CompanyKey: "test_company_b");
         var (unfixed, _) = await RunAsync(failing, Role.Ceo, "test_company_b");
         var kept = AccessService.ReadReadyInsight(unfixed);
@@ -108,7 +117,8 @@ public sealed class InsightAgentDatabaseTests(PostgresFixture fixture) : IClassF
         Assert.Equal(0, salvaged.Repairs);
 
         // Ошибочным оказалось единственное действие: заголовок называет проверку, без действия — ошибка карточки и починка.
-        var lastAction = new AgentClient(CriticResponse: """{"issues":[]}""", DraftResponse: Draft("Ставка выросла до 99%.", "source_fact"));
+        var lastAction = new AgentClient(CriticResponse: """{"issues":[]}""",
+            DraftResponse: Draft("Ставка выросла до 99%.", "source_fact"));
         var (noAction, _) = await RunAsync(lastAction, Role.Ceo, "test_company_a", "last-action");
         Assert.Equal("failed", noAction.Status);
         Assert.Equal(1, lastAction.Repairs);
@@ -128,19 +138,24 @@ public sealed class InsightAgentDatabaseTests(PostgresFixture fixture) : IClassF
     [PostgresFact]
     public async Task AutomaticCardIsSkippedWhenEventLeftTheFeed()
     {
-        await using var services = Services(new AgentClient(CriticResponse: """{"issues":[]}"""), insightsOnlyForFeed: true);
+        await using var services =
+            Services(new AgentClient(CriticResponse: """{"issues":[]}"""), insightsOnlyForFeed: true);
         await using var scope = services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<AlfaNewsDbContext>();
         var eventId = await PrepareAsync(db, "test_company_a", "left-feed-" + Guid.NewGuid());
         // Событие вытеснено из ленты: в снимках компании его нет.
-        foreach (var snapshot in await db.FeedSnapshotRows.Where(row => row.CompanyId == "test_company_a").ToListAsync())
+        foreach (var snapshot in await db.FeedSnapshotRows.Where(row => row.CompanyId == "test_company_a")
+                     .ToListAsync())
             snapshot.ItemsJson = JsonSerializer.SerializeToElement(snapshot.ItemsJson.EnumerateArray()
                 .Where(item => item.GetProperty("event_id").GetString() != eventId.ToString()).ToArray());
         await db.SaveChangesAsync();
-        var inputVersion = await db.EventRows.Where(row => row.Id == eventId).Select(row => row.InputVersion).SingleAsync();
+        var inputVersion = await db.EventRows.Where(row => row.Id == eventId).Select(row => row.InputVersion)
+            .SingleAsync();
         var payload = new GenerateInsightJob("test_company_a", eventId.ToString(), Role.Ceo, inputVersion);
-        var job = await scope.ServiceProvider.GetRequiredService<JobQueue>().EnqueueAsync(payload, null, "test_company_a", CancellationToken.None);
-        var result = await scope.ServiceProvider.GetRequiredService<InsightAgent>().GenerateAsync(job, payload, CancellationToken.None);
+        var job = await scope.ServiceProvider.GetRequiredService<JobQueue>()
+            .EnqueueAsync(payload, null, "test_company_a", CancellationToken.None);
+        var result = await scope.ServiceProvider.GetRequiredService<InsightAgent>()
+            .GenerateAsync(job, payload, CancellationToken.None);
         Assert.Equal("skipped", result.Stage);
         Assert.Null(result.ErrorCode);
         Assert.False(await db.InsightRows.AnyAsync(row => row.EventId == eventId));
@@ -155,9 +170,11 @@ public sealed class InsightAgentDatabaseTests(PostgresFixture fixture) : IClassF
         await using var scope = services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<AlfaNewsDbContext>();
         var eventId = await PrepareAsync(db, "test_company_a", "deferred");
-        var inputVersion = await db.EventRows.Where(row => row.Id == eventId).Select(row => row.InputVersion).SingleAsync();
+        var inputVersion = await db.EventRows.Where(row => row.Id == eventId).Select(row => row.InputVersion)
+            .SingleAsync();
         var queue = scope.ServiceProvider.GetRequiredService<JobQueue>();
-        var ceo = await queue.EnqueueAsync(new GenerateInsightJob("test_company_a", eventId.ToString(), Role.Ceo, inputVersion), null,
+        var ceo = await queue.EnqueueAsync(
+            new GenerateInsightJob("test_company_a", eventId.ToString(), Role.Ceo, inputVersion), null,
             "test_company_a", CancellationToken.None);
         var payload = new GenerateInsightJob("test_company_a", eventId.ToString(), Role.Cfo, inputVersion);
         var cfo = await queue.EnqueueAsync(payload, null, "test_company_a", CancellationToken.None);
@@ -177,7 +194,8 @@ public sealed class InsightAgentDatabaseTests(PostgresFixture fixture) : IClassF
         Assert.True(client.Plans > 0);
     }
 
-    private async Task<(InsightEntity Insight, JobResult Result)> RunAsync(AgentClient client, Role role, string companyId = "test_company_a",
+    private async Task<(InsightEntity Insight, JobResult Result)> RunAsync(AgentClient client, Role role,
+        string companyId = "test_company_a",
         string eventKey = "agent")
     {
         await using var services = Services(client);
@@ -185,22 +203,27 @@ public sealed class InsightAgentDatabaseTests(PostgresFixture fixture) : IClassF
         var db = scope.ServiceProvider.GetRequiredService<AlfaNewsDbContext>();
         var eventId = await PrepareAsync(db, companyId, eventKey);
         var queue = scope.ServiceProvider.GetRequiredService<JobQueue>();
-        var inputVersion = await db.EventRows.Where(row => row.Id == eventId).Select(row => row.InputVersion).SingleAsync();
+        var inputVersion = await db.EventRows.Where(row => row.Id == eventId).Select(row => row.InputVersion)
+            .SingleAsync();
         var payload = new GenerateInsightJob(companyId, eventId.ToString(), role, inputVersion);
         var job = await queue.FindActiveAsync(payload, null, companyId, CancellationToken.None)
-            ?? await queue.EnqueueAsync(payload, null, companyId, CancellationToken.None);
+                  ?? await queue.EnqueueAsync(payload, null, companyId, CancellationToken.None);
         var tracked = await db.BackgroundJobRows.SingleAsync(row => row.Id == job.Id);
         tracked.StartedAt = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync();
-        var result = await scope.ServiceProvider.GetRequiredService<InsightAgent>().GenerateAsync(tracked, payload, CancellationToken.None);
+        var result = await scope.ServiceProvider.GetRequiredService<InsightAgent>()
+            .GenerateAsync(tracked, payload, CancellationToken.None);
         await using var read = fixture.CreateDb();
-        return (await read.InsightRows.AsNoTracking().SingleAsync(row => row.CompanyId == companyId && row.EventId == eventId
-            && row.Role == AccessService.RoleName(role)), result);
+        return (await read.InsightRows.AsNoTracking().SingleAsync(row => row.CompanyId == companyId &&
+                                                                         row.EventId == eventId
+                                                                         && row.Role == AccessService.RoleName(role)),
+            result);
     }
 
     private static async Task<Guid> PrepareAsync(AlfaNewsDbContext db, string companyId, string eventKey)
     {
-        await new TaxonomyCatalogLoader(db).LoadAsync(Path.Combine(AppContext.BaseDirectory, "taxonomy.json"), CancellationToken.None);
+        await new TaxonomyCatalogLoader(db).LoadAsync(Path.Combine(AppContext.BaseDirectory, "taxonomy.json"),
+            CancellationToken.None);
         var options = new JsonSerializerOptions();
         ContractJson.Configure(options);
         var empty = new PaymentExposure(0, 0, 0, new Dictionary<string, decimal>());
@@ -210,14 +233,17 @@ public sealed class InsightAgentDatabaseTests(PostgresFixture fixture) : IClassF
             {
                 CompanyId = companyId,
                 DataVersion = "test",
-                ProfileJson = JsonSerializer.SerializeToElement(new CompanyProfile(companyId, null, "41.20", "41", "Строительство",
+                ProfileJson = JsonSerializer.SerializeToElement(new CompanyProfile(companyId, null, "41.20", "41",
+                    "Строительство",
                     null, null, null, null, null, ["loan"], [], empty, empty, "test"), options),
                 UpdatedAt = DateTimeOffset.UtcNow
             });
             await db.SaveChangesAsync();
         }
+
         var key = "agent-" + eventKey;
-        var existing = await db.EventRows.Where(row => row.Headline == key).Select(row => (Guid?)row.Id).SingleOrDefaultAsync();
+        var existing = await db.EventRows.Where(row => row.Headline == key).Select(row => (Guid?)row.Id)
+            .SingleOrDefaultAsync();
         if (existing is { } id)
             return id;
         var text = "Банк России сохранил ключевую ставку. " + key;
@@ -244,7 +270,8 @@ public sealed class InsightAgentDatabaseTests(PostgresFixture fixture) : IClassF
             Headline = key,
             PublishedAt = news.PublishedAt.Value,
             ExtractionJson = JsonSerializer.SerializeToElement(new NewsExtraction(key, null,
-                [new ExtractedFact("Банк России сохранил ключевую ставку.", "Банк России сохранил ключевую ставку.")], ["Банк России"],
+                [new ExtractedFact("Банк России сохранил ключевую ставку.", "Банк России сохранил ключевую ставку.")],
+                ["Банк России"],
                 new NewsTags(["key_rate"], [], [], [], [])), LlmOutputValidator.JsonOptions),
             InputVersion = "v-" + key,
             CreatedAt = news.FetchedAt,
@@ -252,7 +279,8 @@ public sealed class InsightAgentDatabaseTests(PostgresFixture fixture) : IClassF
         });
         db.EventTagRows.Add(new EventTagEntity { EventId = eventId, Kind = "factor", Code = "key_rate" });
         await db.SaveChangesAsync();
-        await new FeedRefreshService(db, new JobQueue(db, TimeProvider.System), new RankingOptions { PrecomputeInsights = false }, TimeProvider.System)
+        await new FeedRefreshService(db, new JobQueue(db, TimeProvider.System),
+                new RankingOptions { PrecomputeInsights = false }, TimeProvider.System)
             .RefreshAsync(new RefreshFeedJob(companyId, DateTimeOffset.UtcNow), CancellationToken.None);
         return eventId;
     }
@@ -264,10 +292,12 @@ public sealed class InsightAgentDatabaseTests(PostgresFixture fixture) : IClassF
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         services.AddAlfaNewsData(fixture.ConnectionString!);
-        services.AddAlfaNewsLlm(new LlmOptions { UseMock = false, ApiKey = "synthetic", BaseUrl = "https://example.org/v1" });
+        services.AddAlfaNewsLlm(new LlmOptions
+            { UseMock = false, ApiKey = "synthetic", BaseUrl = "https://example.org/v1" });
         services.AddSingleton(client);
         services.AddSingleton(new RankingOptions { InsightsOnlyForFeed = insightsOnlyForFeed });
-        services.AddSingleton(new NewsEmbeddings(new HttpClient(new DownHandler()), new ConfigurationBuilder().Build()));
+        services.AddSingleton(new NewsEmbeddings(new HttpClient(new DownHandler()),
+            new ConfigurationBuilder().Build()));
         services.AddScoped<JobQueue>();
         services.AddScoped<ResearchSearch>();
         services.AddScoped<NewsSearch>();
@@ -288,14 +318,21 @@ public sealed class InsightAgentDatabaseTests(PostgresFixture fixture) : IClassF
         bank_view = new { status = "not_found", claim_ids = Array.Empty<string>() },
         claims = new object[]
         {
-            new { id = "C1", text = "Банк России сохранил ключевую ставку.", origin = "source_fact", refs = new[] { "E1" }, confidence = (string?)null },
+            new
+            {
+                id = "C1", text = "Банк России сохранил ключевую ставку.", origin = "source_fact",
+                refs = new[] { "E1" }, confidence = (string?)null
+            },
             new { id = "C2", text = inference, origin, refs = new[] { "E1", "E2" }, confidence = (string?)null }
         },
         limitations = new[] { "Условия кредитного договора неизвестны." },
         suggested_questions = new[] { "Привязана ли ставка договора к ключевой?" }
     });
 
-    private sealed record AgentClient(string? CriticResponse, string? RepairResponse = null, string? DraftResponse = null,
+    private sealed record AgentClient(
+        string? CriticResponse,
+        string? RepairResponse = null,
+        string? DraftResponse = null,
         string CompanyKey = "test_company_a") : ILlmClient
     {
         public int Plans { get; private set; }
@@ -305,13 +342,15 @@ public sealed class InsightAgentDatabaseTests(PostgresFixture fixture) : IClassF
         public string LastPlanContext { get; private set; } = "";
         public string LastCriticContext { get; private set; } = "";
 
-        public Task<LlmClientResponse> SendAsync(LlmPrompt prompt, LlmRoute route, LlmImage? image, CancellationToken cancellationToken)
+        public Task<LlmClientResponse> SendAsync(LlmPrompt prompt, LlmRoute route, LlmImage? image,
+            CancellationToken cancellationToken)
         {
             if (prompt.User.Contains("<diagnostics_json>", StringComparison.Ordinal))
             {
                 Repairs++;
                 return Respond(RepairResponse ?? "{}");
             }
+
             switch (prompt.SchemaName)
             {
                 case "AgentPlan":
@@ -322,7 +361,8 @@ public sealed class InsightAgentDatabaseTests(PostgresFixture fixture) : IClassF
                         : """{"calls":[],"questions_to_resolve":[]}""");
                 case "InsightDraft":
                     LastDraftContext = prompt.User;
-                    return Respond(DraftResponse ?? Draft("Сохранение ставки сохраняет текущую стоимость кредитного финансирования."));
+                    return Respond(DraftResponse ??
+                                   Draft("Сохранение ставки сохраняет текущую стоимость кредитного финансирования."));
                 case "CriticResult":
                     Critics++;
                     LastCriticContext = prompt.User;
@@ -340,7 +380,8 @@ public sealed class InsightAgentDatabaseTests(PostgresFixture fixture) : IClassF
 
     private sealed class DownHandler : HttpMessageHandler
     {
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
+            CancellationToken cancellationToken) =>
             throw new HttpRequestException("TEI недоступен.");
     }
 }

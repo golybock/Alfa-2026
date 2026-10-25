@@ -14,11 +14,14 @@ public sealed class PaymentConfiguration : IEntityTypeConfiguration<PaymentEntit
             table.HasCheckConstraint("payment_2_check", "payer <> beneficiary");
         });
         builder.HasKey(entity => new { entity.Payer, entity.Beneficiary }).HasName("payment_pkey");
-        builder.Property(entity => entity.Payer).HasColumnName("payer").HasColumnType("text").IsRequired().ValueGeneratedNever();
-        builder.Property(entity => entity.Beneficiary).HasColumnName("beneficiary").HasColumnType("text").IsRequired().ValueGeneratedNever();
+        builder.Property(entity => entity.Payer).HasColumnName("payer").HasColumnType("text").IsRequired()
+            .ValueGeneratedNever();
+        builder.Property(entity => entity.Beneficiary).HasColumnName("beneficiary").HasColumnType("text").IsRequired()
+            .ValueGeneratedNever();
         builder.Property(entity => entity.PayAmt).HasColumnName("pay_amt").HasColumnType("numeric(28,2)").IsRequired();
         builder.Property(entity => entity.PayCnt).HasColumnName("pay_cnt").HasColumnType("bigint").IsRequired();
-        builder.Property(entity => entity.DatasetVersion).HasColumnName("dataset_version").HasColumnType("text").IsRequired();
+        builder.Property(entity => entity.DatasetVersion).HasColumnName("dataset_version").HasColumnType("text")
+            .IsRequired();
         builder.HasIndex(entity => entity.Beneficiary).HasDatabaseName("payment_beneficiary_idx");
     }
 }

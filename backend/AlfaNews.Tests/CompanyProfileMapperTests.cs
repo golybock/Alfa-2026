@@ -45,7 +45,8 @@ public sealed class CompanyProfileMapperTests
     [Fact]
     public void MapsMissingRawFieldsToNullsAndEmptyLists()
     {
-        var company = new CompanyEntity { Id = "sample", MainOkvedCode = "64.19", RawData = JsonSerializer.SerializeToElement(new { }) };
+        var company = new CompanyEntity
+            { Id = "sample", MainOkvedCode = "64.19", RawData = JsonSerializer.SerializeToElement(new { }) };
         var exposure = new PaymentExposure(0, 0, 0, new Dictionary<string, decimal>());
         var profile = CompanyProfileMapper.Map(company, exposure, exposure, "v1");
         Assert.Null(profile.AgeBand);

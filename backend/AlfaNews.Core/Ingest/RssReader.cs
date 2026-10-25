@@ -24,6 +24,7 @@ public static class RssReader
                 throw;
             items = salvaged;
         }
+
         var entries = new List<FeedEntry>();
         foreach (var item in items)
         {
@@ -33,6 +34,7 @@ public static class RssReader
                 continue;
             entries.Add(new FeedEntry(url, title, ReadDate(item), ReadFullText(item)));
         }
+
         return entries;
     }
 
@@ -46,7 +48,8 @@ public static class RssReader
     private static List<XElement> SalvageItems(string xml)
     {
         var items = new List<XElement>();
-        foreach (System.Text.RegularExpressions.Match match in System.Text.RegularExpressions.Regex.Matches(xml, @"<item[ >].*?</item>",
+        foreach (System.Text.RegularExpressions.Match match in System.Text.RegularExpressions.Regex.Matches(xml,
+                     @"<item[ >].*?</item>",
                      System.Text.RegularExpressions.RegexOptions.Singleline))
         {
             try
@@ -57,6 +60,7 @@ public static class RssReader
             {
             }
         }
+
         return items;
     }
 
@@ -64,8 +68,10 @@ public static class RssReader
     {
         var links = item.Elements().Where(element => element.Name.LocalName == "link").ToList();
         var atomLink = links.FirstOrDefault(element => element.Attribute("href") is not null
-            && (element.Attribute("rel")?.Value ?? "alternate") == "alternate");
-        var value = atomLink?.Attribute("href")?.Value ?? links.Select(element => element.Value).FirstOrDefault(text => !string.IsNullOrWhiteSpace(text));
+                                                       && (element.Attribute("rel")?.Value ?? "alternate") ==
+                                                       "alternate");
+        var value = atomLink?.Attribute("href")?.Value ?? links.Select(element => element.Value)
+            .FirstOrDefault(text => !string.IsNullOrWhiteSpace(text));
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 
@@ -78,6 +84,7 @@ public static class RssReader
                     DateTimeStyles.AssumeUniversal, out var date))
                 return date;
         }
+
         return null;
     }
 
@@ -92,11 +99,13 @@ public static class RssReader
                 return decoded.Contains('<') ? TextNormalizer.FromHtml(decoded) : TextNormalizer.Normalize(decoded);
             }
         }
+
         return null;
     }
 
     private static string? Child(XElement item, string localName) =>
         item.Elements().FirstOrDefault(element => element.Name.LocalName == localName)?.Value;
 
-    private static string Clean(string? value) => TextNormalizer.Normalize(System.Net.WebUtility.HtmlDecode(value ?? string.Empty));
+    private static string Clean(string? value) =>
+        TextNormalizer.Normalize(System.Net.WebUtility.HtmlDecode(value ?? string.Empty));
 }

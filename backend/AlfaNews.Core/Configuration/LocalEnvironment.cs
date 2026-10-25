@@ -64,8 +64,10 @@ public static partial class LocalEnvironment
                 if (comment >= 0)
                     value = value[..comment].TrimEnd();
             }
+
             values[name] = value;
         }
+
         return values;
     }
 
@@ -77,6 +79,7 @@ public static partial class LocalEnvironment
             if (File.Exists(path))
                 return path;
         }
+
         return null;
     }
 

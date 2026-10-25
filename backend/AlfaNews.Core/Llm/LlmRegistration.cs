@@ -13,7 +13,7 @@ public static class LlmRegistration
         services.AddSingleton<ILlmClient>(_ => options.UseMock
             ? new MockLlmClient()
             : new OpenAiApiClient(new HttpClient(new SocketsHttpHandler { AllowAutoRedirect = false })
-            { Timeout = Timeout.InfiniteTimeSpan }, options));
+                { Timeout = Timeout.InfiniteTimeSpan }, options));
         services.AddScoped<LlmGateway>();
         return services;
     }

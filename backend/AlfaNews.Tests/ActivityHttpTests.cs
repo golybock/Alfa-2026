@@ -25,13 +25,20 @@ public sealed class ActivityHttpTests(PostgresFixture fixture) : IClassFixture<P
         var request = new UserActivityRequest(Guid.NewGuid().ToString(), UserActivityType.InsightOpened, null, null);
         var json = JsonSerializer.Serialize(request, options);
         Assert.Equal(HttpStatusCode.Unauthorized, await SendAsync(client, path, json, null, Origin));
-        Assert.Equal(HttpStatusCode.Forbidden, await SendAsync(client, path, json, fixture.Token, "https://foreign.example"));
+        Assert.Equal(HttpStatusCode.Forbidden,
+            await SendAsync(client, path, json, fixture.Token, "https://foreign.example"));
         Assert.Equal(HttpStatusCode.Forbidden, await SendAsync(client, path, json, fixture.Token, null));
         Assert.Equal(HttpStatusCode.NoContent, await SendAsync(client, path, json, fixture.Token, Origin));
         Assert.Equal(HttpStatusCode.NoContent, await SendAsync(client, path, json, fixture.Token, Origin));
-        Assert.Equal(HttpStatusCode.Forbidden, await SendAsync(client, $"/api/insights/{fixture.ForeignInsightId}/activity", json, fixture.Token, Origin));
-        Assert.Equal(HttpStatusCode.BadRequest, await SendAsync(client, path, json.Replace("insight_opened", "chat_question_accepted"), fixture.Token, Origin));
-        Assert.Equal(HttpStatusCode.BadRequest, await SendAsync(client, path, json.Replace("\"action_id\":null", "\"action_id\":null,\"user_id\":\"forged\""), fixture.Token, Origin));
+        Assert.Equal(HttpStatusCode.Forbidden,
+            await SendAsync(client, $"/api/insights/{fixture.ForeignInsightId}/activity", json, fixture.Token, Origin));
+        Assert.Equal(HttpStatusCode.BadRequest,
+            await SendAsync(client, path, json.Replace("insight_opened", "chat_question_accepted"), fixture.Token,
+                Origin));
+        Assert.Equal(HttpStatusCode.BadRequest,
+            await SendAsync(client, path,
+                json.Replace("\"action_id\":null", "\"action_id\":null,\"user_id\":\"forged\""), fixture.Token,
+                Origin));
     });
 
     [PostgresFact]
@@ -39,25 +46,35 @@ public sealed class ActivityHttpTests(PostgresFixture fixture) : IClassFixture<P
     {
         var chat = $"/api/insights/{fixture.InsightId}/chat";
         Assert.Equal(HttpStatusCode.BadRequest, await SendAsync(client, chat, Question("   "), fixture.Token, Origin));
-        Assert.Equal(HttpStatusCode.BadRequest, await SendAsync(client, chat, Question(new string('я', 1001)), fixture.Token, Origin));
-        Assert.Equal(HttpStatusCode.Forbidden, await SendAsync(client, $"/api/insights/{fixture.ForeignInsightId}/chat", Question("Почему?"), fixture.Token, Origin));
+        Assert.Equal(HttpStatusCode.BadRequest,
+            await SendAsync(client, chat, Question(new string('я', 1001)), fixture.Token, Origin));
+        Assert.Equal(HttpStatusCode.Forbidden,
+            await SendAsync(client, $"/api/insights/{fixture.ForeignInsightId}/chat", Question("Почему?"),
+                fixture.Token, Origin));
         var first = await PostJsonAsync(client, chat, Question(" Почему это важно? "), fixture.Token);
         Assert.Equal(HttpStatusCode.Accepted, first.Status);
         var again = await PostJsonAsync(client, chat, Question("Почему это важно?"), fixture.Token);
         Assert.Equal(HttpStatusCode.Accepted, again.Status);
         Assert.Equal(first.Body.GetProperty("job_id").GetString(), again.Body.GetProperty("job_id").GetString());
-        Assert.Equal(HttpStatusCode.TooManyRequests, await SendAsync(client, chat, Question("Другой вопрос"), fixture.Token, Origin));
+        Assert.Equal(HttpStatusCode.TooManyRequests,
+            await SendAsync(client, chat, Question("Другой вопрос"), fixture.Token, Origin));
         await FailQuestionsAsync();
         await using (var db = fixture.CreateDb())
-            Assert.Equal(1, await db.UserActivityRows.CountAsync(row => row.UserId == fixture.UserId && row.Kind == "chat_question_accepted"));
-        Assert.Equal(HttpStatusCode.Accepted, await SendAsync(client, chat, Question("Почему это важно?"), fixture.Token, Origin));
+            Assert.Equal(1,
+                await db.UserActivityRows.CountAsync(row =>
+                    row.UserId == fixture.UserId && row.Kind == "chat_question_accepted"));
+        Assert.Equal(HttpStatusCode.Accepted,
+            await SendAsync(client, chat, Question("Почему это важно?"), fixture.Token, Origin));
         await RefuseQuestionsAsync();
         for (var question = 2; question <= 10; question++)
         {
-            Assert.Equal(HttpStatusCode.Accepted, await SendAsync(client, chat, Question($"Вопрос {question}"), fixture.Token, Origin));
+            Assert.Equal(HttpStatusCode.Accepted,
+                await SendAsync(client, chat, Question($"Вопрос {question}"), fixture.Token, Origin));
             await RefuseQuestionsAsync();
         }
-        Assert.Equal(HttpStatusCode.TooManyRequests, await SendAsync(client, chat, Question("Одиннадцатый"), fixture.Token, Origin));
+
+        Assert.Equal(HttpStatusCode.TooManyRequests,
+            await SendAsync(client, chat, Question("Одиннадцатый"), fixture.Token, Origin));
         var history = await GetJsonAsync(client, chat, fixture.Token);
         Assert.Equal(10, history.GetProperty("items").GetArrayLength());
         Assert.All(history.GetProperty("items").EnumerateArray(), item =>
@@ -68,20 +85,29 @@ public sealed class ActivityHttpTests(PostgresFixture fixture) : IClassFixture<P
         Assert.Equal(0, (await GetJsonAsync(client, chat, fixture.OtherToken)).GetProperty("items").GetArrayLength());
 
         await SetInsightStatusAsync("processing");
-        Assert.Equal(HttpStatusCode.Conflict, await SendAsync(client, chat, Question("Почему?"), fixture.OtherToken, Origin));
+        Assert.Equal(HttpStatusCode.Conflict,
+            await SendAsync(client, chat, Question("Почему?"), fixture.OtherToken, Origin));
         await SetInsightStatusAsync("ready");
 
         var evidence = await GetJsonAsync(client, $"/api/insights/{fixture.InsightId}/evidence/E1", fixture.Token);
         Assert.Equal("news", evidence.GetProperty("type").GetString());
-        Assert.Equal(HttpStatusCode.NotFound, await GetAsync(client, $"/api/insights/{fixture.InsightId}/evidence/E99", fixture.Token));
-        Assert.Equal(HttpStatusCode.Forbidden, await GetAsync(client, $"/api/insights/{fixture.ForeignInsightId}/evidence/E1", fixture.Token));
+        Assert.Equal(HttpStatusCode.NotFound,
+            await GetAsync(client, $"/api/insights/{fixture.InsightId}/evidence/E99", fixture.Token));
+        Assert.Equal(HttpStatusCode.Forbidden,
+            await GetAsync(client, $"/api/insights/{fixture.ForeignInsightId}/evidence/E1", fixture.Token));
 
         var feedback = $"/api/insights/{fixture.InsightId}/feedback";
-        Assert.Equal(HttpStatusCode.BadRequest, await SendAsync(client, feedback, """{"kind":"like","reason":"obvious"}""", fixture.Token, Origin));
-        Assert.Equal(HttpStatusCode.BadRequest, await SendAsync(client, feedback, """{"kind":"star","reason":null}""", fixture.Token, Origin));
-        Assert.Equal(HttpStatusCode.Forbidden, await SendAsync(client, $"/api/insights/{fixture.ForeignInsightId}/feedback", """{"kind":"hide","reason":null}""", fixture.Token, Origin));
-        Assert.Equal(HttpStatusCode.NoContent, await SendAsync(client, feedback, """{"kind":"dislike","reason":"obvious"}""", fixture.Token, Origin));
-        Assert.Equal(HttpStatusCode.NoContent, await SendAsync(client, feedback, """{"kind":"hide","reason":"not_relevant"}""", fixture.Token, Origin));
+        Assert.Equal(HttpStatusCode.BadRequest,
+            await SendAsync(client, feedback, """{"kind":"like","reason":"obvious"}""", fixture.Token, Origin));
+        Assert.Equal(HttpStatusCode.BadRequest,
+            await SendAsync(client, feedback, """{"kind":"star","reason":null}""", fixture.Token, Origin));
+        Assert.Equal(HttpStatusCode.Forbidden,
+            await SendAsync(client, $"/api/insights/{fixture.ForeignInsightId}/feedback",
+                """{"kind":"hide","reason":null}""", fixture.Token, Origin));
+        Assert.Equal(HttpStatusCode.NoContent,
+            await SendAsync(client, feedback, """{"kind":"dislike","reason":"obvious"}""", fixture.Token, Origin));
+        Assert.Equal(HttpStatusCode.NoContent,
+            await SendAsync(client, feedback, """{"kind":"hide","reason":"not_relevant"}""", fixture.Token, Origin));
         await using (var db = fixture.CreateDb())
         {
             var row = await db.FeedbackRows.SingleAsync(item => item.UserId == fixture.UserId);
@@ -103,11 +129,11 @@ public sealed class ActivityHttpTests(PostgresFixture fixture) : IClassFixture<P
     {
         await using var db = fixture.CreateDb();
         await db.Database.ExecuteSqlInterpolatedAsync($$"""
-            UPDATE chat_message SET status = 'ready', answer_json = jsonb_build_object('id', id::text, 'insight_id', insight_id::text,
-                'status', 'refusal', 'answer', null, 'claims', '[]'::jsonb, 'evidence', '{}'::jsonb, 'missing', '[]'::jsonb,
-                'refusal_reason', 'Отказ.', 'suggested_questions', '[]'::jsonb, 'questions_remaining', 0)
-            WHERE user_id = {{fixture.UserId}} AND status = 'queued'
-            """);
+                                                        UPDATE chat_message SET status = 'ready', answer_json = jsonb_build_object('id', id::text, 'insight_id', insight_id::text,
+                                                            'status', 'refusal', 'answer', null, 'claims', '[]'::jsonb, 'evidence', '{}'::jsonb, 'missing', '[]'::jsonb,
+                                                            'refusal_reason', 'Отказ.', 'suggested_questions', '[]'::jsonb, 'questions_remaining', 0)
+                                                        WHERE user_id = {{fixture.UserId}} AND status = 'queued'
+                                                        """);
     }
 
     private async Task SetInsightStatusAsync(string status)
@@ -117,7 +143,8 @@ public sealed class ActivityHttpTests(PostgresFixture fixture) : IClassFixture<P
             .ExecuteUpdateAsync(update => update.SetProperty(row => row.Status, status));
     }
 
-    private static async Task<(HttpStatusCode Status, JsonElement Body)> PostJsonAsync(HttpClient client, string path, string json, string token)
+    private static async Task<(HttpStatusCode Status, JsonElement Body)> PostJsonAsync(HttpClient client, string path,
+        string json, string token)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, path);
         request.Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
@@ -204,12 +231,15 @@ public sealed class ActivityHttpTests(PostgresFixture fixture) : IClassFixture<P
             catch (HttpRequestException)
             {
             }
+
             await Task.Delay(100);
         }
+
         Assert.Fail("API не запустился за 10 секунд.");
     }
 
-    private static async Task<HttpStatusCode> SendAsync(HttpClient client, string path, string json, string? token, string? origin)
+    private static async Task<HttpStatusCode> SendAsync(HttpClient client, string path, string json, string? token,
+        string? origin)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, path);
         request.Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
@@ -227,6 +257,7 @@ public sealed class ActivityHttpTests(PostgresFixture fixture) : IClassFixture<P
             Assert.NotEmpty(error.Code);
             Assert.NotEmpty(error.RequestId);
         }
+
         return response.StatusCode;
     }
 }

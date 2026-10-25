@@ -18,7 +18,7 @@ public sealed class AccessService(AlfaNewsDbContext db, TimeProvider timeProvide
         var user = await (from session in db.AuthSessionRows.AsNoTracking()
             join candidate in db.AppUserRows.AsNoTracking() on session.UserId equals candidate.Id
             where session.Id == context.SessionId && candidate.Id == context.UserId && candidate.Active
-                && session.RevokedAt == null && session.ExpiresAt > now
+                  && session.RevokedAt == null && session.ExpiresAt > now
             select candidate).SingleOrDefaultAsync(cancellationToken);
         return user ?? throw new AccessException(401, "unauthorized", "Требуется вход в систему.");
     }
@@ -72,8 +72,9 @@ public sealed class AccessService(AlfaNewsDbContext db, TimeProvider timeProvide
         CancellationToken cancellationToken)
     {
         await RequireUserAsync(context, cancellationToken);
-        var insight = await db.InsightRows.AsNoTracking().SingleOrDefaultAsync(row => row.Id == insightId, cancellationToken)
-            ?? throw new AccessException(404, "not_found", "Карточка не найдена.");
+        var insight = await db.InsightRows.AsNoTracking()
+                          .SingleOrDefaultAsync(row => row.Id == insightId, cancellationToken)
+                      ?? throw new AccessException(404, "not_found", "Карточка не найдена.");
         await RequireCompanyAccessAsync(context, insight.CompanyId, ParseRole(insight.Role), cancellationToken);
         return insight;
     }
@@ -83,7 +84,8 @@ public sealed class AccessService(AlfaNewsDbContext db, TimeProvider timeProvide
     {
         var insight = await RequireInsightAsync(context, insightId, cancellationToken);
         var body = ReadReadyInsight(insight);
-        return body.Evidence.TryGetValue(evidenceId, out var evidence) ? evidence
+        return body.Evidence.TryGetValue(evidenceId, out var evidence)
+            ? evidence
             : throw new AccessException(404, "not_found", "Источник не найден в карточке.");
     }
 
@@ -99,22 +101,25 @@ public sealed class AccessService(AlfaNewsDbContext db, TimeProvider timeProvide
                 where access.UserId == context.UserId && insight.Status == "ready" && insight.BodyJson != null
                 select insight).ToListAsync(cancellationToken);
             var allowed = candidates.Any(insight => ReadReadyInsight(insight).Evidence.Values.Any(evidence =>
-                Guid.TryParse(evidence.DocumentId, out var referencedId) && referencedId == documentId && evidence.Page == pageNo));
+                Guid.TryParse(evidence.DocumentId, out var referencedId) && referencedId == documentId &&
+                evidence.Page == pageNo));
             if (!allowed)
                 throw new AccessException(403, "forbidden", "Нет доступа к странице документа.");
         }
 
         return await db.ResearchPageRows.AsNoTracking()
-            .SingleOrDefaultAsync(page => page.DocumentId == documentId && page.PageNo == pageNo, cancellationToken)
-            ?? throw new AccessException(404, "not_found", "Страница не найдена.");
+                   .SingleOrDefaultAsync(page => page.DocumentId == documentId && page.PageNo == pageNo,
+                       cancellationToken)
+               ?? throw new AccessException(404, "not_found", "Страница не найдена.");
     }
 
     public async Task<BackgroundJobEntity> RequireJobAsync(UserContext context, Guid jobId,
         CancellationToken cancellationToken)
     {
         var user = await RequireUserAsync(context, cancellationToken);
-        var job = await db.BackgroundJobRows.AsNoTracking().SingleOrDefaultAsync(row => row.Id == jobId, cancellationToken)
-            ?? throw new AccessException(404, "not_found", "Задание не найдено.");
+        var job = await db.BackgroundJobRows.AsNoTracking()
+                      .SingleOrDefaultAsync(row => row.Id == jobId, cancellationToken)
+                  ?? throw new AccessException(404, "not_found", "Задание не найдено.");
         if (!user.IsOperator && job.OwnerUserId != context.UserId)
             throw new AccessException(403, "forbidden", "Нет доступа к заданию.");
         return job;
@@ -134,7 +139,7 @@ public sealed class AccessService(AlfaNewsDbContext db, TimeProvider timeProvide
         if (insight.Status != "ready" || insight.BodyJson is null)
             throw new AccessException(409, "insight_not_prepared", "Карточка ещё не готова.");
         var body = insight.BodyJson.Value.Deserialize<InsightDto>(JsonOptions)
-            ?? throw new InvalidOperationException("Сохранённая карточка не содержит данных.");
+                   ?? throw new InvalidOperationException("Сохранённая карточка не содержит данных.");
         // Значимость, направление и период считаются кодом из сохранённой карточки, в том числе у карточек до появления полей.
         return body with
         {

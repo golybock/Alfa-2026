@@ -12,10 +12,16 @@ using NpgsqlTypes;
 
 namespace AlfaNews.Core.Documents;
 
-public sealed class PdfProcessing(AlfaNewsDbContext db, JobQueue queue, PdfOptions options, PdfTools tools, LlmGateway gateway,
+public sealed class PdfProcessing(
+    AlfaNewsDbContext db,
+    JobQueue queue,
+    PdfOptions options,
+    PdfTools tools,
+    LlmGateway gateway,
     ILogger<PdfProcessing> logger)
 {
-    public async Task<JobResult> PrepareAsync(BackgroundJobEntity job, IndexPdfJob payload, CancellationToken cancellationToken)
+    public async Task<JobResult> PrepareAsync(BackgroundJobEntity job, IndexPdfJob payload,
+        CancellationToken cancellationToken)
     {
         var document = await DocumentAsync(payload.DocumentId, cancellationToken);
         if (document.OcrStatus is "ready" or "partial")
@@ -23,7 +29,8 @@ public sealed class PdfProcessing(AlfaNewsDbContext db, JobQueue queue, PdfOptio
         document.OcrStatus = "processing";
         for (var number = 1; number <= document.PageCount; number++)
         {
-            var page = await db.ResearchPageRows.SingleOrDefaultAsync(row => row.DocumentId == document.Id && row.PageNo == number, cancellationToken);
+            var page = await db.ResearchPageRows.SingleOrDefaultAsync(
+                row => row.DocumentId == document.Id && row.PageNo == number, cancellationToken);
             if (page is null)
             {
                 page = new ResearchPageEntity
@@ -37,26 +44,32 @@ public sealed class PdfProcessing(AlfaNewsDbContext db, JobQueue queue, PdfOptio
                 };
                 db.ResearchPageRows.Add(page);
             }
+
             if (page.OcrStatus == "ready")
                 continue;
             await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
-            await queue.EnqueueAsync(new OcrPdfPageJob(document.Id.ToString(), number), job.OwnerUserId, null, cancellationToken);
+            await queue.EnqueueAsync(new OcrPdfPageJob(document.Id.ToString(), number), job.OwnerUserId, null,
+                cancellationToken);
             await transaction.CommitAsync(cancellationToken);
         }
+
         await db.SaveChangesAsync(cancellationToken);
         await EnqueueFinalizationAsync(document, job.OwnerUserId, cancellationToken);
         return new JobResult(ResultType: "document", ResultId: document.Id.ToString());
     }
 
-    public async Task<JobResult> RecognizeAsync(BackgroundJobEntity job, OcrPdfPageJob payload, CancellationToken cancellationToken)
+    public async Task<JobResult> RecognizeAsync(BackgroundJobEntity job, OcrPdfPageJob payload,
+        CancellationToken cancellationToken)
     {
         var document = await DocumentAsync(payload.DocumentId, cancellationToken);
-        var page = await db.ResearchPageRows.SingleAsync(row => row.DocumentId == document.Id && row.PageNo == payload.PageNo, cancellationToken);
+        var page = await db.ResearchPageRows.SingleAsync(
+            row => row.DocumentId == document.Id && row.PageNo == payload.PageNo, cancellationToken);
         if (page.OcrStatus == "ready")
         {
             await EnqueueFinalizationAsync(document, job.OwnerUserId, cancellationToken);
             return new JobResult();
         }
+
         page.OcrStatus = "processing";
         page.LastError = null;
         document.OcrStatus = "processing";
@@ -83,8 +96,10 @@ public sealed class PdfProcessing(AlfaNewsDbContext db, JobQueue queue, PdfOptio
                 title = document.Title,
                 published_on = document.PublishedOn
             });
-            var inputVersion = LlmPromptCatalog.Hash(document.Sha256 + ":" + page.PageNo + ":png2200-v1:" + metadata.GetRawText() + taxonomy.GetRawText());
-            var request = new LlmRequest(job.Id, $"pdf:{document.Sha256}:page:{page.PageNo}", inputVersion, LlmTask.PdfOcr,
+            var inputVersion = LlmPromptCatalog.Hash(document.Sha256 + ":" + page.PageNo + ":png2200-v1:" +
+                                                     metadata.GetRawText() + taxonomy.GetRawText());
+            var request = new LlmRequest(job.Id, $"pdf:{document.Sha256}:page:{page.PageNo}", inputVersion,
+                LlmTask.PdfOcr,
                 new Dictionary<string, JsonElement>
                 {
                     ["PAGE_METADATA_JSON"] = metadata,
@@ -97,7 +112,8 @@ public sealed class PdfProcessing(AlfaNewsDbContext db, JobQueue queue, PdfOptio
             await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
             foreach (var block in result.Value.Blocks)
             {
-                var chunk = await db.ResearchChunkRows.SingleOrDefaultAsync(row => row.PageId == page.Id && row.LocalId == block.LocalId, cancellationToken);
+                var chunk = await db.ResearchChunkRows.SingleOrDefaultAsync(
+                    row => row.PageId == page.Id && row.LocalId == block.LocalId, cancellationToken);
                 if (chunk is not null)
                     continue;
                 db.ResearchChunkRows.Add(new ResearchChunkEntity
@@ -109,19 +125,23 @@ public sealed class PdfProcessing(AlfaNewsDbContext db, JobQueue queue, PdfOptio
                     Text = block.Text,
                     TablesJson = JsonSerializer.SerializeToElement(block.Tables, JobKinds.JsonOptions),
                     ChartData = JsonSerializer.SerializeToElement(block.Charts.Select(chart =>
-                        new ReviewableChartDto(chart, reviewed ? ReviewStatus.Reviewed : ReviewStatus.NotReviewed)), JobKinds.JsonOptions),
+                            new ReviewableChartDto(chart, reviewed ? ReviewStatus.Reviewed : ReviewStatus.NotReviewed)),
+                        JobKinds.JsonOptions),
                     TagsJson = JsonSerializer.SerializeToElement(block.Tags, JobKinds.JsonOptions),
                     ReviewStatus = reviewed ? "reviewed" : "not_reviewed",
                     Version = inputVersion,
                     SearchText = NpgsqlTsVector.Empty
                 });
             }
+
             page.OcrJson = JsonSerializer.SerializeToElement(result.Value, JobKinds.JsonOptions);
             page.OcrStatus = "ready";
             if (reviewed)
                 page.ReviewStatus = "reviewed";
             await db.SaveChangesAsync(cancellationToken);
-            await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE research_chunk SET search_text = to_tsvector('russian', text) WHERE page_id = {page.Id}", cancellationToken);
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"UPDATE research_chunk SET search_text = to_tsvector('russian', text) WHERE page_id = {page.Id}",
+                cancellationToken);
             await EnqueueFinalizationAsync(document, job.OwnerUserId, cancellationToken);
             await transaction.CommitAsync(cancellationToken);
             return new JobResult();
@@ -150,22 +170,28 @@ public sealed class PdfProcessing(AlfaNewsDbContext db, JobQueue queue, PdfOptio
     public async Task<JobResult> FinalizeAsync(FinalizePdfJob payload, CancellationToken cancellationToken)
     {
         var document = await DocumentAsync(payload.DocumentId, cancellationToken);
-        var statuses = await db.ResearchPageRows.Where(row => row.DocumentId == document.Id).Select(row => row.OcrStatus).ToArrayAsync(cancellationToken);
+        var statuses = await db.ResearchPageRows.Where(row => row.DocumentId == document.Id)
+            .Select(row => row.OcrStatus).ToArrayAsync(cancellationToken);
         if (statuses.Length != document.PageCount || statuses.Any(status => status is "queued" or "processing"))
             return new JobResult(Stage: "waiting_pages");
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
-        document.OcrStatus = statuses.All(status => status == "ready") ? "ready" : statuses.Any(status => status == "ready") ? "partial" : "failed";
+        document.OcrStatus = statuses.All(status => status == "ready") ? "ready" :
+            statuses.Any(status => status == "ready") ? "partial" : "failed";
         await db.SaveChangesAsync(cancellationToken);
         var chunks = await (from chunk in db.ResearchChunkRows.AsNoTracking()
-                            join page in db.ResearchPageRows on chunk.PageId equals page.Id
-                            where page.DocumentId == document.Id && page.OcrStatus == "ready"
-                            select new { chunk.Id, chunk.Version }).ToArrayAsync(cancellationToken);
+            join page in db.ResearchPageRows on chunk.PageId equals page.Id
+            where page.DocumentId == document.Id && page.OcrStatus == "ready"
+            select new { chunk.Id, chunk.Version }).ToArrayAsync(cancellationToken);
         foreach (var chunk in chunks)
         {
-            var payloadJson = JsonSerializer.SerializeToElement(new EmbedContentJob("research_chunk", chunk.Id.ToString(), chunk.Version), JobKinds.JsonOptions);
-            if (!await db.BackgroundJobRows.AnyAsync(row => row.Kind == "EmbedContent" && row.Payload.Equals(payloadJson), cancellationToken))
-                await queue.EnqueueAsync(new EmbedContentJob("research_chunk", chunk.Id.ToString(), chunk.Version), document.UploadedBy, null, cancellationToken);
+            var payloadJson = JsonSerializer.SerializeToElement(
+                new EmbedContentJob("research_chunk", chunk.Id.ToString(), chunk.Version), JobKinds.JsonOptions);
+            if (!await db.BackgroundJobRows.AnyAsync(
+                    row => row.Kind == "EmbedContent" && row.Payload.Equals(payloadJson), cancellationToken))
+                await queue.EnqueueAsync(new EmbedContentJob("research_chunk", chunk.Id.ToString(), chunk.Version),
+                    document.UploadedBy, null, cancellationToken);
         }
+
         await transaction.CommitAsync(cancellationToken);
         return new JobResult(Stage: document.OcrStatus, ResultType: "document", ResultId: document.Id.ToString());
     }
@@ -173,9 +199,11 @@ public sealed class PdfProcessing(AlfaNewsDbContext db, JobQueue queue, PdfOptio
     private Task<ResearchDocEntity> DocumentAsync(string id, CancellationToken cancellationToken) =>
         db.ResearchDocRows.SingleAsync(row => row.Id == Guid.Parse(id), cancellationToken);
 
-    private async Task EnqueueFinalizationAsync(ResearchDocEntity document, Guid? owner, CancellationToken cancellationToken)
+    private async Task EnqueueFinalizationAsync(ResearchDocEntity document, Guid? owner,
+        CancellationToken cancellationToken)
     {
-        var statuses = await db.ResearchPageRows.Where(row => row.DocumentId == document.Id).Select(row => row.OcrStatus).ToArrayAsync(cancellationToken);
+        var statuses = await db.ResearchPageRows.Where(row => row.DocumentId == document.Id)
+            .Select(row => row.OcrStatus).ToArrayAsync(cancellationToken);
         if (statuses.Length == document.PageCount && statuses.All(status => status is "ready" or "failed"))
             await queue.EnqueueAsync(new FinalizePdfJob(document.Id.ToString()), owner, null, cancellationToken);
     }

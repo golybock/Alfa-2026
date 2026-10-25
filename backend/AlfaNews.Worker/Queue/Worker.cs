@@ -7,7 +7,11 @@ using AlfaNews.Worker.Profiles;
 
 namespace AlfaNews.Worker.Queue;
 
-public class Worker(IServiceScopeFactory scopes, JobDispatcher dispatcher, QueueOptions queue, RankingOptions ranking,
+public class Worker(
+    IServiceScopeFactory scopes,
+    JobDispatcher dispatcher,
+    QueueOptions queue,
+    RankingOptions ranking,
     ILogger<Worker> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -16,7 +20,8 @@ public class Worker(IServiceScopeFactory scopes, JobDispatcher dispatcher, Queue
         {
             var recovered = await scope.ServiceProvider.GetRequiredService<JobQueue>().RecoverAsync(stoppingToken);
             logger.LogInformation("Возвращено в очередь незавершённых заданий: {Count}.", recovered);
-            var abandoned = await scope.ServiceProvider.GetRequiredService<LlmBudget>().ReleaseAbandonedAsync(stoppingToken);
+            var abandoned = await scope.ServiceProvider.GetRequiredService<LlmBudget>()
+                .ReleaseAbandonedAsync(stoppingToken);
             logger.LogInformation("Закрыто брошенных запросов к модели: {Count}.", abandoned);
         }
 
@@ -25,10 +30,12 @@ public class Worker(IServiceScopeFactory scopes, JobDispatcher dispatcher, Queue
 
         await using (var scope = scopes.CreateAsyncScope())
         {
-            var seeded = await scope.ServiceProvider.GetRequiredService<UserSeedService>().SeedAsync(ranking.CompanyIds, stoppingToken);
+            var seeded = await scope.ServiceProvider.GetRequiredService<UserSeedService>()
+                .SeedAsync(ranking.CompanyIds, stoppingToken);
             logger.LogInformation("Демо-учётки обновлены: {Logins}.", string.Join(", ", seeded.Logins));
             if (seeded.MissingCompanies.Count > 0)
-                logger.LogWarning("Компании CLIENT из Feed__CompanyIds не найдены, учётки для них не созданы: {Companies}.",
+                logger.LogWarning(
+                    "Компании CLIENT из Feed__CompanyIds не найдены, учётки для них не созданы: {Companies}.",
                     string.Join(", ", seeded.MissingCompanies));
         }
 
@@ -36,9 +43,11 @@ public class Worker(IServiceScopeFactory scopes, JobDispatcher dispatcher, Queue
             await scope.ServiceProvider.GetRequiredService<ProfileBuildService>().BuildOnStartupAsync(stoppingToken);
 
         var slots = queue.LaneSlots();
-        logger.LogInformation("Исполнители полос: {Slots}.", string.Join(", ", slots.Select(lane => lane.Key + "=" + lane.Value)));
+        logger.LogInformation("Исполнители полос: {Slots}.",
+            string.Join(", ", slots.Select(lane => lane.Key + "=" + lane.Value)));
         await Task.WhenAll(slots.SelectMany(lane => Enumerable.Range(0, lane.Value)
-            .Select(_ => Task.Run(() => RunLaneAsync(lane.Key, JobKinds.InLane(lane.Key), stoppingToken), stoppingToken))));
+            .Select(_ =>
+                Task.Run(() => RunLaneAsync(lane.Key, JobKinds.InLane(lane.Key), stoppingToken), stoppingToken))));
     }
 
     private async Task RunLaneAsync(string lane, string[] kinds, CancellationToken stoppingToken)

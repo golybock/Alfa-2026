@@ -21,8 +21,10 @@ public sealed class CsvImportDatabaseTests(PostgresFixture fixture) : IClassFixt
             Company("csv_conflict", revenue: "20"), Company("csv_prospect", type: "PROSPECT"),
             Company("csv_bad_flag", flag: "true"), Company("csv_bad_okved", okved: "abc"),
             Company("csv_bad_revenue", revenue: "-5")
-        ], ["csv_b;csv_a;10.25;1.0", "csv_b;csv_a;20.25;2", "csv_unknown;csv_a;5;1",
-            "csv_a;csv_a;100;2", "csv_b;csv_a;-3;1", "csv_b;csv_a;bad;1", "csv_b;csv_a;4;-1"]);
+        ], [
+            "csv_b;csv_a;10.25;1.0", "csv_b;csv_a;20.25;2", "csv_unknown;csv_a;5;1",
+            "csv_a;csv_a;100;2", "csv_b;csv_a;-3;1", "csv_b;csv_a;bad;1", "csv_b;csv_a;4;-1"
+        ]);
         await using var db = fixture.CreateDb();
         var importer = new CsvImporter(db);
         var first = await importer.ImportAsync(package.Job, package.ReportPath, false, CancellationToken.None);
@@ -45,17 +47,21 @@ public sealed class CsvImportDatabaseTests(PostgresFixture fixture) : IClassFixt
         Assert.Equal(24, company.RawData.EnumerateObject().Count());
         Assert.Equal("01.11", company.MainOkvedCode);
         Assert.False(await db.CompanyRows.AnyAsync(row => row.Id == "csv_conflict"));
-        var payment = await db.PaymentRows.AsNoTracking().SingleAsync(row => row.Payer == "csv_a" && row.Beneficiary == "csv_b");
+        var payment = await db.PaymentRows.AsNoTracking()
+            .SingleAsync(row => row.Payer == "csv_a" && row.Beneficiary == "csv_b");
         Assert.Equal(30.50m, payment.PayAmt);
         Assert.Equal(3, payment.PayCnt);
         Assert.True(await db.PaymentRows.AnyAsync(row => row.Beneficiary == "csv_unknown"));
         var reportText = await File.ReadAllTextAsync(package.ReportPath);
         await importer.ImportAsync(package.Job, package.ReportPath, false, CancellationToken.None);
         Assert.Equal(reportText, await File.ReadAllTextAsync(package.ReportPath));
-        Assert.Equal(35.50m, await db.PaymentRows.Where(row => row.DatasetVersion == package.Job.DatasetVersion).SumAsync(row => row.PayAmt));
+        Assert.Equal(35.50m,
+            await db.PaymentRows.Where(row => row.DatasetVersion == package.Job.DatasetVersion)
+                .SumAsync(row => row.PayAmt));
         File.Delete(package.Job.CompanyFile);
         File.Delete(package.Job.PaymentFile);
-        Assert.True((await importer.ImportAsync(package.Job, package.ReportPath, true, CancellationToken.None)).Skipped);
+        Assert.True((await importer.ImportAsync(package.Job, package.ReportPath, true, CancellationToken.None))
+            .Skipped);
     }
 
     [PostgresFact]
@@ -66,13 +72,16 @@ public sealed class CsvImportDatabaseTests(PostgresFixture fixture) : IClassFixt
         await File.WriteAllTextAsync(package.Job.PaymentFile, "wrong;header");
         await using var db = fixture.CreateDb();
         var importer = new CsvImporter(db);
-        await Assert.ThrowsAsync<InvalidDataException>(() => importer.ImportAsync(package.Job, package.ReportPath, true, CancellationToken.None));
+        await Assert.ThrowsAsync<InvalidDataException>(() =>
+            importer.ImportAsync(package.Job, package.ReportPath, true, CancellationToken.None));
         Assert.False(await db.CompanyRows.AnyAsync(row => row.Id == "csv_rollback"));
         Assert.False(File.Exists(package.ReportPath));
         await package.WriteAsync([Company("csv_rollback")], ["b;a;1;1"]);
-        Assert.False((await importer.ImportAsync(package.Job, package.ReportPath, true, CancellationToken.None)).Skipped);
+        Assert.False(
+            (await importer.ImportAsync(package.Job, package.ReportPath, true, CancellationToken.None)).Skipped);
         await File.AppendAllTextAsync(package.Job.PaymentFile, "\nb;a;2;1");
-        await Assert.ThrowsAsync<InvalidOperationException>(() => importer.ImportAsync(package.Job, package.ReportPath, false, CancellationToken.None));
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            importer.ImportAsync(package.Job, package.ReportPath, false, CancellationToken.None));
     }
 
     [PostgresFact]
@@ -98,12 +107,14 @@ public sealed class CsvImportDatabaseTests(PostgresFixture fixture) : IClassFixt
         Directory.CreateDirectory(package.ReportPath);
         await using var db = fixture.CreateDb();
         var importer = new CsvImporter(db);
-        var error = await Record.ExceptionAsync(() => importer.ImportAsync(package.Job, package.ReportPath, true, CancellationToken.None));
+        var error = await Record.ExceptionAsync(() =>
+            importer.ImportAsync(package.Job, package.ReportPath, true, CancellationToken.None));
         Assert.True(error is IOException or UnauthorizedAccessException, error?.ToString());
         Assert.False(await db.CompanyRows.AnyAsync(row => row.Id == "csv_report_failure"));
         Assert.False(await db.PaymentRows.AnyAsync(row => row.DatasetVersion == package.Job.DatasetVersion));
         Directory.Delete(package.ReportPath);
-        Assert.False((await importer.ImportAsync(package.Job, package.ReportPath, true, CancellationToken.None)).Skipped);
+        Assert.False(
+            (await importer.ImportAsync(package.Job, package.ReportPath, true, CancellationToken.None)).Skipped);
     }
 
     [PostgresFact]
@@ -112,7 +123,8 @@ public sealed class CsvImportDatabaseTests(PostgresFixture fixture) : IClassFixt
         using var package = new TestPackage();
         await package.WriteAsync([Company("csv_columns"), "csv_columns;broken"], ["external;csv_columns;2;1;extra"]);
         await using var db = fixture.CreateDb();
-        var result = await new CsvImporter(db).ImportAsync(package.Job, package.ReportPath, false, CancellationToken.None);
+        var result =
+            await new CsvImporter(db).ImportAsync(package.Job, package.ReportPath, false, CancellationToken.None);
         Assert.Equal(1, result.Report!.Companies.Accepted);
         Assert.Equal(1, result.Report.Companies.Excluded["invalid_column_count"]);
         Assert.Equal(1, result.Report.Payments.Excluded["invalid_column_count"]);
@@ -143,7 +155,8 @@ public sealed class CsvImportDatabaseTests(PostgresFixture fixture) : IClassFixt
         var first = await importer.ImportAsync(package.Job, package.ReportPath, false, CancellationToken.None);
         Assert.Equal(6, first.Report!.Companies.Accepted);
         Assert.Equal(2, first.Report.Companies.Excluded["group_revenue_below_threshold"]);
-        Assert.Equal(first.Report.Companies.Read, first.Report.Companies.AcceptedSourceRows + first.Report.Companies.Excluded.Values.Sum());
+        Assert.Equal(first.Report.Companies.Read,
+            first.Report.Companies.AcceptedSourceRows + first.Report.Companies.Excluded.Values.Sum());
         Assert.False(await db.CompanyRows.AnyAsync(row => row.Id == "csv_group_small"));
         Assert.True(await db.CompanyRows.AnyAsync(row => row.Id == "csv_group_exact_b" && row.GroupId == "csv_exact"));
         Assert.True(await db.CompanyRows.AnyAsync(row => row.Id == "csv_group_unknown"));
@@ -168,15 +181,17 @@ public sealed class CsvImportDatabaseTests(PostgresFixture fixture) : IClassFixt
         await importer.ImportAsync(package.Job, package.ReportPath, false, CancellationToken.None);
         var emptyJson = "{}";
         await db.Database.ExecuteSqlInterpolatedAsync($"""
-            INSERT INTO company (id, cl_type, group_id, main_okved_code, revenue, raw_data, dataset_version, imported_at)
-            VALUES ('csv_legacy_small', 'CLIENT', 'csv_legacy_small_group', '01.11', 100, {emptyJson}::jsonb, {package.Job.DatasetVersion}, now());
-            UPDATE background_job SET stage = 'csv_imported'
-            WHERE kind = 'ImportCsv' AND payload->>'dataset_version' = {package.Job.DatasetVersion};
-            """);
-        Assert.False((await importer.ImportAsync(package.Job, package.ReportPath, true, CancellationToken.None)).Skipped);
+                                                       INSERT INTO company (id, cl_type, group_id, main_okved_code, revenue, raw_data, dataset_version, imported_at)
+                                                       VALUES ('csv_legacy_small', 'CLIENT', 'csv_legacy_small_group', '01.11', 100, {emptyJson}::jsonb, {package.Job.DatasetVersion}, now());
+                                                       UPDATE background_job SET stage = 'csv_imported'
+                                                       WHERE kind = 'ImportCsv' AND payload->>'dataset_version' = {package.Job.DatasetVersion};
+                                                       """);
+        Assert.False(
+            (await importer.ImportAsync(package.Job, package.ReportPath, true, CancellationToken.None)).Skipped);
         Assert.False(await db.CompanyRows.AnyAsync(row => row.Id == "csv_legacy_small"));
         Assert.True(await db.PaymentRows.AnyAsync(row => row.Beneficiary == "csv_legacy_small"));
-        Assert.True((await importer.ImportAsync(package.Job, package.ReportPath, true, CancellationToken.None)).Skipped);
+        Assert.True((await importer.ImportAsync(package.Job, package.ReportPath, true, CancellationToken.None))
+            .Skipped);
     }
 
     [PostgresFact]
@@ -203,10 +218,14 @@ public sealed class CsvImportDatabaseTests(PostgresFixture fixture) : IClassFixt
         Assert.Equal(3, payments.Quality["pairs_with_missing_profile"]);
         Assert.Equal(payments.Read, payments.AcceptedSourceRows + payments.Excluded.Values.Sum());
         Assert.False(await db.CompanyRows.AnyAsync(row => row.Id == "csv_payment_removed"));
-        Assert.False(await db.PaymentRows.AnyAsync(row => row.Payer == "csv_payment_ghost_a" || row.Payer == "csv_payment_removed"));
-        Assert.Equal(10, await db.PaymentRows.Where(row => row.Payer == "csv_payment_owner").SumAsync(row => row.PayAmt));
-        Assert.Equal(90, await db.PaymentRows.Where(row => row.Beneficiary == "csv_payment_owner").SumAsync(row => row.PayAmt));
-        Assert.True(await db.PaymentRows.AnyAsync(row => row.Payer == "csv_payment_outside" && row.Beneficiary == "test_company_a"));
+        Assert.False(await db.PaymentRows.AnyAsync(row =>
+            row.Payer == "csv_payment_ghost_a" || row.Payer == "csv_payment_removed"));
+        Assert.Equal(10,
+            await db.PaymentRows.Where(row => row.Payer == "csv_payment_owner").SumAsync(row => row.PayAmt));
+        Assert.Equal(90,
+            await db.PaymentRows.Where(row => row.Beneficiary == "csv_payment_owner").SumAsync(row => row.PayAmt));
+        Assert.True(await db.PaymentRows.AnyAsync(row =>
+            row.Payer == "csv_payment_outside" && row.Beneficiary == "test_company_a"));
         var report = await File.ReadAllTextAsync(package.ReportPath);
         await importer.ImportAsync(package.Job, package.ReportPath, false, CancellationToken.None);
         Assert.Equal(report, await File.ReadAllTextAsync(package.ReportPath));
@@ -223,17 +242,18 @@ public sealed class CsvImportDatabaseTests(PostgresFixture fixture) : IClassFixt
         var importer = new CsvImporter(db);
         await importer.ImportAsync(package.Job, package.ReportPath, false, CancellationToken.None);
         await db.Database.ExecuteSqlInterpolatedAsync($"""
-            INSERT INTO payment (payer, beneficiary, pay_amt, pay_cnt, dataset_version)
-            VALUES ('csv_orphan_a', 'csv_orphan_b', 30, 3, {package.Job.DatasetVersion});
-            UPDATE background_job SET stage = 'csv_imported_group_revenue_v1'
-            WHERE kind = 'ImportCsv' AND payload->>'dataset_version' = {package.Job.DatasetVersion};
-            """);
+                                                       INSERT INTO payment (payer, beneficiary, pay_amt, pay_cnt, dataset_version)
+                                                       VALUES ('csv_orphan_a', 'csv_orphan_b', 30, 3, {package.Job.DatasetVersion});
+                                                       UPDATE background_job SET stage = 'csv_imported_group_revenue_v1'
+                                                       WHERE kind = 'ImportCsv' AND payload->>'dataset_version' = {package.Job.DatasetVersion};
+                                                       """);
         var result = await importer.ImportAsync(package.Job, package.ReportPath, true, CancellationToken.None);
         Assert.False(result.Skipped);
         Assert.Equal(1, result.Report!.Payments.Excluded["no_known_participant"]);
         Assert.False(await db.PaymentRows.AnyAsync(row => row.Payer == "csv_orphan_a"));
         Assert.True(await db.PaymentRows.AnyAsync(row => row.Payer == "csv_orphan_upgrade" && row.PayAmt == 10));
-        Assert.True((await importer.ImportAsync(package.Job, package.ReportPath, true, CancellationToken.None)).Skipped);
+        Assert.True((await importer.ImportAsync(package.Job, package.ReportPath, true, CancellationToken.None))
+            .Skipped);
     }
 
     [PostgresFact]
@@ -246,7 +266,8 @@ public sealed class CsvImportDatabaseTests(PostgresFixture fixture) : IClassFixt
         var importer = new CsvImporter(db);
         await importer.ImportAsync(package.Job, package.ReportPath, false, CancellationToken.None);
         var profileReportPath = Path.Combine(Path.GetDirectoryName(package.ReportPath)!, "profile_candidates.json");
-        await new ProfileBuilder(db).BuildAsync(new RebuildProfilesJob(package.Job.DatasetVersion), profileReportPath, false, CancellationToken.None);
+        await new ProfileBuilder(db).BuildAsync(new RebuildProfilesJob(package.Job.DatasetVersion), profileReportPath,
+            false, CancellationToken.None);
         Assert.True(await db.CompanyProfileRows.AnyAsync(row => row.CompanyId == "csv_profile_removed"));
         await package.WriteAsync([Company("csv_profile_removed", revenue: "10", groupId: "csv_profile_group")],
             ["csv_profile_external;csv_profile_removed;5;1"]);
@@ -254,18 +275,23 @@ public sealed class CsvImportDatabaseTests(PostgresFixture fixture) : IClassFixt
         await importer.ImportAsync(next, package.ReportPath, true, CancellationToken.None);
         Assert.False(await db.CompanyRows.AnyAsync(row => row.Id == "csv_profile_removed"));
         Assert.False(await db.CompanyProfileRows.AnyAsync(row => row.CompanyId == "csv_profile_removed"));
-        var rebuilt = await new ProfileBuilder(db).BuildAsync(new RebuildProfilesJob(next.DatasetVersion), profileReportPath, true, CancellationToken.None);
+        var rebuilt = await new ProfileBuilder(db).BuildAsync(new RebuildProfilesJob(next.DatasetVersion),
+            profileReportPath, true, CancellationToken.None);
         Assert.Equal(0, rebuilt.Report.CompanyCount);
         Assert.False(await db.GroupProfileRows.AnyAsync(row => row.GroupId == "csv_profile_group"));
-        await db.BackgroundJobRows.Where(row => row.Kind == "RebuildProfiles" && row.ResultId == rebuilt.Report.DataVersion).ExecuteDeleteAsync();
-        Assert.False((await new ProfileBuilder(db).BuildAsync(new RebuildProfilesJob(next.DatasetVersion), profileReportPath, true, CancellationToken.None)).Skipped);
+        await db.BackgroundJobRows
+            .Where(row => row.Kind == "RebuildProfiles" && row.ResultId == rebuilt.Report.DataVersion)
+            .ExecuteDeleteAsync();
+        Assert.False((await new ProfileBuilder(db).BuildAsync(new RebuildProfilesJob(next.DatasetVersion),
+            profileReportPath, true, CancellationToken.None)).Skipped);
     }
 
     [PostgresFact]
     public async Task RejectsImportBeforeMigrations()
     {
         var database = "alfanews_unmigrated_" + Guid.NewGuid().ToString("N");
-        var connectionString = new NpgsqlConnectionStringBuilder(fixture.ConnectionString!) { Database = database }.ConnectionString;
+        var connectionString = new NpgsqlConnectionStringBuilder(fixture.ConnectionString!) { Database = database }
+            .ConnectionString;
         await using var admin = new NpgsqlConnection(fixture.ConnectionString);
         await admin.OpenAsync();
         await using (var command = new NpgsqlCommand($"CREATE DATABASE {database}", admin))
@@ -297,13 +323,15 @@ public sealed class CsvImportDatabaseTests(PostgresFixture fixture) : IClassFixt
             "csv_m;csv_n;90000000000000000000000000;1"
         ]);
         await using var db = fixture.CreateDb();
-        var result = await new CsvImporter(db).ImportAsync(package.Job, package.ReportPath, false, CancellationToken.None);
+        var result =
+            await new CsvImporter(db).ImportAsync(package.Job, package.ReportPath, false, CancellationToken.None);
         Assert.Equal(4, result.Report!.Payments.Excluded["aggregate_overflow"]);
         Assert.Equal(1, result.Report.Payments.Accepted);
         Assert.True(await db.PaymentRows.AnyAsync(row => row.Payer == "csv_x" && row.Beneficiary == "csv_y"));
     }
 
-    private static string Company(string id, string revenue = "2000", string type = "CLIENT", string flag = "1.0", string okved = "01.11", string groupId = "")
+    private static string Company(string id, string revenue = "2000", string type = "CLIENT", string flag = "1.0",
+        string okved = "01.11", string groupId = "")
     {
         var fields = Enumerable.Repeat("", 24).ToArray();
         fields[0] = id;
@@ -318,20 +346,24 @@ public sealed class CsvImportDatabaseTests(PostgresFixture fixture) : IClassFixt
 
     private sealed class TestPackage : IDisposable
     {
-        private readonly string directory = Path.Combine(Path.GetTempPath(), "alfanews_csv_" + Guid.NewGuid().ToString("N"));
+        private readonly string directory =
+            Path.Combine(Path.GetTempPath(), "alfanews_csv_" + Guid.NewGuid().ToString("N"));
+
         public ImportCsvJob Job { get; }
         public string ReportPath => Path.Combine(directory, "import_report.json");
 
         public TestPackage()
         {
             Directory.CreateDirectory(directory);
-            Job = new ImportCsvJob(Path.Combine(directory, "company.csv"), Path.Combine(directory, "payment.csv"), Guid.NewGuid().ToString("N"));
+            Job = new ImportCsvJob(Path.Combine(directory, "company.csv"), Path.Combine(directory, "payment.csv"),
+                Guid.NewGuid().ToString("N"));
         }
 
         public async Task WriteAsync(string[] companies, string[] payments)
         {
             await File.WriteAllTextAsync(Job.CompanyFile,
-                string.Join(';', CsvImporter.CompanyHeaders) + "\n" + string.Join('\n', companies), new UTF8Encoding(false));
+                string.Join(';', CsvImporter.CompanyHeaders) + "\n" + string.Join('\n', companies),
+                new UTF8Encoding(false));
             await File.WriteAllTextAsync(Job.PaymentFile,
                 "BENEFICIARY;PAYER;PAY_AMT;PAY_CNT\n" + string.Join('\n', payments), new UTF8Encoding(false));
         }

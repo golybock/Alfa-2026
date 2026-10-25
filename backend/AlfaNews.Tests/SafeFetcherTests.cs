@@ -17,7 +17,8 @@ public sealed class SafeFetcherTests
         Assert.Equal("<html>ok</html>", page.Body);
 
         var foreign = await Assert.ThrowsAsync<FetchException>(() =>
-            fetcher.GetAsync(server.BaseUrl.Replace("127.0.0.1", "localhost") + "/a", Loopback, CancellationToken.None));
+            fetcher.GetAsync(server.BaseUrl.Replace("127.0.0.1", "localhost") + "/a", Loopback,
+                CancellationToken.None));
         Assert.Equal("host_not_allowed", foreign.Code);
 
         using var strict = new SafeFetcher(allowPrivateAddresses: false, TimeSpan.Zero);
@@ -55,12 +56,15 @@ public sealed class SafeFetcherTests
         });
         using var fetcher = new SafeFetcher(allowPrivateAddresses: true, TimeSpan.Zero);
 
-        var big = await Assert.ThrowsAsync<FetchException>(() => fetcher.GetAsync(server.BaseUrl + "/big", Loopback, CancellationToken.None));
+        var big = await Assert.ThrowsAsync<FetchException>(() =>
+            fetcher.GetAsync(server.BaseUrl + "/big", Loopback, CancellationToken.None));
         Assert.Equal("too_large", big.Code);
-        var missing = await Assert.ThrowsAsync<FetchException>(() => fetcher.GetAsync(server.BaseUrl + "/missing", Loopback, CancellationToken.None));
+        var missing = await Assert.ThrowsAsync<FetchException>(() =>
+            fetcher.GetAsync(server.BaseUrl + "/missing", Loopback, CancellationToken.None));
         Assert.Equal("http_404", missing.Code);
         Assert.False(missing.Transient);
-        var busy = await Assert.ThrowsAsync<FetchException>(() => fetcher.GetAsync(server.BaseUrl + "/busy", Loopback, CancellationToken.None));
+        var busy = await Assert.ThrowsAsync<FetchException>(() =>
+            fetcher.GetAsync(server.BaseUrl + "/busy", Loopback, CancellationToken.None));
         Assert.True(busy.Transient);
     }
 
@@ -70,12 +74,16 @@ public sealed class SafeFetcherTests
         System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
         var cyrillic = System.Text.Encoding.GetEncoding(1251);
         using var server = new LocalHttpServer(path => path == "/meta"
-            ? new LocalResponse(200, "<html><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=windows-1251\"></head><body>Привет, мир</body></html>", "text/html", BodyEncoding: cyrillic)
+            ? new LocalResponse(200,
+                "<html><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=windows-1251\"></head><body>Привет, мир</body></html>",
+                "text/html", BodyEncoding: cyrillic)
             : new LocalResponse(200, "<html><body>Привет, мир</body></html>", "text/html", BodyEncoding: cyrillic));
         using var fetcher = new SafeFetcher(allowPrivateAddresses: true, TimeSpan.Zero);
 
-        Assert.Contains("Привет, мир", (await fetcher.GetAsync(server.BaseUrl + "/meta", Loopback, CancellationToken.None)).Body);
-        Assert.Contains("Привет, мир", (await fetcher.GetAsync(server.BaseUrl + "/plain", Loopback, CancellationToken.None)).Body);
+        Assert.Contains("Привет, мир",
+            (await fetcher.GetAsync(server.BaseUrl + "/meta", Loopback, CancellationToken.None)).Body);
+        Assert.Contains("Привет, мир",
+            (await fetcher.GetAsync(server.BaseUrl + "/plain", Loopback, CancellationToken.None)).Body);
     }
 
     [Fact]
@@ -92,7 +100,8 @@ public sealed class SafeFetcherTests
         Assert.Equal(partial, page.Body);
         Assert.Single(RssReader.Parse(page.Body));
 
-        var empty = await Assert.ThrowsAsync<FetchException>(() => fetcher.GetAsync(server.BaseUrl + "/none", Loopback, CancellationToken.None));
+        var empty = await Assert.ThrowsAsync<FetchException>(() =>
+            fetcher.GetAsync(server.BaseUrl + "/none", Loopback, CancellationToken.None));
         Assert.True(empty.Transient);
     }
 

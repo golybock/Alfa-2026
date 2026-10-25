@@ -13,7 +13,8 @@ public sealed class LlmOptions
     // Модели, разрешённые кейсом (приложение 3), в именах шлюза.
     public static readonly IReadOnlySet<string> AllowedModels = new HashSet<string>(StringComparer.Ordinal)
     {
-        DeepSeek, Glm, "google/gemma-4-26b-a4b-it", "qwen/qwen3.6-35b-a3b", "qwen/qwen3-vl-30b-a3b-instruct", "moonshotai/kimi-k2.6"
+        DeepSeek, Glm, "google/gemma-4-26b-a4b-it", "qwen/qwen3.6-35b-a3b", "qwen/qwen3-vl-30b-a3b-instruct",
+        "moonshotai/kimi-k2.6"
     };
 
     // Модель на каждое использование, полным именем шлюза. Починка разбора и фильтра заголовков идёт на модели своей задачи,
@@ -25,7 +26,9 @@ public sealed class LlmOptions
     public string CriticModel { get; set; } = Glm;
     public string OcrModel { get; set; } = Glm;
     public string ChatModel { get; set; } = DeepSeek;
+
     public string ScopeGateModel { get; set; } = DeepSeek;
+
     // Рассуждения включены у всех задач, кроме фильтра заголовков; для разбора новостей — отдельный переключатель.
     // У GLM-5.3-Flash рассуждения принудительные, переключатели на неё не действуют.
     public bool ThinkingEnabled { get; set; } = true;
@@ -52,7 +55,8 @@ public sealed class LlmOptions
 
     public string Model(LlmTask task, LlmTask originalTask) => task switch
     {
-        LlmTask.Repair when originalTask is LlmTask.NewsTriage or LlmTask.NewsExtract => Model(originalTask, originalTask),
+        LlmTask.Repair when originalTask is LlmTask.NewsTriage or LlmTask.NewsExtract => Model(originalTask,
+            originalTask),
         LlmTask.NewsTriage => TriageModel,
         LlmTask.NewsExtract => ExtractModel,
         LlmTask.Plan or LlmTask.Draft => AgentModel,
@@ -84,10 +88,12 @@ public sealed class LlmOptions
         var model = Model(task, originalTask);
         var glm = model == Glm;
         // Оценка цены для резерва бюджета: по семейству модели; для прочих разрешённых — по большей из известных.
-        var (input, output) = model == DeepSeek ? (DeepSeekInputEstimateRubPerMillion, DeepSeekOutputEstimateRubPerMillion)
-            : glm ? (GlmInputEstimateRubPerMillion, GlmOutputEstimateRubPerMillion)
-            : (Math.Max(DeepSeekInputEstimateRubPerMillion, GlmInputEstimateRubPerMillion),
-                Math.Max(DeepSeekOutputEstimateRubPerMillion, GlmOutputEstimateRubPerMillion));
+        var (input, output) = model == DeepSeek
+            ? (DeepSeekInputEstimateRubPerMillion, DeepSeekOutputEstimateRubPerMillion)
+            : glm
+                ? (GlmInputEstimateRubPerMillion, GlmOutputEstimateRubPerMillion)
+                : (Math.Max(DeepSeekInputEstimateRubPerMillion, GlmInputEstimateRubPerMillion),
+                    Math.Max(DeepSeekOutputEstimateRubPerMillion, GlmOutputEstimateRubPerMillion));
         return new LlmRoute(model,
             glm ? GlmReasoningLevel : ReasoningLevel,
             triage ? 6000 : chat ? ChatMaxOutputTokens : MaxOutputTokens,
@@ -99,19 +105,31 @@ public sealed class LlmOptions
     public void Validate()
     {
         if (DailyLimitRub is <= 0 or > 500 || MaxOutputTokens is <= 0 or > 32000
-            || ChatMaxOutputTokens is <= 0 or > 32000 || TimeoutSeconds <= 0 || CriticTimeoutSeconds <= 0
-            || MaxInputBytes <= 0 || ImageInputTokenReserve <= 0 || ReserveOutputTokens <= 0 || MaxParallelRequests is < 1 or > 16
-            || DeepSeekInputEstimateRubPerMillion < 0 || DeepSeekOutputEstimateRubPerMillion < 0
-            || GlmInputEstimateRubPerMillion < 0 || GlmOutputEstimateRubPerMillion < 0
-            || CriticScope is not ("all_full" or "top_only") || GlmReasoningLevel is not ("low" or "high")
-            || ReasoningLevel is not ("low" or "medium" or "high") || string.IsNullOrWhiteSpace(ConfigVersion))
+                                           || ChatMaxOutputTokens is <= 0 or > 32000 || TimeoutSeconds <= 0 ||
+                                           CriticTimeoutSeconds <= 0
+                                           || MaxInputBytes <= 0 || ImageInputTokenReserve <= 0 ||
+                                           ReserveOutputTokens <= 0 || MaxParallelRequests is < 1 or > 16
+                                           || DeepSeekInputEstimateRubPerMillion < 0 ||
+                                           DeepSeekOutputEstimateRubPerMillion < 0
+                                           || GlmInputEstimateRubPerMillion < 0 || GlmOutputEstimateRubPerMillion < 0
+                                           || CriticScope is not ("all_full" or "top_only") ||
+                                           GlmReasoningLevel is not ("low" or "high")
+                                           || ReasoningLevel is not ("low" or "medium" or "high") ||
+                                           string.IsNullOrWhiteSpace(ConfigVersion))
             throw new InvalidOperationException("Некорректные лимиты Llm.");
-        var forbidden = Models().Where(pair => !AllowedModels.Contains(pair.Value)).Select(pair => $"{pair.Key}={pair.Value}").ToArray();
+        var forbidden = Models().Where(pair => !AllowedModels.Contains(pair.Value))
+            .Select(pair => $"{pair.Key}={pair.Value}").ToArray();
         if (forbidden.Length > 0)
             throw new InvalidOperationException(
                 $"Модели не из разрешённого списка: {string.Join(", ", forbidden)}. Разрешены: {string.Join(", ", AllowedModels.Order(StringComparer.Ordinal))}.");
     }
 }
 
-public sealed record LlmRoute(string Model, string Reasoning, int MaxOutputTokens, int TimeoutSeconds,
-    decimal InputRubPerMillion, decimal OutputRubPerMillion, bool ThinkingEnabled = true);
+public sealed record LlmRoute(
+    string Model,
+    string Reasoning,
+    int MaxOutputTokens,
+    int TimeoutSeconds,
+    decimal InputRubPerMillion,
+    decimal OutputRubPerMillion,
+    bool ThinkingEnabled = true);

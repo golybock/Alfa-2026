@@ -10,7 +10,12 @@ public sealed record TaxonomyFactorEntry(string Code, string Name, string Descri
 
 public sealed record TaxonomyProductRuleEntry(string Product, string Factor, string Channel);
 
-public sealed record TaxonomySensitivityEntry(string Okved2, string Factor, decimal Weight, string Sign, string Channel);
+public sealed record TaxonomySensitivityEntry(
+    string Okved2,
+    string Factor,
+    decimal Weight,
+    string Sign,
+    string Channel);
 
 public sealed record TaxonomyCatalog(
     string Version,
@@ -26,14 +31,17 @@ public sealed class TaxonomyCatalogLoader(AlfaNewsDbContext db)
 
     public async Task<int> LoadAsync(string path, CancellationToken cancellationToken)
     {
-        var catalog = JsonSerializer.Deserialize<TaxonomyCatalog>(await File.ReadAllTextAsync(path, cancellationToken), JsonOptions)
+        var catalog =
+            JsonSerializer.Deserialize<TaxonomyCatalog>(await File.ReadAllTextAsync(path, cancellationToken),
+                JsonOptions)
             ?? throw new InvalidOperationException("Каталог таксономии пуст.");
         var codes = catalog.Factors.Select(factor => factor.Code).ToHashSet(StringComparer.Ordinal);
         if (codes.Count != catalog.Factors.Count
             || catalog.ProductRules.Any(rule => !codes.Contains(rule.Factor))
             || catalog.SectorSensitivity.Any(row => !codes.Contains(row.Factor) || row.Weight is < 0 or > 1
                 || row.Sign is not ("positive" or "negative" or "mixed")))
-            throw new InvalidOperationException("Каталог таксономии содержит неизвестные коды или недопустимые значения.");
+            throw new InvalidOperationException(
+                "Каталог таксономии содержит неизвестные коды или недопустимые значения.");
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         await db.ProductFactorRuleRows.ExecuteDeleteAsync(cancellationToken);
         await db.SectorSensitivityRows.ExecuteDeleteAsync(cancellationToken);
@@ -47,11 +55,13 @@ public sealed class TaxonomyCatalogLoader(AlfaNewsDbContext db)
                 row = new FactorEntity { Code = factor.Code };
                 db.FactorRows.Add(row);
             }
+
             row.Name = factor.Name;
             row.Description = factor.Description;
             row.Keywords = JsonSerializer.SerializeToElement(factor.Keywords);
             row.Version = catalog.Version;
         }
+
         db.ProductFactorRuleRows.AddRange(catalog.ProductRules.Select(rule => new ProductFactorRuleEntity
         {
             ProductCode = rule.Product,

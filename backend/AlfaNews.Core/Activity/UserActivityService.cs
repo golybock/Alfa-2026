@@ -39,8 +39,9 @@ public sealed class UserActivityService(AlfaNewsDbContext db, AccessService acce
     {
         await access.RequireUserAsync(user, cancellationToken);
         var message = await db.ChatMessageRows.AsNoTracking()
-            .SingleOrDefaultAsync(row => row.Id == messageId && row.UserId == user.UserId, cancellationToken)
-            ?? throw new AccessException(404, "not_found", "Принятый вопрос не найден.");
+                          .SingleOrDefaultAsync(row => row.Id == messageId && row.UserId == user.UserId,
+                              cancellationToken)
+                      ?? throw new AccessException(404, "not_found", "Принятый вопрос не найден.");
         var insight = await access.RequireInsightAsync(user, message.InsightId, cancellationToken);
         await InsertAsync(message.Id, user.UserId, insight.CompanyId, insight.Id,
             "chat_question_accepted", null, null, cancellationToken);
@@ -51,13 +52,14 @@ public sealed class UserActivityService(AlfaNewsDbContext db, AccessService acce
     {
         var now = timeProvider.GetUtcNow();
         var affected = await db.Database.ExecuteSqlInterpolatedAsync($"""
-            INSERT INTO user_activity (id, created_at, user_id, company_id, insight_id, kind, evidence_id, action_id)
-            VALUES ({eventId}, {now}, {userId}, {companyId}, {insightId}, {kind}, {evidenceId}, {actionId})
-            ON CONFLICT (id) DO NOTHING
-            """, cancellationToken);
+                                                                      INSERT INTO user_activity (id, created_at, user_id, company_id, insight_id, kind, evidence_id, action_id)
+                                                                      VALUES ({eventId}, {now}, {userId}, {companyId}, {insightId}, {kind}, {evidenceId}, {actionId})
+                                                                      ON CONFLICT (id) DO NOTHING
+                                                                      """, cancellationToken);
         if (affected != 0)
             return;
-        var existing = await db.UserActivityRows.AsNoTracking().SingleAsync(row => row.Id == eventId, cancellationToken);
+        var existing = await db.UserActivityRows.AsNoTracking()
+            .SingleAsync(row => row.Id == eventId, cancellationToken);
         if (existing.UserId != userId || existing.CompanyId != companyId || existing.InsightId != insightId
             || existing.Kind != kind || existing.EvidenceId != evidenceId || existing.ActionId != actionId)
             throw new AccessException(409, "event_conflict", "ID события уже использован.");

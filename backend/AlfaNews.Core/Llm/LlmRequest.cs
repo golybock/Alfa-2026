@@ -19,11 +19,19 @@ public sealed record LlmRequest(
 
 public sealed record LlmImage(byte[] Bytes, string MediaType = "image/png");
 
-public sealed record LlmRuntime(IReadOnlyDictionary<string, JsonElement>? Tools = null, int RemainingToolCalls = 0,
-    bool ForecastEnabled = false, int? Rank = null);
+public sealed record LlmRuntime(
+    IReadOnlyDictionary<string, JsonElement>? Tools = null,
+    int RemainingToolCalls = 0,
+    bool ForecastEnabled = false,
+    int? Rank = null);
 
 // Dropped — что убрала очистка ответа (LlmSalvage): «claim:C3:number_not_in_evidence», «fact:4:number_not_in_quote».
-public sealed record LlmResult<T>(T Value, Guid RunId, bool CacheHit, string CacheKey, IReadOnlyList<string>? Dropped = null);
+public sealed record LlmResult<T>(
+    T Value,
+    Guid RunId,
+    bool CacheHit,
+    string CacheKey,
+    IReadOnlyList<string>? Dropped = null);
 
 public sealed class LlmException(string code, IReadOnlyList<string>? diagnostics = null) : Exception(code)
 {

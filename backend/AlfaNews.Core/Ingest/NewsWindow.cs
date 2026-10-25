@@ -14,11 +14,15 @@ public static class NewsWindow
     public static DateTimeOffset Start(DateTimeOffset now, DateTimeOffset? collectionStartedAt)
     {
         var week = now.AddDays(-Days);
-        return collectionStartedAt is { } started && started.AddDays(-InitialDays) > week ? started.AddDays(-InitialDays) : week;
+        return collectionStartedAt is { } started && started.AddDays(-InitialDays) > week
+            ? started.AddDays(-InitialDays)
+            : week;
     }
 
     public static DateTimeOffset End(DateTimeOffset now) => now.AddDays(1);
 
-    public static async Task<DateTimeOffset> StartAsync(AlfaNewsDbContext db, DateTimeOffset now, CancellationToken cancellationToken) =>
-        Start(now, await db.NewsRawRows.AsNoTracking().MinAsync(row => (DateTimeOffset?)row.FetchedAt, cancellationToken));
+    public static async Task<DateTimeOffset> StartAsync(AlfaNewsDbContext db, DateTimeOffset now,
+        CancellationToken cancellationToken) =>
+        Start(now,
+            await db.NewsRawRows.AsNoTracking().MinAsync(row => (DateTimeOffset?)row.FetchedAt, cancellationToken));
 }

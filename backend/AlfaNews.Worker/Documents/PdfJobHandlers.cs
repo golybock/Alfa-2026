@@ -9,6 +9,7 @@ namespace AlfaNews.Worker.Documents;
 public sealed class IndexPdfJobHandler(PdfProcessing service) : IJobHandler
 {
     public string Kind => JobKinds.Name<IndexPdfJob>();
+
     public Task<JobResult> HandleAsync(BackgroundJobEntity job, CancellationToken cancellationToken) =>
         service.PrepareAsync(job, job.Payload.Deserialize<IndexPdfJob>(JobKinds.JsonOptions)!, cancellationToken);
 }
@@ -16,6 +17,7 @@ public sealed class IndexPdfJobHandler(PdfProcessing service) : IJobHandler
 public sealed class OcrPdfPageJobHandler(PdfProcessing service) : IJobHandler
 {
     public string Kind => JobKinds.Name<OcrPdfPageJob>();
+
     public Task<JobResult> HandleAsync(BackgroundJobEntity job, CancellationToken cancellationToken) =>
         service.RecognizeAsync(job, job.Payload.Deserialize<OcrPdfPageJob>(JobKinds.JsonOptions)!, cancellationToken);
 }
@@ -23,6 +25,7 @@ public sealed class OcrPdfPageJobHandler(PdfProcessing service) : IJobHandler
 public sealed class EmbedContentJobHandler(ResearchSearch search) : IJobHandler
 {
     public string Kind => JobKinds.Name<EmbedContentJob>();
+
     public Task<JobResult> HandleAsync(BackgroundJobEntity job, CancellationToken cancellationToken) =>
         search.IndexAsync(job.Payload.Deserialize<EmbedContentJob>(JobKinds.JsonOptions)!, cancellationToken);
 }
@@ -30,6 +33,7 @@ public sealed class EmbedContentJobHandler(ResearchSearch search) : IJobHandler
 public sealed class FinalizePdfJobHandler(PdfProcessing service) : IJobHandler
 {
     public string Kind => JobKinds.Name<FinalizePdfJob>();
+
     public Task<JobResult> HandleAsync(BackgroundJobEntity job, CancellationToken cancellationToken) =>
         service.FinalizeAsync(job.Payload.Deserialize<FinalizePdfJob>(JobKinds.JsonOptions)!, cancellationToken);
 }

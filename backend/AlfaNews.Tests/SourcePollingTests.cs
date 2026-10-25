@@ -23,10 +23,13 @@ public sealed class SourcePollingTests(PostgresFixture fixture) : IClassFixture<
         await using var db = fixture.CreateDb();
         await db.BackgroundJobRows.Where(row => row.Kind == "CollectNews").ExecuteDeleteAsync();
         await db.SourceRows.Where(row => row.Id.StartsWith("poll_")).ExecuteDeleteAsync();
-        db.SourceRows.AddRange(NewSource("poll_fast_a", 900), NewSource("poll_fast_b", 900), NewSource("poll_slow", 3600));
+        db.SourceRows.AddRange(NewSource("poll_fast_a", 900), NewSource("poll_fast_b", 900),
+            NewSource("poll_slow", 3600));
         await db.SaveChangesAsync();
-        await db.SourceRows.Where(row => row.Id != "synthetic" && !row.Id.StartsWith("poll_")).ExecuteUpdateAsync(update => update.SetProperty(row => row.Enabled, false));
-        await db.SourceRows.Where(row => row.Id == "synthetic").ExecuteUpdateAsync(update => update.SetProperty(row => row.Enabled, false));
+        await db.SourceRows.Where(row => row.Id != "synthetic" && !row.Id.StartsWith("poll_"))
+            .ExecuteUpdateAsync(update => update.SetProperty(row => row.Enabled, false));
+        await db.SourceRows.Where(row => row.Id == "synthetic")
+            .ExecuteUpdateAsync(update => update.SetProperty(row => row.Enabled, false));
 
         var clock = new FixedTime(new DateTimeOffset(2026, 10, 22, 12, 0, 0, TimeSpan.Zero));
         var schedule = new JobSchedule(db, new JobQueue(db, clock), clock, new ConfigurationBuilder().Build());
@@ -37,8 +40,10 @@ public sealed class SourcePollingTests(PostgresFixture fixture) : IClassFixture<
         await schedule.EnqueueCollectionAsync(CancellationToken.None);
         Assert.Equal(3, await db.BackgroundJobRows.CountAsync(row => row.Kind == "CollectNews"));
 
-        await db.BackgroundJobRows.Where(row => row.Kind == "CollectNews").ExecuteUpdateAsync(update => update.SetProperty(row => row.Status, "done"));
-        await db.SourceRows.Where(row => row.Id.StartsWith("poll_")).ExecuteUpdateAsync(update => update.SetProperty(row => row.LastCheckedAt, clock.Now));
+        await db.BackgroundJobRows.Where(row => row.Kind == "CollectNews")
+            .ExecuteUpdateAsync(update => update.SetProperty(row => row.Status, "done"));
+        await db.SourceRows.Where(row => row.Id.StartsWith("poll_"))
+            .ExecuteUpdateAsync(update => update.SetProperty(row => row.LastCheckedAt, clock.Now));
 
         clock.Now = clock.Now.AddMinutes(1);
         await schedule.EnqueueCollectionAsync(CancellationToken.None);
@@ -49,8 +54,10 @@ public sealed class SourcePollingTests(PostgresFixture fixture) : IClassFixture<
         Assert.Equal(5, await db.BackgroundJobRows.CountAsync(row => row.Kind == "CollectNews"));
         Assert.Equal([["poll_fast_a"], ["poll_fast_b"]], await QueuedGroupsAsync(db));
 
-        await db.BackgroundJobRows.Where(row => row.Kind == "CollectNews").ExecuteUpdateAsync(update => update.SetProperty(row => row.Status, "done"));
-        await db.SourceRows.Where(row => row.Id.StartsWith("poll_fast")).ExecuteUpdateAsync(update => update.SetProperty(row => row.LastCheckedAt, clock.Now));
+        await db.BackgroundJobRows.Where(row => row.Kind == "CollectNews")
+            .ExecuteUpdateAsync(update => update.SetProperty(row => row.Status, "done"));
+        await db.SourceRows.Where(row => row.Id.StartsWith("poll_fast"))
+            .ExecuteUpdateAsync(update => update.SetProperty(row => row.LastCheckedAt, clock.Now));
         clock.Now = clock.Now.AddMinutes(45);
         await schedule.EnqueueCollectionAsync(CancellationToken.None);
         Assert.Contains(["poll_slow"], await QueuedGroupsAsync(db), new SequenceComparer());
@@ -72,8 +79,10 @@ public sealed class SourcePollingTests(PostgresFixture fixture) : IClassFixture<
     private static async Task<List<string[]>> QueuedGroupsAsync(AlfaNews.Core.Data.AlfaNewsDbContext db)
     {
         var payloads = await db.BackgroundJobRows.AsNoTracking()
-            .Where(row => row.Kind == "CollectNews" && row.Status == "queued").OrderBy(row => row.CreatedAt).Select(row => row.Payload).ToListAsync();
-        return payloads.Select(payload => payload.GetProperty("source_ids").EnumerateArray().Select(id => id.GetString()!).ToArray()).ToList();
+            .Where(row => row.Kind == "CollectNews" && row.Status == "queued").OrderBy(row => row.CreatedAt)
+            .Select(row => row.Payload).ToListAsync();
+        return payloads.Select(payload =>
+            payload.GetProperty("source_ids").EnumerateArray().Select(id => id.GetString()!).ToArray()).ToList();
     }
 
     private sealed class SequenceComparer : IEqualityComparer<string[]>

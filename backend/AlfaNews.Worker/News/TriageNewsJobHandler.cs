@@ -12,7 +12,8 @@ public sealed class TriageNewsJobHandler(NewsTriageService service) : IJobHandle
 
     public async Task<JobResult> HandleAsync(BackgroundJobEntity job, CancellationToken cancellationToken)
     {
-        await service.ProcessAsync(job, job.Payload.Deserialize<TriageNewsJob>(JobKinds.JsonOptions)!, cancellationToken);
+        await service.ProcessAsync(job, job.Payload.Deserialize<TriageNewsJob>(JobKinds.JsonOptions)!,
+            cancellationToken);
         return new JobResult("triaged");
     }
 }

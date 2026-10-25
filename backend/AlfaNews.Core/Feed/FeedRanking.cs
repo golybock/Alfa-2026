@@ -58,16 +58,17 @@ public static class FeedRanking
 {
     private static readonly CultureInfo Russian = CultureInfo.GetCultureInfo("ru-RU");
 
-    private static readonly IReadOnlyDictionary<string, string> ProductNames = new Dictionary<string, string>(StringComparer.Ordinal)
-    {
-        ["loan"] = "кредит",
-        ["leasing"] = "лизинг",
-        ["deposit"] = "депозит",
-        ["guarantee"] = "банковская гарантия",
-        ["payroll"] = "зарплатный проект",
-        ["factoring"] = "факторинг",
-        ["rko"] = "расчётно-кассовое обслуживание"
-    };
+    private static readonly IReadOnlyDictionary<string, string> ProductNames =
+        new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["loan"] = "кредит",
+            ["leasing"] = "лизинг",
+            ["deposit"] = "депозит",
+            ["guarantee"] = "банковская гарантия",
+            ["payroll"] = "зарплатный проект",
+            ["factoring"] = "факторинг",
+            ["rko"] = "расчётно-кассовое обслуживание"
+        };
 
     public static DateTimeOffset WindowStart(DateTimeOffset asOf)
     {
@@ -77,7 +78,8 @@ public static class FeedRanking
 
     // Один сюжет — одно место в ленте (склейка пересказов при разборе выключена). Событие пропускается, если оно одного сюжета
     // с уже отобранным или уже пропущенным: так статьи об одном решении собираются в один сюжет и через промежуточную статью.
-    public static IReadOnlyList<RankedCandidate> Select(IEnumerable<RankedCandidate> ranked, int maxItems, SameStoryRule? sameStory = null)
+    public static IReadOnlyList<RankedCandidate> Select(IEnumerable<RankedCandidate> ranked, int maxItems,
+        SameStoryRule? sameStory = null)
     {
         var selected = new List<RankedCandidate>();
         var seen = new List<FeedCandidate>();
@@ -92,6 +94,7 @@ public static class FeedRanking
             if (!duplicate)
                 selected.Add(item);
         }
+
         return selected;
     }
 
@@ -106,10 +109,12 @@ public static class FeedRanking
             leftNorm += left[index] * (double)left[index];
             rightNorm += right[index] * (double)right[index];
         }
+
         return leftNorm == 0 || rightNorm == 0 ? 0 : dot / Math.Sqrt(leftNorm * rightNorm);
     }
 
-    public static RankedCandidate Rank(FeedCandidate candidate, CompanyProfile company, IReadOnlyList<CompanyProfile> groupMembers,
+    public static RankedCandidate Rank(FeedCandidate candidate, CompanyProfile company,
+        IReadOnlyList<CompanyProfile> groupMembers,
         RankingTaxonomy taxonomy, RankingOptions options, DateTimeOffset asOf)
     {
         var evidence = new Dictionary<string, EvidenceDto>(StringComparer.Ordinal)
@@ -119,6 +124,7 @@ public static class FeedRanking
                 null, null, null, null, null, null, null, false, null, null)
         };
         var added = new Dictionary<string, string>(StringComparer.Ordinal);
+
         string Add(EvidenceType type, string key, object value)
         {
             var json = JsonSerializer.SerializeToElement(value);
@@ -135,8 +141,10 @@ public static class FeedRanking
             added[identity] = id;
             return id;
         }
+
         var reasons = new List<RelevanceReasonDto>();
         var contributions = new List<FeatureContribution>();
+
         void Feature(RankingFeatureCode code, decimal value, decimal weight, bool known, IReadOnlyList<string> refs) =>
             contributions.Add(new FeatureContribution(code, value, weight, Math.Round(value * weight, 6), known, refs));
 
@@ -145,7 +153,8 @@ public static class FeedRanking
         {
             var refs = new[] { "E1", Add(EvidenceType.CompanyFeature, "okved2", company.Okved2) };
             var industry = Okved2Names.Find(company.Okved2) ?? company.IndustryName;
-            reasons.Add(new RelevanceReasonDto("okved", $"Событие касается вашей отрасли: ОКВЭД {company.Okved2} — {industry}.", [], refs,
+            reasons.Add(new RelevanceReasonDto("okved",
+                $"Событие касается вашей отрасли: ОКВЭД {company.Okved2} — {industry}.", [], refs,
                 Label(string.IsNullOrWhiteSpace(industry) ? "Ваша отрасль" : industry)));
             Feature(RankingFeatureCode.Okved, 1, options.OkvedWeight, true, refs);
         }
@@ -161,14 +170,17 @@ public static class FeedRanking
             var weight = candidate.Commentary ? factorMatch.Weight * options.CommentaryFactorShare : factorMatch.Weight;
             reasons.Add(new RelevanceReasonDto("factor_" + factorMatch.Factor,
                 $"Фактор «{FactorName(taxonomy, factorMatch.Factor)}» значим для отрасли ОКВЭД {company.Okved2} (вес {factorMatch.Weight.ToString("0.##", Russian)}): {factorMatch.Channel}"
-                + (candidate.Commentary ? " Событие — комментарий без нового решения или данных, поэтому вес фактора снижен." : ""), [], refs,
+                + (candidate.Commentary
+                    ? " Событие — комментарий без нового решения или данных, поэтому вес фактора снижен."
+                    : ""), [], refs,
                 Label(FactorName(taxonomy, factorMatch.Factor))));
             Feature(RankingFeatureCode.Factor, weight, options.FactorWeight, true, refs);
         }
         else
             Feature(RankingFeatureCode.Factor, 0, options.FactorWeight, sectorRows.Length > 0, []);
 
-        var productMatches = taxonomy.ProductRules.Where(rule => company.Products.Contains(rule.Product) && candidate.Factors.Contains(rule.Factor))
+        var productMatches = taxonomy.ProductRules.Where(rule =>
+                company.Products.Contains(rule.Product) && candidate.Factors.Contains(rule.Factor))
             .GroupBy(rule => rule.Product).Select(group => group.First()).ToArray();
         if (productMatches.Length > 0)
         {
@@ -178,9 +190,11 @@ public static class FeedRanking
                 var reference = Add(EvidenceType.CompanyFeature, "products", rule.Product);
                 refs.Add(reference);
                 reasons.Add(new RelevanceReasonDto("product_" + rule.Product,
-                    $"У компании есть продукт «{ProductNames.GetValueOrDefault(rule.Product, rule.Product)}» в Альфа-Банке, событие касается фактора «{FactorName(taxonomy, rule.Factor)}». {rule.Channel}", [], ["E1", reference],
+                    $"У компании есть продукт «{ProductNames.GetValueOrDefault(rule.Product, rule.Product)}» в Альфа-Банке, событие касается фактора «{FactorName(taxonomy, rule.Factor)}». {rule.Channel}",
+                    [], ["E1", reference],
                     Label("Ваш продукт: " + ProductNames.GetValueOrDefault(rule.Product, rule.Product))));
             }
+
             Feature(RankingFeatureCode.Product, 1, options.ProductWeight, true, refs);
         }
         else
@@ -191,7 +205,8 @@ public static class FeedRanking
         {
             var refs = new[] { "E1", Add(EvidenceType.CompanyFeature, "fts_countries", countries) };
             reasons.Add(new RelevanceReasonDto("country",
-                $"Событие касается страны {string.Join(", ", countries)}, которая указана в данных ФТС компании. Это не подтверждает объём или направление внешней торговли.", [], refs,
+                $"Событие касается страны {string.Join(", ", countries)}, которая указана в данных ФТС компании. Это не подтверждает объём или направление внешней торговли.",
+                [], refs,
                 Label(string.Join(", ", countries.Select(Title)))));
             Feature(RankingFeatureCode.Country, 1, options.CountryWeight, true, refs);
         }
@@ -199,18 +214,35 @@ public static class FeedRanking
             Feature(RankingFeatureCode.Country, 0, options.CountryWeight, company.FtsCountries.Count > 0, []);
 
         var cpKnown = options.CpEnabled && (company.Incoming.Coverage > 0 || company.Outgoing.Coverage > 0);
-        var cp = options.CpEnabled ? candidate.Okved2
-            .SelectMany(code => new[] { (Direction: "incoming", Code: code, Exposure: company.Incoming), (Direction: "outgoing", Code: code, Exposure: company.Outgoing) })
-            .Select(item => (item.Direction, item.Code, item.Exposure, Share: item.Exposure.SectorShares.GetValueOrDefault(item.Code)))
-            .Where(item => item.Share > 0).OrderByDescending(item => item.Share).ThenBy(item => item.Direction, StringComparer.Ordinal)
-            .Select(item => ((string Direction, string Code, PaymentExposure Exposure, decimal Share)?)item).FirstOrDefault() : null;
+        var cp = options.CpEnabled
+            ? candidate.Okved2
+                .SelectMany(code => new[]
+                {
+                    (Direction: "incoming", Code: code, Exposure: company.Incoming),
+                    (Direction: "outgoing", Code: code, Exposure: company.Outgoing)
+                })
+                .Select(item => (item.Direction, item.Code, item.Exposure,
+                    Share: item.Exposure.SectorShares.GetValueOrDefault(item.Code)))
+                .Where(item => item.Share > 0).OrderByDescending(item => item.Share)
+                .ThenBy(item => item.Direction, StringComparer.Ordinal)
+                .Select(item => ((string Direction, string Code, PaymentExposure Exposure, decimal Share)?)item)
+                .FirstOrDefault()
+            : null;
         if (cp is { } exposure)
         {
             var share = Math.Round(exposure.Share, 6);
-            var refs = new[] { "E1", Add(EvidenceType.PaymentAggregate, $"{exposure.Direction}.sector_shares.{exposure.Code}",
-                new { direction = exposure.Direction, okved2 = exposure.Code, share, coverage = Math.Round(exposure.Exposure.Coverage, 6) }) };
+            var refs = new[]
+            {
+                "E1", Add(EvidenceType.PaymentAggregate, $"{exposure.Direction}.sector_shares.{exposure.Code}",
+                    new
+                    {
+                        direction = exposure.Direction, okved2 = exposure.Code, share,
+                        coverage = Math.Round(exposure.Exposure.Coverage, 6)
+                    })
+            };
             reasons.Add(new RelevanceReasonDto("cp",
-                $"{Percent(share)} наблюдаемого внешнего {(exposure.Direction == "incoming" ? "входящего" : "исходящего")} платёжного оборота приходится на компании отрасли ОКВЭД {exposure.Code}; покрытие профилями {Percent(exposure.Exposure.Coverage)}. Платежи не подтверждают поставки или тип отношений.", [], refs,
+                $"{Percent(share)} наблюдаемого внешнего {(exposure.Direction == "incoming" ? "входящего" : "исходящего")} платёжного оборота приходится на компании отрасли ОКВЭД {exposure.Code}; покрытие профилями {Percent(exposure.Exposure.Coverage)}. Платежи не подтверждают поставки или тип отношений.",
+                [], refs,
                 Label(exposure.Direction == "incoming" ? "Ваши покупатели" : "Ваши поставщики")));
             Feature(RankingFeatureCode.Cp, share, options.CpWeight, true, refs);
         }
@@ -220,18 +252,22 @@ public static class FeedRanking
         var others = groupMembers.Where(member => member.CompanyId != company.CompanyId).ToArray();
         var groupMatch = others.Select(member =>
             {
-                var weight = taxonomy.Sensitivity.Where(row => row.Okved2 == member.Okved2 && candidate.Factors.Contains(row.Factor))
+                var weight = taxonomy.Sensitivity
+                    .Where(row => row.Okved2 == member.Okved2 && candidate.Factors.Contains(row.Factor))
                     .Select(row => (decimal?)row.Weight).Max() ?? 0;
-                var product = taxonomy.ProductRules.Any(rule => member.Products.Contains(rule.Product) && candidate.Factors.Contains(rule.Factor));
+                var product = taxonomy.ProductRules.Any(rule =>
+                    member.Products.Contains(rule.Product) && candidate.Factors.Contains(rule.Factor));
                 return (member.Okved2, Value: product ? 1 : weight);
             })
-            .Where(item => item.Value > 0).OrderByDescending(item => item.Value).ThenBy(item => item.Okved2, StringComparer.Ordinal)
+            .Where(item => item.Value > 0).OrderByDescending(item => item.Value)
+            .ThenBy(item => item.Okved2, StringComparer.Ordinal)
             .Select(item => ((string Okved2, decimal Value)?)item).FirstOrDefault();
         if (groupMatch is { } member)
         {
             var refs = new[] { "E1", Add(EvidenceType.GroupFeature, "group_member_okved2", member.Okved2) };
             reasons.Add(new RelevanceReasonDto("group",
-                $"Событие затрагивает факторы, значимые для другой компании вашей группы (ОКВЭД {member.Okved2}).", [], refs,
+                $"Событие затрагивает факторы, значимые для другой компании вашей группы (ОКВЭД {member.Okved2}).", [],
+                refs,
                 Label("Компания вашей группы")));
             Feature(RankingFeatureCode.Group, member.Value, options.GroupWeight, true, refs);
         }
@@ -242,8 +278,9 @@ public static class FeedRanking
         var ageDays = Math.Max(0, (asOf - candidate.Source.PublishedAt).TotalDays);
         var recency = Math.Round((decimal)Math.Pow(2, -ageDays / 7), 6);
         var score = Math.Round(recency * candidate.SourceReliability * baseScore, 6);
-        var eligible = contributions.Any(item => item.Value > 0) && baseScore >= options.MinBase && score >= options.MinScore
-            && candidate.Source.PublishedAt >= WindowStart(asOf) && candidate.Source.PublishedAt <= asOf;
+        var eligible = contributions.Any(item => item.Value > 0) && baseScore >= options.MinBase &&
+                       score >= options.MinScore
+                       && candidate.Source.PublishedAt >= WindowStart(asOf) && candidate.Source.PublishedAt <= asOf;
         return new RankedCandidate(candidate, baseScore, recency, score, eligible, contributions, reasons, evidence);
     }
 
@@ -253,9 +290,11 @@ public static class FeedRanking
     public const decimal HighSignificance = 0.50m;
 
     public static Significance SignificanceOf(decimal baseScore) =>
-        baseScore >= HighSignificance ? Significance.High : baseScore >= MediumSignificance ? Significance.Medium : Significance.Low;
+        baseScore >= HighSignificance ? Significance.High :
+        baseScore >= MediumSignificance ? Significance.Medium : Significance.Low;
 
-    public static Significance SignificanceOf(RelevanceDto relevance) => SignificanceOf(relevance.Contributions.Sum(item => item.Contribution));
+    public static Significance SignificanceOf(RelevanceDto relevance) =>
+        SignificanceOf(relevance.Contributions.Sum(item => item.Contribution));
 
     // Короткая метка причины для строки ленты; полный текст остаётся в «Почему я это вижу».
     public const int LabelMaxLength = 40;
@@ -269,7 +308,9 @@ public static class FeedRanking
     private static string Title(string value) =>
         value.Length == 0 ? value : char.ToUpper(value[0], Russian) + value[1..].ToLower(Russian);
 
-    private static string FactorName(RankingTaxonomy taxonomy, string code) => taxonomy.FactorNames.GetValueOrDefault(code, code);
+    private static string FactorName(RankingTaxonomy taxonomy, string code) =>
+        taxonomy.FactorNames.GetValueOrDefault(code, code);
 
-    private static string Percent(decimal value) => Math.Round(value * 100).ToString("0", CultureInfo.InvariantCulture) + "%";
+    private static string Percent(decimal value) =>
+        Math.Round(value * 100).ToString("0", CultureInfo.InvariantCulture) + "%";
 }

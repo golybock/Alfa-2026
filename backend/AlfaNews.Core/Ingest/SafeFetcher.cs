@@ -27,7 +27,8 @@ public sealed partial class SafeFetcher : IDisposable
     private readonly Dictionary<string, DateTimeOffset> nextRequestAt = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim gate = new(1, 1);
 
-    public SafeFetcher(bool allowPrivateAddresses = false, TimeSpan? domainInterval = null, TimeSpan? requestTimeout = null)
+    public SafeFetcher(bool allowPrivateAddresses = false, TimeSpan? domainInterval = null,
+        TimeSpan? requestTimeout = null)
     {
         this.allowPrivateAddresses = allowPrivateAddresses;
         this.domainInterval = domainInterval ?? TimeSpan.FromSeconds(1);
@@ -40,7 +41,8 @@ public sealed partial class SafeFetcher : IDisposable
         };
         client = new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };
         client.DefaultRequestHeaders.UserAgent.ParseAdd("AlfaNewsBot/0.1 (+hackathon research)");
-        client.DefaultRequestHeaders.Accept.ParseAdd("text/html,application/xhtml+xml,application/xml,application/rss+xml;q=0.9,*/*;q=0.5");
+        client.DefaultRequestHeaders.Accept.ParseAdd(
+            "text/html,application/xhtml+xml,application/xml,application/rss+xml;q=0.9,*/*;q=0.5");
     }
 
     public async Task<FetchedPage> GetAsync(string url, IReadOnlyCollection<string> allowedHosts,
@@ -54,14 +56,17 @@ public sealed partial class SafeFetcher : IDisposable
             timeout.CancelAfter(requestTimeout);
             try
             {
-                using var response = await client.GetAsync(current, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
+                using var response =
+                    await client.GetAsync(current, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
                 if ((int)response.StatusCode is >= 300 and < 400 && response.Headers.Location is { } location)
                 {
                     current = ParseAllowed(new Uri(current, location).ToString(), allowedHosts);
                     continue;
                 }
+
                 if (!response.IsSuccessStatusCode)
-                    throw new FetchException($"http_{(int)response.StatusCode}", (int)response.StatusCode >= 500 || (int)response.StatusCode == 429,
+                    throw new FetchException($"http_{(int)response.StatusCode}",
+                        (int)response.StatusCode >= 500 || (int)response.StatusCode == 429,
                         $"Ответ {(int)response.StatusCode}.");
                 var (body, truncated) = await ReadLimitedAsync(response, timeout.Token, cancellationToken);
                 return new FetchedPage(body, current, truncated);
@@ -79,6 +84,7 @@ public sealed partial class SafeFetcher : IDisposable
                 throw new FetchException("network", true, exception.InnerException?.Message ?? exception.Message);
             }
         }
+
         throw new FetchException("too_many_redirects", false, "Слишком много перенаправлений.");
     }
 
@@ -134,18 +140,21 @@ public sealed partial class SafeFetcher : IDisposable
             }
         }
         catch (Exception exception) when (buffer.Length > 0 && !callerToken.IsCancellationRequested
-            && exception is IOException or OperationCanceledException)
+                                                            && exception is IOException or OperationCanceledException)
         {
             truncated = true;
         }
-        return (Decode(buffer.GetBuffer().AsSpan(0, (int)buffer.Length), response.Content.Headers.ContentType?.CharSet), truncated);
+
+        return (Decode(buffer.GetBuffer().AsSpan(0, (int)buffer.Length), response.Content.Headers.ContentType?.CharSet),
+            truncated);
     }
 
     private static string Decode(ReadOnlySpan<byte> bytes, string? headerCharset)
     {
         var name = headerCharset?.Trim('"');
         if (string.IsNullOrWhiteSpace(name))
-            name = MetaCharsetRegex().Match(Encoding.Latin1.GetString(bytes[..Math.Min(bytes.Length, 4096)])).Groups[1].Value;
+            name = MetaCharsetRegex().Match(Encoding.Latin1.GetString(bytes[..Math.Min(bytes.Length, 4096)])).Groups[1]
+                .Value;
         if (!string.IsNullOrWhiteSpace(name))
         {
             try
@@ -156,6 +165,7 @@ public sealed partial class SafeFetcher : IDisposable
             {
             }
         }
+
         try
         {
             return new UTF8Encoding(false, true).GetString(bytes);
@@ -169,7 +179,8 @@ public sealed partial class SafeFetcher : IDisposable
     [GeneratedRegex(@"charset\s*=\s*[""']?([a-zA-Z0-9_-]+)", RegexOptions.IgnoreCase)]
     private static partial Regex MetaCharsetRegex();
 
-    private async ValueTask<Stream> ConnectAsync(SocketsHttpConnectionContext context, CancellationToken cancellationToken)
+    private async ValueTask<Stream> ConnectAsync(SocketsHttpConnectionContext context,
+        CancellationToken cancellationToken)
     {
         var addresses = await Dns.GetHostAddressesAsync(context.DnsEndPoint.Host, cancellationToken);
         var allowed = addresses.Where(address => allowPrivateAddresses || IsPublic(address)).ToArray();
@@ -196,13 +207,13 @@ public sealed partial class SafeFetcher : IDisposable
             return false;
         if (address.AddressFamily == AddressFamily.InterNetworkV6)
             return !(address.IsIPv6LinkLocal || address.IsIPv6SiteLocal || address.IsIPv6Multicast
-                || (address.GetAddressBytes()[0] & 0xFE) == 0xFC);
+                     || (address.GetAddressBytes()[0] & 0xFE) == 0xFC);
         var bytes = address.GetAddressBytes();
         return !(bytes[0] == 10 || bytes[0] == 127 || bytes[0] == 0
-            || (bytes[0] == 172 && bytes[1] is >= 16 and <= 31)
-            || (bytes[0] == 192 && bytes[1] == 168)
-            || (bytes[0] == 169 && bytes[1] == 254)
-            || (bytes[0] == 100 && bytes[1] is >= 64 and <= 127)
-            || bytes[0] >= 224);
+                 || (bytes[0] == 172 && bytes[1] is >= 16 and <= 31)
+                 || (bytes[0] == 192 && bytes[1] == 168)
+                 || (bytes[0] == 169 && bytes[1] == 254)
+                 || (bytes[0] == 100 && bytes[1] is >= 64 and <= 127)
+                 || bytes[0] >= 224);
     }
 }

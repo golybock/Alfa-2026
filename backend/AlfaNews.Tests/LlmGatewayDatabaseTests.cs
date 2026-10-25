@@ -77,7 +77,8 @@ public sealed class LlmGatewayDatabaseTests(PostgresFixture fixture) : IClassFix
             {
                 try
                 {
-                    await budget.StartAsync(run.Id, request, request.Task, route, "reserve-" + index, 1, 39, CancellationToken.None);
+                    await budget.StartAsync(run.Id, request, request.Task, route, "reserve-" + index, 1, 39,
+                        CancellationToken.None);
                     return "reserved";
                 }
                 catch (LlmException exception)
@@ -88,6 +89,7 @@ public sealed class LlmGatewayDatabaseTests(PostgresFixture fixture) : IClassFix
             Assert.Contains("reserved", attempts);
             Assert.Contains("budget_exhausted", attempts);
         }
+
         await using var restarted = Services(transport, options);
         var failure = await Assert.ThrowsAsync<LlmException>(() => GenerateAsync<NewsExtractionDraft>(restarted,
             LlmPromptTests.Request(LlmTask.NewsExtract, fixture.JobId)));
@@ -117,11 +119,15 @@ public sealed class LlmGatewayDatabaseTests(PostgresFixture fixture) : IClassFix
         var route = options.Route(request.Task, request.Task);
         var reserve = budget.Estimate(new LlmPromptCatalog().Render(request, request.Task), route, null);
         Assert.InRange(reserve, 0.5m, 5m);
-        var stale = await budget.StartAsync(run.Id, request, request.Task, route, "abandoned", 1, reserve, CancellationToken.None);
-        var fresh = await budget.StartAsync(run.Id, request, request.Task, route, "in-flight", 1, reserve, CancellationToken.None);
-        await db.LlmUsageRows.Where(row => row.Id == stale.Id).ExecuteUpdateAsync(update => update.SetProperty(row => row.CreatedAt, DateTimeOffset.UtcNow.AddHours(-1)));
+        var stale = await budget.StartAsync(run.Id, request, request.Task, route, "abandoned", 1, reserve,
+            CancellationToken.None);
+        var fresh = await budget.StartAsync(run.Id, request, request.Task, route, "in-flight", 1, reserve,
+            CancellationToken.None);
+        await db.LlmUsageRows.Where(row => row.Id == stale.Id).ExecuteUpdateAsync(update =>
+            update.SetProperty(row => row.CreatedAt, DateTimeOffset.UtcNow.AddHours(-1)));
         Assert.Equal(1, await budget.ReleaseAbandonedAsync(CancellationToken.None));
-        var rows = await db.LlmUsageRows.AsNoTracking().Where(row => row.RunId == run.Id).ToDictionaryAsync(row => row.Id);
+        var rows = await db.LlmUsageRows.AsNoTracking().Where(row => row.RunId == run.Id)
+            .ToDictionaryAsync(row => row.Id);
         Assert.Equal("request_abandoned", rows[stale.Id].Error);
         Assert.Equal(reserve, rows[stale.Id].ActualCostRub);
         Assert.Equal("request_started", rows[fresh.Id].Error);
@@ -139,6 +145,7 @@ public sealed class LlmGatewayDatabaseTests(PostgresFixture fixture) : IClassFix
             var failure = await Assert.ThrowsAsync<LlmException>(() => GenerateAsync<CriticResult>(services, request));
             Assert.Equal("llm_timeout", failure.Code);
         }
+
         await using (var restarted = Services(client))
         {
             var failure = await Assert.ThrowsAsync<LlmException>(() => GenerateAsync<CriticResult>(restarted, request));
@@ -147,6 +154,7 @@ public sealed class LlmGatewayDatabaseTests(PostgresFixture fixture) : IClassFix
             await Assert.ThrowsAsync<LlmException>(() => scope.ServiceProvider.GetRequiredService<LlmGateway>()
                 .RepairAsync<CriticResult>(request, "{}", ["invalid"], CancellationToken.None));
         }
+
         Assert.Equal(1, client.Calls);
         await using var db = fixture.CreateDb();
         var physical = await db.LlmUsageRows.SingleAsync(row => row.Attempt > 0);
@@ -159,7 +167,8 @@ public sealed class LlmGatewayDatabaseTests(PostgresFixture fixture) : IClassFix
     {
         await ResetAsync();
         var client = new ScriptedClient(new LlmClientResponse("malformed", ActualCostRub: 0.1m),
-            new LlmClientResponse("""{"answer":"","claims":[],"missing":[],"suggested_questions":[]}""", ActualCostRub: 0.2m));
+            new LlmClientResponse("""{"answer":"","claims":[],"missing":[],"suggested_questions":[]}""",
+                ActualCostRub: 0.2m));
         await using var services = Services(client);
         var request = LlmPromptTests.Request(LlmTask.Chat, fixture.JobId);
         await GenerateAsync<ChatDraft>(services, request);
@@ -175,7 +184,8 @@ public sealed class LlmGatewayDatabaseTests(PostgresFixture fixture) : IClassFix
     public async Task ThreeTransientFailuresAndOneRepairNeverExceedFourHttpCalls()
     {
         await ResetAsync();
-        var client = new ScriptedClient(new LlmClientResponse(Error: "llm_rate_limited", Transient: true, ActualCostRub: 0),
+        var client = new ScriptedClient(
+            new LlmClientResponse(Error: "llm_rate_limited", Transient: true, ActualCostRub: 0),
             new LlmClientResponse(Error: "llm_unavailable", Transient: true, ActualCostRub: 0),
             new LlmClientResponse("malformed", ActualCostRub: 0.1m), ValidNews());
         await using var services = Services(client);
@@ -193,8 +203,8 @@ public sealed class LlmGatewayDatabaseTests(PostgresFixture fixture) : IClassFix
         await ResetAsync();
         var node = System.Text.Json.Nodes.JsonNode.Parse(ValidNews().Content!)!;
         node["facts"] = System.Text.Json.Nodes.JsonNode.Parse("""
-            [{"text":"Ставка 14%","line":1,"start":null,"end":null},{"text":"Ставка 12%","line":1,"start":null,"end":null}]
-            """);
+                                                              [{"text":"Ставка 14%","line":1,"start":null,"end":null},{"text":"Ставка 12%","line":1,"start":null,"end":null}]
+                                                              """);
         var client = new ScriptedClient(new LlmClientResponse(node.ToJsonString(), ActualCostRub: 0.1m));
         await using var services = Services(client);
         var request = LlmPromptTests.Request(LlmTask.NewsExtract, fixture.JobId);
@@ -219,9 +229,11 @@ public sealed class LlmGatewayDatabaseTests(PostgresFixture fixture) : IClassFix
         var exhausted = new ScriptedClient(ValidNews()) { Key = new LlmKeySpend(499.5m, 500m, DateTimeOffset.UtcNow) };
         await using (var services = Services(exhausted))
         {
-            var error = await Assert.ThrowsAsync<LlmException>(() => GenerateAsync<NewsExtractionDraft>(services, request));
+            var error = await Assert.ThrowsAsync<LlmException>(() =>
+                GenerateAsync<NewsExtractionDraft>(services, request));
             Assert.Equal("budget_exhausted", error.Code);
         }
+
         Assert.Equal(0, exhausted.Calls);
 
         // Свой запрос в полёте шлюз ещё не учёл: его резерв добавляется к расходу ключа.
@@ -267,14 +279,17 @@ public sealed class LlmGatewayDatabaseTests(PostgresFixture fixture) : IClassFix
     {
         await ResetAsync();
         await using var db = fixture.CreateDb();
-        var job = await new JobQueue(db, TimeProvider.System).EnqueueAsync(new ParseNewsJob(Guid.NewGuid().ToString()), null, null, CancellationToken.None);
+        var job = await new JobQueue(db, TimeProvider.System).EnqueueAsync(new ParseNewsJob(Guid.NewGuid().ToString()),
+            null, null, CancellationToken.None);
         job.StartedAt = DateTimeOffset.UtcNow.AddMinutes(-1);
         await db.SaveChangesAsync();
-        var transient = new LlmClientResponse(Error: "llm_unavailable", Transient: true, ActualCostRub: 0, HttpStatus: 503);
+        var transient =
+            new LlmClientResponse(Error: "llm_unavailable", Transient: true, ActualCostRub: 0, HttpStatus: 503);
         var client = new ScriptedClient(transient, transient, transient, transient, transient, ValidNews());
         await using var services = Services(client);
         var request = LlmPromptTests.Request(LlmTask.NewsExtract, job.Id);
-        var failure = await Assert.ThrowsAsync<LlmException>(() => GenerateAsync<NewsExtractionDraft>(services, request));
+        var failure =
+            await Assert.ThrowsAsync<LlmException>(() => GenerateAsync<NewsExtractionDraft>(services, request));
         Assert.Equal("llm_unavailable", failure.Code);
         Assert.Equal(3, client.Calls);
         job.StartedAt = DateTimeOffset.UtcNow;
@@ -299,6 +314,7 @@ public sealed class LlmGatewayDatabaseTests(PostgresFixture fixture) : IClassFix
             var error = await Assert.ThrowsAsync<LlmException>(() => GenerateAsync<CriticResult>(services, request));
             Assert.Equal("llm_key_required", error.Code);
         }
+
         await using (var services = Services(client))
             await GenerateAsync<CriticResult>(services, request);
         Assert.Equal(1, client.Calls);
@@ -316,8 +332,11 @@ public sealed class LlmGatewayDatabaseTests(PostgresFixture fixture) : IClassFix
     public async Task SharedAgentRunKeepsAllStagesTogetherAndLeavesLifecycleToCaller()
     {
         await ResetAsync();
-        var client = new ScriptedClient(new LlmClientResponse("""{"calls":[],"questions_to_resolve":[]}""", ActualCostRub: 0.1m),
-            new LlmClientResponse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Prompts", "fixtures", "InsightDraft.json")), ActualCostRub: 0.1m));
+        var client = new ScriptedClient(
+            new LlmClientResponse("""{"calls":[],"questions_to_resolve":[]}""", ActualCostRub: 0.1m),
+            new LlmClientResponse(
+                File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Prompts", "fixtures", "InsightDraft.json")),
+                ActualCostRub: 0.1m));
         await using var services = Services(client);
         var runId = Guid.NewGuid();
         await using (var db = fixture.CreateDb())
@@ -332,8 +351,11 @@ public sealed class LlmGatewayDatabaseTests(PostgresFixture fixture) : IClassFix
             });
             await db.SaveChangesAsync();
         }
-        await GenerateAsync<AgentPlan>(services, LlmPromptTests.Request(LlmTask.Plan, fixture.JobId) with { RunId = runId });
-        await GenerateAsync<InsightDraft>(services, LlmPromptTests.Request(LlmTask.Draft, fixture.JobId) with { RunId = runId });
+
+        await GenerateAsync<AgentPlan>(services,
+            LlmPromptTests.Request(LlmTask.Plan, fixture.JobId) with { RunId = runId });
+        await GenerateAsync<InsightDraft>(services,
+            LlmPromptTests.Request(LlmTask.Draft, fixture.JobId) with { RunId = runId });
         await using var check = fixture.CreateDb();
         Assert.Equal(2, await check.LlmUsageRows.CountAsync(row => row.RunId == runId));
         Assert.Equal("running", (await check.AgentRunRows.SingleAsync(row => row.Id == runId)).Status);
@@ -352,15 +374,21 @@ public sealed class LlmGatewayDatabaseTests(PostgresFixture fixture) : IClassFix
         var output = Path.Combine(directory, "report.json");
         try
         {
-            var suite = new LlmEvaluation.EvaluationSuite("synthetic", [new LlmEvaluation.EvaluationCase("news", "NewsExtract",
-                LlmPromptTests.Request(LlmTask.NewsExtract).Values)]);
+            var suite = new LlmEvaluation.EvaluationSuite("synthetic", [
+                new LlmEvaluation.EvaluationCase("news", "NewsExtract",
+                    LlmPromptTests.Request(LlmTask.NewsExtract).Values)
+            ]);
             await File.WriteAllTextAsync(input, System.Text.Json.JsonSerializer.Serialize(suite));
             for (var index = 0; index < 2; index++)
             {
                 await using var scope = services.CreateAsyncScope();
-                await scope.ServiceProvider.GetRequiredService<LlmEvaluation>().RunAsync(input, output, CancellationToken.None);
+                await scope.ServiceProvider.GetRequiredService<LlmEvaluation>()
+                    .RunAsync(input, output, CancellationToken.None);
             }
-            var report = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(await File.ReadAllTextAsync(output));
+
+            var report =
+                System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(
+                    await File.ReadAllTextAsync(output));
             Assert.True(report.GetProperty("use_mock").GetBoolean());
             Assert.True(report.GetProperty("cases")[0].GetProperty("cache_hit").GetBoolean());
             Assert.Equal(0m, report.GetProperty("known_cost_rub").GetDecimal());
@@ -394,15 +422,18 @@ public sealed class LlmGatewayDatabaseTests(PostgresFixture fixture) : IClassFix
             });
             await db.SaveChangesAsync();
         }
+
         var budget = services.GetRequiredService<LlmBudget>();
         var request = LlmPromptTests.Request(LlmTask.NewsExtract, fixture.JobId);
         var route = options.Route(request.Task, request.Task);
-        var first = await budget.StartAsync(runId, request, request.Task, route, "before-reset", 1, 30, CancellationToken.None);
+        var first = await budget.StartAsync(runId, request, request.Task, route, "before-reset", 1, 30,
+            CancellationToken.None);
         clock.Now = clock.Now.AddSeconds(3);
         var pendingError = await Assert.ThrowsAsync<LlmException>(() => budget.StartAsync(runId, request,
             request.Task, route, "after-reset-pending", 1, 20, CancellationToken.None));
         Assert.Equal("budget_exhausted", pendingError.Code);
-        await budget.FinishAsync(first, new LlmClientResponse(Error: "llm_timeout"), 3000, null, CancellationToken.None);
+        await budget.FinishAsync(first, new LlmClientResponse(Error: "llm_timeout"), 3000, null,
+            CancellationToken.None);
         var finishedError = await Assert.ThrowsAsync<LlmException>(() => budget.StartAsync(runId, request,
             request.Task, route, "after-reset-finished", 1, 20, CancellationToken.None));
         Assert.Equal("budget_exhausted", finishedError.Code);
@@ -420,12 +451,14 @@ public sealed class LlmGatewayDatabaseTests(PostgresFixture fixture) : IClassFix
         return services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
     }
 
-    private static LlmOptions Options() => new() { UseMock = false, ApiKey = "synthetic", BaseUrl = "https://example.org/v1" };
+    private static LlmOptions Options() => new()
+        { UseMock = false, ApiKey = "synthetic", BaseUrl = "https://example.org/v1" };
 
     private static async Task<LlmResult<T>> GenerateAsync<T>(ServiceProvider services, LlmRequest request)
     {
         await using var scope = services.CreateAsyncScope();
-        return await scope.ServiceProvider.GetRequiredService<LlmGateway>().GenerateAsync<T>(request, CancellationToken.None);
+        return await scope.ServiceProvider.GetRequiredService<LlmGateway>()
+            .GenerateAsync<T>(request, CancellationToken.None);
     }
 
     private static LlmClientResponse ValidNews() => new(File.ReadAllText(Path.Combine(AppContext.BaseDirectory,
@@ -439,7 +472,8 @@ public sealed class LlmGatewayDatabaseTests(PostgresFixture fixture) : IClassFix
 
         public Task<LlmKeySpend?> KeySpendAsync(CancellationToken cancellationToken) => Task.FromResult(Key);
 
-        public Task<LlmClientResponse> SendAsync(LlmPrompt prompt, LlmRoute route, LlmImage? image, CancellationToken cancellationToken)
+        public Task<LlmClientResponse> SendAsync(LlmPrompt prompt, LlmRoute route, LlmImage? image,
+            CancellationToken cancellationToken)
         {
             Limits.Add(route.MaxOutputTokens);
             return Task.FromResult(responses[Calls++]);

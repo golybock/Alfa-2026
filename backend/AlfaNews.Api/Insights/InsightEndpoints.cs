@@ -13,7 +13,8 @@ public static class InsightEndpoints
         group.MapGet("", async (string companyId, string eventId, string? role, HttpContext http,
             InsightService insights, CancellationToken cancellationToken) =>
         {
-            var result = await insights.GetAsync(SessionAuthenticationHandler.CurrentUser(http.User), companyId, eventId,
+            var result = await insights.GetAsync(SessionAuthenticationHandler.CurrentUser(http.User), companyId,
+                eventId,
                 RoleQuery.Parse(role), cancellationToken);
             return result.Insight is not null
                 ? Results.Ok(result.Insight)
@@ -31,8 +32,9 @@ public static class InsightEndpoints
         });
 
         app.MapGet("/api/insights/{id:guid}/steps", async (Guid id, HttpContext http, InsightService insights,
-            CancellationToken cancellationToken) =>
-            Results.Ok(await insights.StepsAsync(SessionAuthenticationHandler.CurrentUser(http.User), id, cancellationToken)))
+                    CancellationToken cancellationToken) =>
+                Results.Ok(await insights.StepsAsync(SessionAuthenticationHandler.CurrentUser(http.User), id,
+                    cancellationToken)))
             .RequireAuthorization();
     }
 }

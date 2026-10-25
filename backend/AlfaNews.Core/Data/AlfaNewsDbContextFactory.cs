@@ -11,7 +11,7 @@ public sealed class AlfaNewsDbContextFactory : IDesignTimeDbContextFactory<AlfaN
     {
         LocalEnvironment.Load();
         var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")
-            ?? throw new InvalidOperationException("Задайте ConnectionStrings__DefaultConnection.");
+                               ?? throw new InvalidOperationException("Задайте ConnectionStrings__DefaultConnection.");
         var options = new DbContextOptionsBuilder<AlfaNewsDbContext>()
             .UseNpgsql(connectionString, postgres => postgres.UseVector()).Options;
         return new AlfaNewsDbContext(options);

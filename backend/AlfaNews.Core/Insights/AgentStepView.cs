@@ -32,7 +32,8 @@ public static class AgentStepView
         var status = step.Stage switch
         {
             "critic" when marker >= 0 => AgentStepStatus.Skipped,
-            "repair" when step.Summary.StartsWith("Починка не прошла", StringComparison.Ordinal) => AgentStepStatus.Failed,
+            "repair" when step.Summary.StartsWith("Починка не прошла", StringComparison.Ordinal) => AgentStepStatus
+                .Failed,
             _ => AgentStepStatus.Done
         };
         var summary = marker >= 0 ? step.Summary[..marker] : step.Summary;

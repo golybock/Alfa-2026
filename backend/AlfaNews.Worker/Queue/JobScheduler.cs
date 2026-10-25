@@ -3,7 +3,10 @@ using AlfaNews.Core.Ingest;
 
 namespace AlfaNews.Worker.Queue;
 
-public sealed class JobScheduler(IServiceScopeFactory scopes, IConfiguration configuration, ILogger<JobScheduler> logger) : BackgroundService
+public sealed class JobScheduler(
+    IServiceScopeFactory scopes,
+    IConfiguration configuration,
+    ILogger<JobScheduler> logger) : BackgroundService
 {
     private static readonly TimeSpan TickInterval = TimeSpan.FromSeconds(30);
 
@@ -12,21 +15,26 @@ public sealed class JobScheduler(IServiceScopeFactory scopes, IConfiguration con
         var inputPath = configuration["Data:InputPath"] ?? "data";
         foreach (var file in new[] { "sources.json", "sources-specialized.json" })
         {
-            var path = file == "sources.json" ? configuration["Sources:CatalogPath"] ?? Path.Combine(inputPath, file) : Path.Combine(inputPath, file);
+            var path = file == "sources.json"
+                ? configuration["Sources:CatalogPath"] ?? Path.Combine(inputPath, file)
+                : Path.Combine(inputPath, file);
             if (!File.Exists(path))
             {
                 logger.LogWarning("Каталог источников не найден: {Path}.", path);
                 continue;
             }
+
             try
             {
                 await using var scope = scopes.CreateAsyncScope();
-                var count = await scope.ServiceProvider.GetRequiredService<SourceCatalogLoader>().LoadAsync(path, cancellationToken, file == "sources-specialized.json");
+                var count = await scope.ServiceProvider.GetRequiredService<SourceCatalogLoader>()
+                    .LoadAsync(path, cancellationToken, file == "sources-specialized.json");
                 logger.LogInformation("Каталог источников {File} загружен: {Count} записей.", file, count);
             }
             catch (Exception exception) when (exception is not OperationCanceledException)
             {
-                logger.LogError("Не удалось загрузить каталог источников {File}: {ErrorType}.", file, exception.GetType().Name);
+                logger.LogError("Не удалось загрузить каталог источников {File}: {ErrorType}.", file,
+                    exception.GetType().Name);
             }
         }
     }
@@ -39,10 +47,12 @@ public sealed class JobScheduler(IServiceScopeFactory scopes, IConfiguration con
             logger.LogWarning("Каталог таксономии не найден: {Path}.", path);
             return;
         }
+
         try
         {
             await using var scope = scopes.CreateAsyncScope();
-            var count = await scope.ServiceProvider.GetRequiredService<TaxonomyCatalogLoader>().LoadAsync(path, cancellationToken);
+            var count = await scope.ServiceProvider.GetRequiredService<TaxonomyCatalogLoader>()
+                .LoadAsync(path, cancellationToken);
             logger.LogInformation("Каталог таксономии загружен: {Count} факторов.", count);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)

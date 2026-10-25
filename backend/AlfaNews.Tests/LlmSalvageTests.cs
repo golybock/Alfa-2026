@@ -10,7 +10,8 @@ public sealed class LlmSalvageTests
 {
     private static readonly IReadOnlyDictionary<string, EvidenceDto> Evidence = new Dictionary<string, EvidenceDto>
     {
-        ["E1"] = new(EvidenceType.News, "Новость", null, "Банк России сохранил ставку 16%.", null, null, null, null, "news", null, "test", null,
+        ["E1"] = new(EvidenceType.News, "Новость", null, "Банк России сохранил ставку 16%.", null, null, null, null,
+            "news", null, "test", null,
             false, null, null)
     };
 
@@ -32,7 +33,8 @@ public sealed class LlmSalvageTests
     public void NewsWithoutValidFactsStillGoesToRepair()
     {
         var request = NewsRequest("Ставка равна 14%.");
-        var (errors, _, salvage) = Validate<NewsExtractionDraft>(request, News(new { text = "Ставка 12%", line = 1, start = (int?)null, end = (int?)null }));
+        var (errors, _, salvage) = Validate<NewsExtractionDraft>(request,
+            News(new { text = "Ставка 12%", line = 1, start = (int?)null, end = (int?)null }));
 
         Assert.Equal(["news:number_not_in_quote"], errors);
         Assert.Null(salvage);
@@ -41,8 +43,10 @@ public sealed class LlmSalvageTests
     [Fact]
     public void ClaimWithUnsupportedNumberIsDroppedFromEverySection()
     {
-        var (errors, value, salvage) = Validate<InsightDraft>(DraftRequest(), Draft("Ставка сохранена → проверьте кредиты",
-            ("C1", "Банк России сохранил ставку 16%."), ("C2", "Ставка выросла до 18%."), ("C3", "Проверьте условия кредитов.")));
+        var (errors, value, salvage) = Validate<InsightDraft>(DraftRequest(), Draft(
+            "Ставка сохранена → проверьте кредиты",
+            ("C1", "Банк России сохранил ставку 16%."), ("C2", "Ставка выросла до 18%."),
+            ("C3", "Проверьте условия кредитов.")));
 
         Assert.Empty(errors);
         Assert.Equal(["C1", "C3"], value!.Claims.Select(claim => claim.Id));
@@ -56,7 +60,8 @@ public sealed class LlmSalvageTests
     [Fact]
     public void UnknownEvidenceIsDroppedPerClaim()
     {
-        var draft = System.Text.Json.Nodes.JsonNode.Parse(Draft("Ставка сохранена", ("C1", "Банк России сохранил ставку 16%."),
+        var draft = System.Text.Json.Nodes.JsonNode.Parse(Draft("Ставка сохранена",
+            ("C1", "Банк России сохранил ставку 16%."),
             ("C2", "Спрос на кредиты снизится.")))!;
         draft["claims"]![1]!["refs"] = new System.Text.Json.Nodes.JsonArray("E9");
         var (errors, value, salvage) = Validate<InsightDraft>(DraftRequest(), draft.ToJsonString());
@@ -69,7 +74,8 @@ public sealed class LlmSalvageTests
     [Fact]
     public void DanglingClaimReferenceIsDroppedFromSections()
     {
-        var draft = System.Text.Json.Nodes.JsonNode.Parse(Draft("Ставка сохранена → проверьте кредиты", ("C1", "Банк России сохранил ставку 16%."),
+        var draft = System.Text.Json.Nodes.JsonNode.Parse(Draft("Ставка сохранена → проверьте кредиты",
+            ("C1", "Банк России сохранил ставку 16%."),
             ("C2", "Спрос на кредиты снизится."), ("C3", "Проверьте условия кредитов.")))!;
         draft["why_it_matters"]!.AsArray().Add("C7");
         draft["consequences"]![0]!["claim_ids"]!.AsArray().Add("C8");
@@ -85,7 +91,8 @@ public sealed class LlmSalvageTests
     [Fact]
     public void DanglingOnlyActionStillGoesToRepair()
     {
-        var draft = System.Text.Json.Nodes.JsonNode.Parse(Draft("Ставка сохранена → проверьте кредиты", ("C1", "Банк России сохранил ставку 16%."),
+        var draft = System.Text.Json.Nodes.JsonNode.Parse(Draft("Ставка сохранена → проверьте кредиты",
+            ("C1", "Банк России сохранил ставку 16%."),
             ("C2", "Спрос на кредиты снизится.")))!;
         draft["actions"] = new System.Text.Json.Nodes.JsonArray("C9");
         var (errors, _, salvage) = Validate<InsightDraft>(DraftRequest(), draft.ToJsonString());
@@ -101,11 +108,14 @@ public sealed class LlmSalvageTests
     {
         // Первый случай: убрать пришлось единственное утверждение «что произошло»; второй — заголовок держится на убранном числе.
         var draft = cardError is null
-            ? Draft(headline, ("C1", "Банк России сохранил ставку 16%."), ("C2", "Ставка выросла до 18%."), ("C3", "Проверьте условия кредитов."))
-            : Draft(headline, ("C1", "Ставка выросла до 18%."), ("C2", "Спрос на кредиты снизится."), ("C3", "Проверьте условия кредитов."));
+            ? Draft(headline, ("C1", "Банк России сохранил ставку 16%."), ("C2", "Ставка выросла до 18%."),
+                ("C3", "Проверьте условия кредитов."))
+            : Draft(headline, ("C1", "Ставка выросла до 18%."), ("C2", "Спрос на кредиты снизится."),
+                ("C3", "Проверьте условия кредитов."));
         var (errors, _, salvage) = Validate<InsightDraft>(DraftRequest(), draft);
 
-        Assert.Contains(cardError is null ? "claims:C2:number_not_in_evidence" : "claims:C1:number_not_in_evidence", errors);
+        Assert.Contains(cardError is null ? "claims:C2:number_not_in_evidence" : "claims:C1:number_not_in_evidence",
+            errors);
         Assert.Null(salvage);
     }
 
@@ -113,13 +123,15 @@ public sealed class LlmSalvageTests
     public void DroppingTheLastActionGoesToRepair()
     {
         var (errors, _, salvage) = Validate<InsightDraft>(DraftRequest(), Draft("Ставка сохранена → проверьте кредиты",
-            ("C1", "Банк России сохранил ставку 16%."), ("C2", "Спрос на кредиты снизится."), ("C3", "Проверьте кредиты под 18%.")));
+            ("C1", "Банк России сохранил ставку 16%."), ("C2", "Спрос на кредиты снизится."),
+            ("C3", "Проверьте кредиты под 18%.")));
 
         Assert.Contains("claims:C3:number_not_in_evidence", errors);
         Assert.Null(salvage);
     }
 
-    private static (IReadOnlyList<string> Errors, T? Value, LlmSalvageResult? Salvage) Validate<T>(LlmRequest request, string content)
+    private static (IReadOnlyList<string> Errors, T? Value, LlmSalvageResult? Salvage) Validate<T>(LlmRequest request,
+        string content)
     {
         var prompt = new LlmPromptCatalog().Render(request, request.Task);
         var errors = LlmOutputValidator.Validate<T>(content, prompt, request, out var value, out var salvage);
@@ -164,30 +176,34 @@ public sealed class LlmSalvageTests
         var request = LlmPromptTests.Request(LlmTask.Draft);
         var values = new Dictionary<string, JsonElement>(request.Values)
         {
-            ["CONTEXT_JSON"] = JsonSerializer.SerializeToElement(new { evidence = new { E1 = new { quote = "Банк России сохранил ставку 16%." } } })
+            ["CONTEXT_JSON"] = JsonSerializer.SerializeToElement(new
+                { evidence = new { E1 = new { quote = "Банк России сохранил ставку 16%." } } })
         };
         return request with { Values = values, ValidateOutput = json => InsightChecks.Validate(json, Evidence) };
     }
 
     // C1 — что произошло, C2 — почему важно, C3 — действие и последствие.
-    private static string Draft(string headline, params (string Id, string Text)[] claims) => JsonSerializer.Serialize(new
-    {
-        headline,
-        why_you = "Компания зависит от стоимости кредита.",
-        what_happened = new[] { claims[0].Id },
-        why_it_matters = new[] { claims[1].Id },
-        consequences = claims.Length > 2 ? new[] { new { type = "risk", claim_ids = new[] { claims[1].Id, claims[2].Id } } } : [],
-        actions = claims.Skip(2).Select(claim => claim.Id).ToArray(),
-        bank_view = new { status = "not_found", claim_ids = Array.Empty<string>() },
-        claims = claims.Select(claim => new
+    private static string Draft(string headline, params (string Id, string Text)[] claims) => JsonSerializer.Serialize(
+        new
         {
-            id = claim.Id,
-            text = claim.Text,
-            origin = "source_fact",
-            refs = new[] { "E1" },
-            confidence = (string?)null
-        }),
-        limitations = Array.Empty<string>(),
-        suggested_questions = Array.Empty<string>()
-    });
+            headline,
+            why_you = "Компания зависит от стоимости кредита.",
+            what_happened = new[] { claims[0].Id },
+            why_it_matters = new[] { claims[1].Id },
+            consequences = claims.Length > 2
+                ? new[] { new { type = "risk", claim_ids = new[] { claims[1].Id, claims[2].Id } } }
+                : [],
+            actions = claims.Skip(2).Select(claim => claim.Id).ToArray(),
+            bank_view = new { status = "not_found", claim_ids = Array.Empty<string>() },
+            claims = claims.Select(claim => new
+            {
+                id = claim.Id,
+                text = claim.Text,
+                origin = "source_fact",
+                refs = new[] { "E1" },
+                confidence = (string?)null
+            }),
+            limitations = Array.Empty<string>(),
+            suggested_questions = Array.Empty<string>()
+        });
 }

@@ -17,7 +17,8 @@ public sealed class CollectNewsServiceTests(PostgresFixture fixture) : IClassFix
         var feed = "";
         using var server = new LocalHttpServer(_ => new LocalResponse(200, feed, "application/xml"));
         feed = "<rss><channel>" + string.Concat(Enumerable.Range(0, 40).Select(index =>
-            $"<item><title>Новость {index}</title><link>{server.BaseUrl}/article/{index}</link><pubDate>{now:R}</pubDate><full-text>{new string('а', 500)}</full-text></item>")) + "</channel></rss>";
+                   $"<item><title>Новость {index}</title><link>{server.BaseUrl}/article/{index}</link><pubDate>{now:R}</pubDate><full-text>{new string('а', 500)}</full-text></item>")) +
+               "</channel></rss>";
         await using var db = fixture.CreateDb();
         var source = new SourceEntity
         {
@@ -36,30 +37,36 @@ public sealed class CollectNewsServiceTests(PostgresFixture fixture) : IClassFix
         using var fetcher = new SafeFetcher(true, TimeSpan.Zero);
         var service = new CollectNewsService(db, fetcher, TimeProvider.System, NullLogger<CollectNewsService>.Instance);
         Assert.Equal(40, (await service.CollectAsync([source.Id], CancellationToken.None)).Single().Collected);
-        Assert.All(await db.NewsRawRows.Where(row => row.SourceId == source.Id).ToArrayAsync(), row => Assert.Equal(1, row.Importance));
+        Assert.All(await db.NewsRawRows.Where(row => row.SourceId == source.Id).ToArrayAsync(),
+            row => Assert.Equal(1, row.Importance));
         Assert.Equal(0, (await service.CollectAsync([source.Id], CancellationToken.None)).Single().Collected);
     }
 
-    private const string ArticleText = "Синтетический абзац для проверки сбора новостей из ленты источника и сохранения полного текста статьи. ";
+    private const string ArticleText =
+        "Синтетический абзац для проверки сбора новостей из ленты источника и сохранения полного текста статьи. ";
 
     [PostgresFact]
     public async Task CollectsFreshArticlesOncePerUrlAndKeepsOtherSourcesAlive()
     {
         var now = DateTimeOffset.UtcNow;
-        string Rfc(DateTimeOffset date) => date.ToOffset(TimeSpan.FromHours(3)).ToString("ddd, dd MMM yyyy HH:mm:ss +0300", System.Globalization.CultureInfo.InvariantCulture);
+
+        string Rfc(DateTimeOffset date) => date.ToOffset(TimeSpan.FromHours(3))
+            .ToString("ddd, dd MMM yyyy HH:mm:ss +0300", System.Globalization.CultureInfo.InvariantCulture);
+
         string Article(string body, string? time = null) =>
             $"<html><body><article><h1>Заголовок</h1>{(time is null ? "" : $"<time datetime=\"{time}\">дата</time>")}<p>{string.Concat(Enumerable.Repeat(body, 4))}</p></article></body></html>";
+
         var feed = $"""
-            <rss version="2.0"><channel>
-            <item><title>Из ленты</title><link>@/inline?utm_source=rss</link><pubDate>{Rfc(now.AddHours(-1))}</pubDate>
-              <full-text>{string.Concat(Enumerable.Repeat(ArticleText, 6))}</full-text></item>
-            <item><title>Со страницы</title><link>@/page</link><pubDate>{Rfc(now.AddHours(-2))}</pubDate></item>
-            <item><title>Старая</title><link>@/old</link><pubDate>{Rfc(now.AddDays(-12))}</pubDate></item>
-            <item><title>Без даты в ленте</title><link>@/nodate</link></item>
-            <item><title>Пустая страница</title><link>@/empty</link><pubDate>{Rfc(now.AddHours(-3))}</pubDate></item>
-            <item><title>Сбой сервера</title><link>@/flaky</link><pubDate>{Rfc(now.AddHours(-4))}</pubDate></item>
-            </channel></rss>
-            """;
+                    <rss version="2.0"><channel>
+                    <item><title>Из ленты</title><link>@/inline?utm_source=rss</link><pubDate>{Rfc(now.AddHours(-1))}</pubDate>
+                      <full-text>{string.Concat(Enumerable.Repeat(ArticleText, 6))}</full-text></item>
+                    <item><title>Со страницы</title><link>@/page</link><pubDate>{Rfc(now.AddHours(-2))}</pubDate></item>
+                    <item><title>Старая</title><link>@/old</link><pubDate>{Rfc(now.AddDays(-12))}</pubDate></item>
+                    <item><title>Без даты в ленте</title><link>@/nodate</link></item>
+                    <item><title>Пустая страница</title><link>@/empty</link><pubDate>{Rfc(now.AddHours(-3))}</pubDate></item>
+                    <item><title>Сбой сервера</title><link>@/flaky</link><pubDate>{Rfc(now.AddHours(-4))}</pubDate></item>
+                    </channel></rss>
+                    """;
         var feedBody = string.Empty;
         using var live = new LocalHttpServer(path => path switch
         {
@@ -117,12 +124,15 @@ public sealed class CollectNewsServiceTests(PostgresFixture fixture) : IClassFix
         Assert.DoesNotContain(rows, row => row.Title is "Старая" or "Сбой сервера");
 
         Assert.All(rows.Where(row => row.Status == "queued"), row => Assert.Null(row.Importance));
-        await new AlfaNews.Core.Ingest.NewsProcessingSchedule(db, new JobQueue(db, TimeProvider.System), TimeProvider.System).EnqueueAsync(CancellationToken.None);
+        await new AlfaNews.Core.Ingest.NewsProcessingSchedule(db, new JobQueue(db, TimeProvider.System),
+            TimeProvider.System).EnqueueAsync(CancellationToken.None);
         var triageJob = await db.BackgroundJobRows.SingleAsync(row => row.Kind == "TriageNews");
         var queuedIds = rows.Where(row => row.Status == "queued").Select(row => row.Id.ToString()).ToHashSet();
         var parseJobs = await db.BackgroundJobRows.AsNoTracking().Where(row => row.Kind == "ParseNews").ToListAsync();
-        Assert.DoesNotContain(parseJobs, job => queuedIds.Contains(job.Payload.GetProperty("news_raw_id").GetString()!));
-        Assert.True(queuedIds.SetEquals(triageJob.Payload.GetProperty("news_raw_ids").EnumerateArray().Select(value => value.GetString()!)));
+        Assert.DoesNotContain(parseJobs,
+            job => queuedIds.Contains(job.Payload.GetProperty("news_raw_id").GetString()!));
+        Assert.True(queuedIds.SetEquals(triageJob.Payload.GetProperty("news_raw_ids").EnumerateArray()
+            .Select(value => value.GetString()!)));
 
         var source = await db.SourceRows.AsNoTracking().SingleAsync(row => row.Id == ids[0]);
         Assert.NotNull(source.LastSuccessAt);
@@ -138,12 +148,12 @@ public sealed class CollectNewsServiceTests(PostgresFixture fixture) : IClassFix
     {
         var path = Path.Combine(Path.GetTempPath(), $"sources_{Guid.NewGuid():N}.json");
         await File.WriteAllTextAsync(path, """
-            [
-              {"id":"cat_on","name":"A","feed_url":"https://a.example/rss","kind":"media","rubric":"economy","publisher":"A","allowed_hosts":["a.example"],"enabled":true,"poll_seconds":120,"reliability":0.9,"validation_status":"checked","checked_at":null,"selection_reason":"r"},
-              {"id":"cat_off","name":"B","feed_url":"https://b.example/rss","kind":"official","rubric":"government","publisher":"B","allowed_hosts":["b.example"],"enabled":false,"poll_seconds":120,"reliability":1,"validation_status":"checked","checked_at":"2026-10-21T21:19:00+03:00","selection_reason":"r"},
-              {"id":"cat_rejected","name":"C","feed_url":"https://c.example/rss","kind":"official","rubric":"government","publisher":"C","allowed_hosts":["c.example"],"enabled":true,"poll_seconds":120,"reliability":1,"validation_status":"rejected","checked_at":null,"selection_reason":"r"}
-            ]
-            """);
+                                           [
+                                             {"id":"cat_on","name":"A","feed_url":"https://a.example/rss","kind":"media","rubric":"economy","publisher":"A","allowed_hosts":["a.example"],"enabled":true,"poll_seconds":120,"reliability":0.9,"validation_status":"checked","checked_at":null,"selection_reason":"r"},
+                                             {"id":"cat_off","name":"B","feed_url":"https://b.example/rss","kind":"official","rubric":"government","publisher":"B","allowed_hosts":["b.example"],"enabled":false,"poll_seconds":120,"reliability":1,"validation_status":"checked","checked_at":"2026-10-21T21:19:00+03:00","selection_reason":"r"},
+                                             {"id":"cat_rejected","name":"C","feed_url":"https://c.example/rss","kind":"official","rubric":"government","publisher":"C","allowed_hosts":["c.example"],"enabled":true,"poll_seconds":120,"reliability":1,"validation_status":"rejected","checked_at":null,"selection_reason":"r"}
+                                           ]
+                                           """);
         try
         {
             await using var db = fixture.CreateDb();
@@ -157,7 +167,8 @@ public sealed class CollectNewsServiceTests(PostgresFixture fixture) : IClassFix
         }
 
         await using var check = fixture.CreateDb();
-        var rows = await check.SourceRows.AsNoTracking().Where(row => row.Id.StartsWith("cat_")).ToDictionaryAsync(row => row.Id);
+        var rows = await check.SourceRows.AsNoTracking().Where(row => row.Id.StartsWith("cat_"))
+            .ToDictionaryAsync(row => row.Id);
         Assert.Equal(3, rows.Count);
         Assert.True(rows["cat_on"].Enabled);
         Assert.False(rows["cat_off"].Enabled);

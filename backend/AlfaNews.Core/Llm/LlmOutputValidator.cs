@@ -20,7 +20,8 @@ public static class LlmOutputValidator
             if (!result.IsValid)
                 return result.Details?.Where(detail => detail.Errors is { Count: > 0 }).Take(12)
                     .Select(detail => "schema:" + detail.InstanceLocation).ToArray() is { Length: > 0 } errors
-                    ? errors : ["schema:invalid"];
+                    ? errors
+                    : ["schema:invalid"];
             value = JsonSerializer.Deserialize<T>(content, JsonOptions);
             if (value is null)
                 return ["schema:null"];
@@ -43,7 +44,8 @@ public static class LlmOutputValidator
         var errors = Validate(content, prompt, request, out value);
         if (errors.Count == 0 || errors.Any(error => error.StartsWith("schema:", StringComparison.Ordinal)))
             return errors;
-        var candidate = LlmSalvage.TryApply(content, request, errors, text => Validate<T>(text, prompt, request, out _));
+        var candidate =
+            LlmSalvage.TryApply(content, request, errors, text => Validate<T>(text, prompt, request, out _));
         if (candidate is null || Validate<T>(candidate.Content, prompt, request, out var cleaned).Count > 0)
             return errors;
         value = cleaned;

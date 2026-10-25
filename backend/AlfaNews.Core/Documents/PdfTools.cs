@@ -10,9 +10,11 @@ public sealed class PdfTools(PdfOptions options)
     {
         var output = await RunAsync(options.PdfInfoPath, [path], cancellationToken);
         var line = output.Split('\n').SingleOrDefault(line => line.StartsWith("Pages:", StringComparison.Ordinal));
-        if (line is null || !int.TryParse(line[6..].Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out var count)
-            || count is < 1 or > PdfOptions.MaxPages)
-            throw new AccessException(400, "invalid_input", $"PDF должен содержать от 1 до {PdfOptions.MaxPages} страниц.");
+        if (line is null || !int.TryParse(line[6..].Trim(), NumberStyles.None, CultureInfo.InvariantCulture,
+                             out var count)
+                         || count is < 1 or > PdfOptions.MaxPages)
+            throw new AccessException(400, "invalid_input",
+                $"PDF должен содержать от 1 до {PdfOptions.MaxPages} страниц.");
         return count;
     }
 
@@ -23,8 +25,11 @@ public sealed class PdfTools(PdfOptions options)
         try
         {
             await RunAsync(options.PdfToPpmPath,
-                ["-f", pageNo.ToString(CultureInfo.InvariantCulture), "-l", pageNo.ToString(CultureInfo.InvariantCulture),
-                    "-scale-to", "2200", "-singlefile", "-png", pdfPath, temporary], cancellationToken);
+            [
+                "-f", pageNo.ToString(CultureInfo.InvariantCulture), "-l",
+                pageNo.ToString(CultureInfo.InvariantCulture),
+                "-scale-to", "2200", "-singlefile", "-png", pdfPath, temporary
+            ], cancellationToken);
             if (!File.Exists(temporary + ".png") || new FileInfo(temporary + ".png").Length > 16 * 1024 * 1024)
                 throw new InvalidOperationException("Некорректное изображение страницы.");
             File.Move(temporary + ".png", imagePath, true);
@@ -47,7 +52,8 @@ public sealed class PdfTools(PdfOptions options)
         start.Environment["LC_ALL"] = "C";
         foreach (var argument in arguments)
             start.ArgumentList.Add(argument);
-        using var process = Process.Start(start) ?? throw new InvalidOperationException("Не удалось запустить Poppler.");
+        using var process = Process.Start(start) ??
+                            throw new InvalidOperationException("Не удалось запустить Poppler.");
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(TimeSpan.FromSeconds(options.ProcessTimeoutSeconds));
         var output = process.StandardOutput.ReadToEndAsync(timeout.Token);

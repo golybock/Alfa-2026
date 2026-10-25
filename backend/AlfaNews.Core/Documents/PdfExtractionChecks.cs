@@ -23,14 +23,17 @@ public static class PdfExtractionChecks
                     errors.Add("pdf:empty_chart_region");
                 foreach (var point in chart.Points)
                 {
-                    if (string.IsNullOrWhiteSpace(point.Series) || string.IsNullOrWhiteSpace(point.Period) || string.IsNullOrWhiteSpace(point.Unit))
+                    if (string.IsNullOrWhiteSpace(point.Series) || string.IsNullOrWhiteSpace(point.Period) ||
+                        string.IsNullOrWhiteSpace(point.Unit))
                         errors.Add("pdf:missing_point_context");
-                    if (point.Value is not null ? point.Low is not null || point.High is not null
-                        : point.Low is null || point.High is null || point.Low > point.High)
+                    if (point.Value is not null
+                            ? point.Low is not null || point.High is not null
+                            : point.Low is null || point.High is null || point.Low > point.High)
                         errors.Add("pdf:invalid_point_value");
                 }
             }
         }
+
         return errors;
     }
 }

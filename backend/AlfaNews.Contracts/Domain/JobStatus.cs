@@ -2,8 +2,8 @@ namespace AlfaNews.Contracts.Domain;
 
 public enum JobStatus
 {
-	Queued,
-	Running,
-	Done,
-	Failed
+    Queued,
+    Running,
+    Done,
+    Failed
 }

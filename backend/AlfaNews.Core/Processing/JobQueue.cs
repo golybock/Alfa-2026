@@ -17,7 +17,8 @@ public sealed class JobQueue(AlfaNewsDbContext db, TimeProvider timeProvider)
         var json = JsonSerializer.SerializeToElement(payload, JobKinds.JsonOptions);
         return await db.BackgroundJobRows.AsNoTracking()
             .Where(row => row.Kind == kind && (row.Status == "queued" || row.Status == "running")
-                && row.OwnerUserId == ownerUserId && row.CompanyId == companyId && row.Payload.Equals(json))
+                                           && row.OwnerUserId == ownerUserId && row.CompanyId == companyId &&
+                                           row.Payload.Equals(json))
             .OrderBy(row => row.CreatedAt).ThenBy(row => row.Id).FirstOrDefaultAsync(cancellationToken);
     }
 
@@ -57,11 +58,14 @@ public sealed class JobQueue(AlfaNewsDbContext db, TimeProvider timeProvider)
 
     public async Task<bool> RetryAsync(Guid id, CancellationToken cancellationToken)
     {
-        var changed = await db.BackgroundJobRows.Where(row => row.Id == id && (row.Status == "failed" || row.Status == "running"))
+        var changed = await db.BackgroundJobRows
+            .Where(row => row.Id == id && (row.Status == "failed" || row.Status == "running"))
             .ExecuteUpdateAsync(update => update.SetProperty(row => row.Status, "queued")
-                .SetProperty(row => row.Stage, "queued").SetProperty(row => row.StartedAt, (DateTimeOffset?)null)
-                .SetProperty(row => row.FinishedAt, (DateTimeOffset?)null).SetProperty(row => row.LastError, (string?)null)
-                .SetProperty(row => row.ResultType, (string?)null).SetProperty(row => row.ResultId, (string?)null), cancellationToken);
+                    .SetProperty(row => row.Stage, "queued").SetProperty(row => row.StartedAt, (DateTimeOffset?)null)
+                    .SetProperty(row => row.FinishedAt, (DateTimeOffset?)null)
+                    .SetProperty(row => row.LastError, (string?)null)
+                    .SetProperty(row => row.ResultType, (string?)null).SetProperty(row => row.ResultId, (string?)null),
+                cancellationToken);
         return changed == 1;
     }
 
@@ -73,11 +77,13 @@ public sealed class JobQueue(AlfaNewsDbContext db, TimeProvider timeProvider)
             "not_implemented" => new ApiError("not_implemented", "Обработчик задания пока не подключён.", requestId),
             "invalid_payload" => new ApiError("invalid_payload", "Некорректные данные задания.", requestId),
             "llm_key_required" => new ApiError("llm_key_required", "Требуется ключ модели.", requestId),
-            "budget_exhausted" or "budget_unknown_cost" => new ApiError("budget_exhausted", "Недостаточно доступного бюджета модели.", requestId),
+            "budget_exhausted" or "budget_unknown_cost" => new ApiError("budget_exhausted",
+                "Недостаточно доступного бюджета модели.", requestId),
             "llm_timeout" => new ApiError("processing_failed", "Модель не ответила вовремя.", requestId),
             "news_unavailable" => new ApiError("news_unavailable", "Не удалось загрузить статью по ссылке.", requestId),
             "news_empty" => new ApiError("news_empty", "На странице не найден текст статьи.", requestId),
-            "news_outside_window" => new ApiError("news_outside_window", "Новость старше семи дней и не попадёт в ленту.", requestId),
+            "news_outside_window" => new ApiError("news_outside_window",
+                "Новость старше семи дней и не попадёт в ленту.", requestId),
             _ => new ApiError("job_failed", "Не удалось выполнить задание.", requestId)
         };
         var safeResult = job.Status == "done" && job.ResultType is "insight" or "chat" or "document" or "feed";
