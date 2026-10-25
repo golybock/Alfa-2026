@@ -29,6 +29,7 @@ next-env.d.ts
 logs/
 *.dump
 *.sql.gz
+!data/seed/demo.sql.gz
 
 data/raw/
 data/news/
