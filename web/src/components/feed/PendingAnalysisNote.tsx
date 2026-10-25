@@ -3,7 +3,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { describeError } from "../../lib/api/client";
-import { formatTime } from "../../lib/dates";
 import { queryKeys, useJob, useRetryInsight } from "../../lib/hooks/queries";
 import { pendingAnalysisLabels } from "../../lib/labels";
 import type { FeedItemDto, Role } from "../../lib/types/api";
@@ -51,15 +50,5 @@ export default function PendingAnalysisNote({ item, companyId, role }: PendingAn
     );
   }
 
-  return (
-    <div className="whitespace-nowrap text-right text-xs text-zinc-500">
-      <p>Готовится</p>
-      {item.queued_at ? (
-        <>
-          <p className="mt-0.5">в очереди с {formatTime(item.queued_at)}</p>
-          <p className="mt-0.5">обычно около 3 минут</p>
-        </>
-      ) : null}
-    </div>
-  );
+  return null;
 }

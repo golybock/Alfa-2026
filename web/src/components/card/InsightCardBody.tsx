@@ -1,5 +1,5 @@
 import { formatDate, formatDateNumeric } from "../../lib/dates";
-import { criticStatusLabels, reviewStatusLabels, roleLabels } from "../../lib/labels";
+import { criticLineLabels, reviewStatusLabels, roleLabels } from "../../lib/labels";
 import type { ClaimDto, EvidenceDto, EvidenceType, InsightDto } from "../../lib/types/api";
 import Icon from "../ui/Icon";
 import KindBadge from "../ui/KindBadge";
@@ -8,6 +8,7 @@ import ActionList from "./ActionList";
 import CardBlock from "./CardBlock";
 import ClaimList from "./ClaimList";
 import ManagerContactButton from "./ManagerContactButton";
+import NoActionsNotice from "./NoActionsNotice";
 
 type EvidenceEntry = { id: string; item: EvidenceDto };
 
@@ -105,7 +106,7 @@ export default function InsightCardBody({ insight, onOpenWhy }: InsightCardBodyP
         </CardBlock>
         <CardBlock title="Что стоит предпринять" subtitle={`Подобрано для роли: ${roleLabels[insight.role].toLowerCase()}`}>
           {insight.actions.length === 0 ? (
-            <p className="text-sm text-zinc-500">Данных нет</p>
+            <NoActionsNotice />
           ) : (
             <>
               <ActionList ids={insight.actions} claims={claims} evidence={insight.evidence} />
@@ -174,20 +175,19 @@ export default function InsightCardBody({ insight, onOpenWhy }: InsightCardBodyP
             </ul>
           )}
         </CardBlock>
-        <CardBlock title="На чём основан вывод">
+        <CardBlock title="Проверки и ограничения">
           <ul className="flex flex-col gap-2 text-sm">
             <li className="flex items-start gap-2">
-              <Icon name="check" className={`mt-0.5 h-4 w-4 shrink-0 ${codePassed ? "text-green-600" : "text-alfa"}`} />
-              {codePassed ? "Расчёт проверен кодом" : "Проверки кодом не пройдены"}
+              <Icon name={codePassed ? "checkCircle" : "warning"} className={`mt-0.5 h-5 w-5 shrink-0 ${codePassed ? "text-green-600" : "text-orange-600"}`} />
+              {codePassed ? "Расчёт модели проверен кодом" : "Проверки кодом не пройдены"}
             </li>
             <li className="flex items-start gap-2">
-              <Icon name={criticPassed ? "check" : "info"} className={`mt-0.5 h-4 w-4 shrink-0 ${criticPassed ? "text-green-600" : "text-orange-600"}`} />
-              {criticStatusLabels[insight.verification.critic.status]}
-              {insight.verification.critic.reason ? ` (${insight.verification.critic.reason})` : ""}
+              <Icon name={criticPassed ? "checkCircle" : "warning"} className={`mt-0.5 h-5 w-5 shrink-0 ${criticPassed ? "text-green-600" : "text-orange-600"}`} />
+              {criticLineLabels[insight.verification.critic.status]}
             </li>
             <li className="flex items-start gap-2">
-              <Icon name="info" className="mt-0.5 h-4 w-4 shrink-0 text-zinc-500" />
-              {bankDate ? `В основе лежат данные банка на момент ${formatDateNumeric(bankDate)}` : "Данные банка: данных нет"}
+              <Icon name="info" className="mt-0.5 h-5 w-5 shrink-0 text-zinc-500" />
+              {bankDate ? `В основе лежат данные банка на момент ${formatDateNumeric(bankDate)}` : "В основе лежат данные банка на момент: данных нет"}
             </li>
           </ul>
           <p className="mt-3 text-xs text-zinc-500">

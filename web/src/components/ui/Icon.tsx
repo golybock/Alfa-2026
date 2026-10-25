@@ -17,6 +17,8 @@ const paths: Record<IconName, string> = {
   panel: "M4 5h16v14H4zM9 5v14",
   close: "M6 6l12 12M18 6L6 18",
   check: "M5 12.5l4.5 4.5L19 7.5",
+  checkCircle: "M12 3a9 9 0 100 18 9 9 0 000-18zM8 12.5l3 3 5-6",
+  warning: "M12 4L2.5 20h19zM12 10v4.5M12 17v.5",
   arrowUpRight: "M7 17L17 7M9 7h8v8",
   chevronLeft: "M15 6l-6 6 6 6",
   chevronDown: "M6 9l6 6 6-6",
