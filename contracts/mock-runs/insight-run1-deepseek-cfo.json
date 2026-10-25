@@ -1,0 +1,694 @@
+{
+  "id": "00cc08e0-0815-44da-8da4-aee8c2818d72",
+  "event_id": "b0de434c-23a4-4895-8716-b1ca2f1850da",
+  "company_id": "U_68157",
+  "role": "cfo",
+  "as_of": "2026-10-25T09:37:13.198915+00:00",
+  "headline": "Риски крупных застройщиков сохраняются — проверьте защиту расчётов по их заказам",
+  "relevance": {
+    "score": 0.416574,
+    "rank": 1,
+    "reasons": [
+      {
+        "code": "okved",
+        "text": "Событие касается вашей отрасли: ОКВЭД 41 — Строительство зданий.",
+        "claim_ids": [],
+        "evidence_refs": [
+          "E1",
+          "E2"
+        ],
+        "label": "Строительство зданий"
+      },
+      {
+        "code": "factor_construction_demand",
+        "text": "Фактор «Спрос на строительство и жильё» значим для отрасли ОКВЭД 41 (вес 1): При росте ввода жилья, продаж новостроек и объёма заказов на строительство растут загрузка и выручка застройщиков и подрядчиков; при снижении спроса они падают. Сила эффекта зависит от сегмента (жильё, коммерческие объекты, госзаказ) и региона; по данным банка они неизвестны. Неприменимо к новостям о спросе в регионах и сегментах, где компания не работает.",
+        "claim_ids": [],
+        "evidence_refs": [
+          "E1",
+          "E2"
+        ],
+        "label": "Спрос на строительство и жильё"
+      },
+      {
+        "code": "cp",
+        "text": "17% наблюдаемого внешнего исходящего платёжного оборота приходится на компании отрасли ОКВЭД 41; покрытие профилями 31%. Платежи не подтверждают поставки или тип отношений.",
+        "claim_ids": [],
+        "evidence_refs": [
+          "E1",
+          "E3"
+        ],
+        "label": "Ваши поставщики"
+      },
+      {
+        "code": "group",
+        "text": "Событие затрагивает факторы, значимые для другой компании вашей группы (ОКВЭД 41).",
+        "claim_ids": [],
+        "evidence_refs": [
+          "E1",
+          "E4"
+        ],
+        "label": "Компания вашей группы"
+      }
+    ],
+    "contributions": [
+      {
+        "code": "okved",
+        "value": 1,
+        "weight": 0.25,
+        "contribution": 0.25,
+        "known": true,
+        "evidence_refs": [
+          "E1",
+          "E2"
+        ]
+      },
+      {
+        "code": "factor",
+        "value": 1.0,
+        "weight": 0.3,
+        "contribution": 0.3,
+        "known": true,
+        "evidence_refs": [
+          "E1",
+          "E2"
+        ]
+      },
+      {
+        "code": "product",
+        "value": 0,
+        "weight": 0.15,
+        "contribution": 0.0,
+        "known": true,
+        "evidence_refs": []
+      },
+      {
+        "code": "country",
+        "value": 0,
+        "weight": 0.1,
+        "contribution": 0.0,
+        "known": false,
+        "evidence_refs": []
+      },
+      {
+        "code": "cp",
+        "value": 0.165396,
+        "weight": 0.15,
+        "contribution": 0.024809,
+        "known": true,
+        "evidence_refs": [
+          "E1",
+          "E3"
+        ]
+      },
+      {
+        "code": "group",
+        "value": 1.0,
+        "weight": 0.05,
+        "contribution": 0.05,
+        "known": true,
+        "evidence_refs": [
+          "E1",
+          "E4"
+        ]
+      }
+    ],
+    "significance": "high"
+  },
+  "what_happened": [
+    "C1",
+    "C2"
+  ],
+  "why_it_matters": [
+    "C11"
+  ],
+  "consequences": [
+    {
+      "type": "risk",
+      "claim_ids": [
+        "C5"
+      ]
+    },
+    {
+      "type": "opportunity",
+      "claim_ids": [
+        "C6"
+      ]
+    },
+    {
+      "type": "risk",
+      "claim_ids": [
+        "C7"
+      ]
+    }
+  ],
+  "actions": [],
+  "bank_view": {
+    "status": "not_found",
+    "claim_ids": []
+  },
+  "claims": [
+    {
+      "id": "C1",
+      "text": "Газпромбанк одобрил проектное финансирование достройки квартала «Марьино» в Новой Москве.",
+      "origin": "source_fact",
+      "refs": [
+        "E1",
+        "E5"
+      ],
+      "verification_status": "critic_passed",
+      "confidence": null
+    },
+    {
+      "id": "C2",
+      "text": "Сумма одобренной кредитной линии не указана.",
+      "origin": "source_fact",
+      "refs": [
+        "E7"
+      ],
+      "verification_status": "critic_passed",
+      "confidence": null
+    },
+    {
+      "id": "C5",
+      "text": "Ухудшение положения крупных застройщиков может ограничить спрос на подрядные работы.",
+      "origin": "ai_inference",
+      "refs": [
+        "E11",
+        "E17"
+      ],
+      "verification_status": "critic_passed",
+      "confidence": null
+    },
+    {
+      "id": "C6",
+      "text": "Возобновление проектного финансирования достройки жилья поддерживает загрузку подрядчиков.",
+      "origin": "ai_inference",
+      "refs": [
+        "E5",
+        "E17"
+      ],
+      "verification_status": "critic_passed",
+      "confidence": null
+    },
+    {
+      "id": "C7",
+      "text": "Условия кредитов и гарантий для строительных компаний могут стать жёстче.",
+      "origin": "ai_hypothesis",
+      "refs": [
+        "E18",
+        "E11"
+      ],
+      "verification_status": "critic_passed",
+      "confidence": "low"
+    },
+    {
+      "id": "C11",
+      "text": "Компания строит здания и использует кредиты и гарантии, а состояние крупных застройщиков влияет на доступность финансирования в отрасли.",
+      "origin": "ai_inference",
+      "refs": [
+        "E17",
+        "E18",
+        "E11"
+      ],
+      "verification_status": "critic_passed",
+      "confidence": null
+    }
+  ],
+  "evidence": {
+    "E1": {
+      "type": "news",
+      "source": "Коммерсантъ: Бизнес",
+      "url": "https://www.kommersant.ru/doc/9044649",
+      "quote": "Газпромбанк",
+      "date": "2026-10-22",
+      "document_id": null,
+      "page": null,
+      "chunk_id": null,
+      "key": null,
+      "value": null,
+      "dataset": null,
+      "review_status": null,
+      "approximate": false,
+      "chart_id": null,
+      "page_image_url": null
+    },
+    "E2": {
+      "type": "company_feature",
+      "source": "Данные компании",
+      "url": null,
+      "quote": null,
+      "date": null,
+      "document_id": null,
+      "page": null,
+      "chunk_id": null,
+      "key": "okved2",
+      "value": "41",
+      "dataset": "hackathon-2026-v1:profiles:0a556df4c2dcd358c783f6b9e7f7d29094aee8b1e54f1d0e2a9dd19921f17e2c",
+      "review_status": null,
+      "approximate": false,
+      "chart_id": null,
+      "page_image_url": null
+    },
+    "E3": {
+      "type": "payment_aggregate",
+      "source": "Платёжные агрегаты компании",
+      "url": null,
+      "quote": null,
+      "date": null,
+      "document_id": null,
+      "page": null,
+      "chunk_id": null,
+      "key": "outgoing.sector_shares.41",
+      "value": {
+        "share": 0.165396,
+        "okved2": "41",
+        "coverage": 0.3094,
+        "direction": "outgoing"
+      },
+      "dataset": "hackathon-2026-v1:profiles:0a556df4c2dcd358c783f6b9e7f7d29094aee8b1e54f1d0e2a9dd19921f17e2c",
+      "review_status": null,
+      "approximate": false,
+      "chart_id": null,
+      "page_image_url": null
+    },
+    "E4": {
+      "type": "group_feature",
+      "source": "Данные группы компании",
+      "url": null,
+      "quote": null,
+      "date": null,
+      "document_id": null,
+      "page": null,
+      "chunk_id": null,
+      "key": "group_member_okved2",
+      "value": "41",
+      "dataset": "hackathon-2026-v1:profiles:0a556df4c2dcd358c783f6b9e7f7d29094aee8b1e54f1d0e2a9dd19921f17e2c",
+      "review_status": null,
+      "approximate": false,
+      "chart_id": null,
+      "page_image_url": null
+    },
+    "E5": {
+      "type": "news",
+      "source": "Коммерсантъ: Бизнес",
+      "url": "https://www.kommersant.ru/doc/9044649",
+      "quote": "проектное финансирование для завершения строительства квартала «Марьино»",
+      "date": "2026-10-22",
+      "document_id": null,
+      "page": null,
+      "chunk_id": null,
+      "key": null,
+      "value": null,
+      "dataset": null,
+      "review_status": null,
+      "approximate": false,
+      "chart_id": null,
+      "page_image_url": null
+    },
+    "E6": {
+      "type": "news",
+      "source": "Коммерсантъ: Бизнес",
+      "url": "https://www.kommersant.ru/doc/9044649",
+      "quote": "изъятого Генпрокуратурой в пользу Росимущества летом 2025 года.",
+      "date": "2026-10-22",
+      "document_id": null,
+      "page": null,
+      "chunk_id": null,
+      "key": null,
+      "value": null,
+      "dataset": null,
+      "review_status": null,
+      "approximate": false,
+      "chart_id": null,
+      "page_image_url": null
+    },
+    "E7": {
+      "type": "news",
+      "source": "Коммерсантъ: Бизнес",
+      "url": "https://www.kommersant.ru/doc/9044649",
+      "quote": "Сумма одобренной кредитной линии не указана.",
+      "date": "2026-10-22",
+      "document_id": null,
+      "page": null,
+      "chunk_id": null,
+      "key": null,
+      "value": null,
+      "dataset": null,
+      "review_status": null,
+      "approximate": false,
+      "chart_id": null,
+      "page_image_url": null
+    },
+    "E8": {
+      "type": "news",
+      "source": "Коммерсантъ: Бизнес",
+      "url": "https://www.kommersant.ru/doc/9044649",
+      "quote": "Одним из совладельцев этого проекта была группа «Самолет».",
+      "date": "2026-10-22",
+      "document_id": null,
+      "page": null,
+      "chunk_id": null,
+      "key": null,
+      "value": null,
+      "dataset": null,
+      "review_status": null,
+      "approximate": false,
+      "chart_id": null,
+      "page_image_url": null
+    },
+    "E9": {
+      "type": "news",
+      "source": "Коммерсантъ: Бизнес",
+      "url": "https://www.kommersant.ru/doc/9044649",
+      "quote": "Девелопер остался застройщиком проекта, он и стал заемщиком по новой кредитной линии.",
+      "date": "2026-10-22",
+      "document_id": null,
+      "page": null,
+      "chunk_id": null,
+      "key": null,
+      "value": null,
+      "dataset": null,
+      "review_status": null,
+      "approximate": false,
+      "chart_id": null,
+      "page_image_url": null
+    },
+    "E10": {
+      "type": "news",
+      "source": "Коммерсантъ: Бизнес",
+      "url": "https://www.kommersant.ru/doc/9044649",
+      "quote": "ей чистый убыток в первой половине 2026 года превысил 22 млрд руб.,",
+      "date": "2026-10-22",
+      "document_id": null,
+      "page": null,
+      "chunk_id": null,
+      "key": null,
+      "value": null,
+      "dataset": null,
+      "review_status": null,
+      "approximate": false,
+      "chart_id": null,
+      "page_image_url": null
+    },
+    "E11": {
+      "type": "news",
+      "source": "Коммерсантъ: Бизнес",
+      "url": "https://www.kommersant.ru/doc/9044649",
+      "quote": "Возобновление финансирования происходит на фоне серьезных финансовых проблем «Самолета», чей чистый убыток в первой половине 2026 года превысил 22 млрд руб., а общий долг — 1,1 трлн руб.",
+      "date": "2026-10-22",
+      "document_id": null,
+      "page": null,
+      "chunk_id": null,
+      "key": null,
+      "value": null,
+      "dataset": null,
+      "review_status": null,
+      "approximate": false,
+      "chart_id": null,
+      "page_image_url": null
+    },
+    "E12": {
+      "type": "group_feature",
+      "source": "Данные группы компании",
+      "url": null,
+      "quote": null,
+      "date": null,
+      "document_id": null,
+      "page": null,
+      "chunk_id": null,
+      "key": "group_summary",
+      "value": {
+        "member_okved2": {
+          "41": 5,
+          "42": 2,
+          "43": 2,
+          "45": 1,
+          "46": 23,
+          "49": 1,
+          "52": 7,
+          "56": 5,
+          "64": 1,
+          "68": 7,
+          "69": 1,
+          "70": 2,
+          "71": 1,
+          "78": 1,
+          "79": 1,
+          "82": 1,
+          "86": 4,
+          "93": 6,
+          "95": 3
+        },
+        "other_members": 74
+      },
+      "dataset": "hackathon-2026-v1:profiles:0a556df4c2dcd358c783f6b9e7f7d29094aee8b1e54f1d0e2a9dd19921f17e2c",
+      "review_status": null,
+      "approximate": false,
+      "chart_id": null,
+      "page_image_url": null
+    },
+    "E13": {
+      "type": "bank_research",
+      "source": "FI_Strategy_3Q26_22072026",
+      "url": null,
+      "quote": "Предисловие\n\nРоссийский рынок облигаций к середине 2026 г. разделился на 5 относительно независимых сегментов:\n\nОФЗ с фиксированным купоном (ОФЗ-ПД). Классические ОФЗ, на которые до 2022 г. приходилось более 90% объема рынка госбумаг. К середине 2026 г. доля этого сегмента в объеме публичного госдолга снизилась до 60%. Рынок ОФЗ-ПД подразделяется на краткосрочные ОФЗ (сроком обращения до 3-х лет), среднесрочные (3-6 лет), более долгосрочные (6-10 лет) и долгосрочные (более 10 лет). Именно долгосрочные ОФЗ являются самым рискованным сегментом среди ОФЗ-ПД из-за высокой амплитуды колебания цены при изменении доходности. В 1П26 г. длинные ОФЗ показали худший результат среди всех классов облигаций. Общий объем ОФ-ПД в обращении составляет ~20 трлн руб. по номиналу.\n\nОФЗ с переменным купоном (ОФЗ-ПК). Доля этого сегмента в объеме публичного госдолга составляет 40%. Минфин прибегает к размещению ОФЗ-ПК в крайних случаях, когда размещение ОФЗ-ПД на фоне неблагоприятной рыночной конъюнктуры возможно провести лишь с повышенным уровнем доходности, чего Минфин старается избегать. Минфин декларирует намерение сокращать долю ОФЗ-ПК в объеме публичного госдолга с целью снизить процентный риск, однако значимо снизить долю мешают регулярные ухудшения конъюнктуры рынка облигаций, в большинстве случаев обусловленные геополитикой, в то время как сделать паузы в размещении ОФЗ Минфину не дает необходимость привлекать средства для финансирования дефицита бюджета. Инвесторами в ОФЗ-ПК преимущественно являются российские банки.\n\nКорпоративные облигации с фиксированным купоном. На данный момент составляют менее 50% от объема рыночных выпусков. На фоне высокого значения ключевой ставки и волатильности на рынке ОФЗ-ПД корпоративные облигации с фиксированным купоном теряют привлекательность и в глазах инвесторов (из-за опасений подъема ключевой ставки), и в глазах эмитентов, которые не желают фиксировать высокую ставку надолго. В основном представлены выпусками со сроком погашения менее 2-х лет.\n\nКорпоративные облигации с переменным купоном. Основной инструмент привлечения компаниями средств на публичном долговом рынке, формируют более 50% рынка, купон привязан к уровню ключевой ставки или RUONIA и в подавляющем большинстве случаев определяется по формуле КС+спред. Не зависят от конъюнктуры на рынке ОФЗ-ПД, Из-за доминирования выпусков с плавающей ставкой, сегмент корпоративных облигаций «отвязался» от рынка ОФЗ, теперь рост доходности ОФЗ не препятствует активному размещению корпоративных облигаций, т.к. основным параметром для этого сегмента является уровень ключевой ставки, а не доходность ОФЗ (как было до 2022 г.).\n\nВалютные облигации. Номинированные в иностранной валюте госбумаги и облигации российских компаний, размещенные по российскому праву, выплаты в большинстве случаев осуществляются в рублях по курсу ЦБ РФ. Основными инвесторами являются частные (преимущественно, крупные) инвесторы. Динамика процентных ставок по валютным российским облигациям не зависит от уровня процентных ставок в мире и определяется исключительно уровнем спроса со стороны российских инвесторов.",
+      "date": "2026-07-22",
+      "document_id": "734301fd-bd96-4cc2-adb6-8f7a855673c2",
+      "page": 2,
+      "chunk_id": "5d5a4b28-c0b5-4004-b63d-f9399efd89b3",
+      "key": "fact",
+      "value": null,
+      "dataset": null,
+      "review_status": "reviewed",
+      "approximate": false,
+      "chart_id": null,
+      "page_image_url": "/api/research/734301fd-bd96-4cc2-adb6-8f7a855673c2/pages/2"
+    },
+    "E14": {
+      "type": "bank_research",
+      "source": "FI_Strategy_3Q26_22072026",
+      "url": null,
+      "quote": "Источники: ЦБ РФ, Минфин, Росстат, Дом.РФ, Альфа-Банк",
+      "date": "2026-07-22",
+      "document_id": "734301fd-bd96-4cc2-adb6-8f7a855673c2",
+      "page": 11,
+      "chunk_id": "d21d421d-11fc-45d8-ae6a-93d6ce2dc7e2",
+      "key": "fact",
+      "value": null,
+      "dataset": null,
+      "review_status": "reviewed",
+      "approximate": false,
+      "chart_id": null,
+      "page_image_url": "/api/research/734301fd-bd96-4cc2-adb6-8f7a855673c2/pages/11"
+    },
+    "E15": {
+      "type": "bank_research",
+      "source": "FI_Strategy_3Q26_22072026",
+      "url": null,
+      "quote": "Ожидаем сохранения ставки на уровне 14,25%, рынок ОФЗ подавлен. Рынок все еще ожидает от Минфина уточнения параметров бюджетной политики на 2026-2029 гг. По оценкам ЦБ, пересмотр бюджетных проектировок указывает на то, что вклад госсектора в динамику совокупного спроса на горизонте действия ДКП может оказаться выше, чем ранее ожидал Банк России. По словам советника председателя ЦБ РФ Кирилла Тремасова, бюджетных планов к заседанию ЦБ 24 июля еще не будет, регулятор их получит к октябрьскому заседанию и учтет в макроэкономическом прогнозе (июльское и октябрьское заседания будут «опорными», т.е. будут сопровождаться уточнением макроэкономического прогноза). На фоне того, что регулятор ожидает большего вклада со стороны госсектора в совокупный спрос, в то время как показатели спроса в настоящее время уверенно растут (об этом далее), мы ожидаем, что до получения уточненных данных по бюджету регулятор будет действовать осторожно, особенно с учетом возросших в последнее время инфляционных рисков (в т.ч. из-за возобновления конфликта на Ближнем Востоке). Мы ожидаем, что 24 июля регулятор сохранит ставку неизменной на уровне 14,25%, при этом прогноз по среднему уровню ключевой ставки в 2026 и 2027 гг. будет пересмотрен вверх. Текущее подавленное состояние рынка ОФЗ отражает опасения участников рынка, что на уровне 14,25% цикла смягчения ДКП может быть завершен",
+      "date": "2026-07-22",
+      "document_id": "734301fd-bd96-4cc2-adb6-8f7a855673c2",
+      "page": 9,
+      "chunk_id": "341f4856-8519-4b61-83d8-227437cc1845",
+      "key": "bank_view",
+      "value": [
+        {
+          "unit": "млрд руб.",
+          "title": "Расходы федерального бюджета помесячно, млрд руб.",
+          "legend": [
+            "2023",
+            "2024",
+            "2025",
+            "2026"
+          ],
+          "period": "2023-2026, помесячно",
+          "points": [],
+          "region": [
+            0.56,
+            0.22,
+            0.43,
+            0.38
+          ],
+          "x_axis": "Месяцы (янв — дек)",
+          "y_axis": "млрд руб.",
+          "local_id": "c001",
+          "description": "Столбчатая диаграмма с четырьмя сериями (2023, 2024, 2025, 2026) по месяцам с января по декабрь. Значения варьируются примерно от 1,5 до 7,5 тыс. млрд руб.; в декабре столбцы наиболее высокие по всем годам (около 5,5-7,5 тыс. млрд руб.), красный столбец 2024 г. превышает 7 000. Значения для конкретных точек не подписаны, поэтому числовые данные не извлекаются. Все показатели — по графику, приблизительно."
+        },
+        {
+          "unit": "% г/г (левая шкала), % (правая шкала)",
+          "title": "Динамика бюджетных расходов помесячно г/г и динамика инфляции",
+          "legend": [
+            "Динамика бюджетных расходов, г/г",
+            "Инфляция (правая шкала)"
+          ],
+          "period": "янв.24 — май.26",
+          "points": [],
+          "region": [
+            0.56,
+            0.53,
+            0.43,
+            0.42
+          ],
+          "x_axis": "Период (янв.24 — май.26)",
+          "y_axis": "г/г (слева, %), инфляция (справа, %)",
+          "local_id": "c002",
+          "description": "Линейный график с двумя сериями: серая — динамика бюджетных расходов г/г (левая шкала, от -40% до 80%), красная — инфляция (правая шкала, от -0,4% до 2,1%). Период с января 2024 г. по май 2026 г. Серая серия колеблется: значения варьируются примерно от -20% до почти 80% (пик в начале 2025 г.). Красная серия (инфляция, правая шкала) колеблется в диапазоне примерно от -0,4% до 1,7%. Значения для конкретных точек не подписаны, поэтому числовые данные не извлекаются. Все показатели — по графику, приблизительно."
+        }
+      ],
+      "dataset": null,
+      "review_status": "reviewed",
+      "approximate": false,
+      "chart_id": null,
+      "page_image_url": "/api/research/734301fd-bd96-4cc2-adb6-8f7a855673c2/pages/9"
+    },
+    "E16": {
+      "type": "bank_research",
+      "source": "FI_Strategy_3Q26_22072026",
+      "url": null,
+      "quote": "Источники: МосБиржа, CBonds, Альфа-Банк",
+      "date": "2026-07-22",
+      "document_id": "734301fd-bd96-4cc2-adb6-8f7a855673c2",
+      "page": 26,
+      "chunk_id": "f20b0834-8f71-4717-886f-a7b78c4631a5",
+      "key": "disclaimer",
+      "value": null,
+      "dataset": null,
+      "review_status": "reviewed",
+      "approximate": false,
+      "chart_id": null,
+      "page_image_url": "/api/research/734301fd-bd96-4cc2-adb6-8f7a855673c2/pages/26"
+    },
+    "E17": {
+      "type": "company_feature",
+      "source": "Данные компании",
+      "url": null,
+      "quote": null,
+      "date": null,
+      "document_id": null,
+      "page": null,
+      "chunk_id": null,
+      "key": "okved2",
+      "value": {
+        "code": "41",
+        "name": "Строительство зданий"
+      },
+      "dataset": "hackathon-2026-v1:profiles:0a556df4c2dcd358c783f6b9e7f7d29094aee8b1e54f1d0e2a9dd19921f17e2c",
+      "review_status": null,
+      "approximate": false,
+      "chart_id": null,
+      "page_image_url": null
+    },
+    "E18": {
+      "type": "company_feature",
+      "source": "Данные компании",
+      "url": null,
+      "quote": null,
+      "date": null,
+      "document_id": null,
+      "page": null,
+      "chunk_id": null,
+      "key": "products",
+      "value": [
+        "guarantee",
+        "leasing",
+        "loan",
+        "payroll",
+        "rko"
+      ],
+      "dataset": "hackathon-2026-v1:profiles:0a556df4c2dcd358c783f6b9e7f7d29094aee8b1e54f1d0e2a9dd19921f17e2c",
+      "review_status": null,
+      "approximate": false,
+      "chart_id": null,
+      "page_image_url": null
+    },
+    "E19": {
+      "type": "company_feature",
+      "source": "Данные компании",
+      "url": null,
+      "quote": null,
+      "date": null,
+      "document_id": null,
+      "page": null,
+      "chunk_id": null,
+      "key": "fts_countries",
+      "value": [],
+      "dataset": "hackathon-2026-v1:profiles:0a556df4c2dcd358c783f6b9e7f7d29094aee8b1e54f1d0e2a9dd19921f17e2c",
+      "review_status": null,
+      "approximate": false,
+      "chart_id": null,
+      "page_image_url": null
+    },
+    "E20": {
+      "type": "company_feature",
+      "source": "Данные компании",
+      "url": null,
+      "quote": null,
+      "date": null,
+      "document_id": null,
+      "page": null,
+      "chunk_id": null,
+      "key": "region",
+      "value": "Вологодская область",
+      "dataset": "hackathon-2026-v1:profiles:0a556df4c2dcd358c783f6b9e7f7d29094aee8b1e54f1d0e2a9dd19921f17e2c",
+      "review_status": null,
+      "approximate": false,
+      "chart_id": null,
+      "page_image_url": null
+    },
+    "E21": {
+      "type": "company_feature",
+      "source": "Данные компании",
+      "url": null,
+      "quote": null,
+      "date": null,
+      "document_id": null,
+      "page": null,
+      "chunk_id": null,
+      "key": "lifecycle",
+      "value": "Оптимизация",
+      "dataset": "hackathon-2026-v1:profiles:0a556df4c2dcd358c783f6b9e7f7d29094aee8b1e54f1d0e2a9dd19921f17e2c",
+      "review_status": null,
+      "approximate": false,
+      "chart_id": null,
+      "page_image_url": null
+    }
+  },
+  "limitations": [
+    "Состав группы известен только по GROUP_ID среди отфильтрованных компаний-клиентов; связи через физлиц не учитываются.",
+    "Похожих новостей за последние семь дней не найдено.",
+    "В данных нет долговой нагрузки, условий кредитных договоров, структуры затрат и выручки по направлениям."
+  ],
+  "suggested_questions": [],
+  "trace_id": "bd425cd9-1207-4428-86e6-456b026debac",
+  "verification": {
+    "code_status": "passed",
+    "critic": {
+      "status": "passed",
+      "request_count": 1,
+      "reason": null
+    },
+    "repair_count": 0
+  },
+  "direction": "risk",
+  "news_period_from": "2026-10-19T00:00:00+03:00",
+  "news_period_to": "2026-10-25T09:37:13.198915+00:00",
+  "company_traits": [
+    {
+      "code": "okved",
+      "label": "Строительство зданий",
+      "amount_rub": null
+    },
+    {
+      "code": "cp",
+      "label": "Ваши поставщики",
+      "amount_rub": null
+    },
+    {
+      "code": "group",
+      "label": "Группа · 45,4 млрд ₽",
+      "amount_rub": 45368342060.0
+    }
+  ],
+  "bank_data_as_of": "2026-10-22",
+  "why_you": "Компания строит здания и ведёт платежи с компаниями своей отрасли — расчётная дисциплина в строительстве важна для её денег."
+}

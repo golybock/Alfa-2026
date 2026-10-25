@@ -45,6 +45,29 @@
         },
         "questions_remaining": {
           "type": "integer"
+        },
+        "answer": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "missing": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
@@ -63,7 +86,8 @@
       "type": "string",
       "enum": [
         "answer",
-        "refusal"
+        "refusal",
+        "failed"
       ]
     },
     "ClaimDto": {

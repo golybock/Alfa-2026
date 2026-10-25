@@ -6,10 +6,19 @@
     "ChatDraft": {
       "type": "object",
       "properties": {
+        "answer": {
+          "type": "string"
+        },
         "claims": {
           "type": "array",
           "items": {
             "$ref": "#/$defs/DraftClaim"
+          }
+        },
+        "missing": {
+          "type": "array",
+          "items": {
+            "type": "string"
           }
         },
         "suggested_questions": {
@@ -20,7 +29,9 @@
         }
       },
       "required": [
+        "answer",
         "claims",
+        "missing",
         "suggested_questions"
       ],
       "additionalProperties": false

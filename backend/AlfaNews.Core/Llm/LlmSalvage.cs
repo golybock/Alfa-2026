@@ -12,7 +12,7 @@ public sealed record LlmSalvageResult(string Content, IReadOnlyList<string> Drop
 // Починка остаётся для ошибок всего ответа: схема, заголовок, пустые обязательные блоки, теги.
 public static class LlmSalvage
 {
-    public const string Version = "salvage-v2";
+    public const string Version = "salvage-v4";
     private static readonly string[] Sections = ["what_happened", "why_it_matters", "actions"];
     private static readonly Dictionary<string, string> ClaimReasons = new(StringComparer.Ordinal)
     {
@@ -25,7 +25,8 @@ public static class LlmSalvage
         ["bank_analytics_requires_bank_research"] = "аналитика банка без обзора банка",
         ["bank_research_only_in_bank_view"] = "аналитика банка вне блока банка",
         ["dated_bank_view_without_date"] = "старый обзор банка без даты",
-        ["too_long"] = "слишком длинное"
+        ["too_long"] = "слишком длинное",
+        ["unknown_claim_id"] = "ссылка на несуществующее утверждение"
     };
 
     public static LlmSalvageResult? TryApply(string content, LlmRequest request, IReadOnlyList<string> errors,
@@ -33,6 +34,7 @@ public static class LlmSalvage
         {
             LlmTask.NewsExtract => News(content, request),
             LlmTask.Draft => Draft(content, errors, validate),
+            LlmTask.Chat => Chat(content, errors, validate),
             _ => null
         };
 
@@ -77,6 +79,18 @@ public static class LlmSalvage
         var hadActions = root["actions"]!.AsArray().Count > 0;
         var dropped = new List<string>();
         var droppedTexts = new List<string>();
+        // Раздел ссылается на утверждение, которого нет в списке: висячая ссылка убирается, сами утверждения не трогаются.
+        if (errors.Contains("claims:unknown_claim_id"))
+        {
+            var known = claims.Select(claim => claim!["id"]!.GetValue<string>()).ToHashSet(StringComparer.Ordinal);
+            var dangling = References(root).Where(id => !known.Contains(id)).ToHashSet(StringComparer.Ordinal);
+            if (dangling.Count > 0)
+            {
+                RemoveReferences(root, dangling);
+                dropped.AddRange(dangling.Order(StringComparer.Ordinal).Select(id => $"claim:{id}:unknown_claim_id"));
+                errors = validate(root.ToJsonString());
+            }
+        }
         // Убранное утверждение может открыть следующее (например, ссылку на него); три прохода хватает с запасом.
         for (var pass = 0; pass < 3; pass++)
         {
@@ -108,6 +122,26 @@ public static class LlmSalvage
         return new LlmSalvageResult(root.ToJsonString(), dropped);
     }
 
+    // В ответе чата утверждения — опора связного текста, разделов нет: ошибочное утверждение просто убирается.
+    // Если текст держался на его числе, проверка ответа не пройдёт и останется починка.
+    private static LlmSalvageResult? Chat(string content, IReadOnlyList<string> errors, Func<string, IReadOnlyList<string>> validate)
+    {
+        var root = JsonNode.Parse(content)!.AsObject();
+        var claims = root["claims"]!.AsArray();
+        var dropped = new List<string>();
+        var ids = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var parts in errors.Select(error => error.Split(':')))
+            if (parts is ["claims", var id, var code] && ClaimReasons.ContainsKey(code) && ids.Add(id))
+                dropped.Add($"claim:{id}:{code}");
+        if (ids.Count == 0)
+            return null;
+        for (var index = claims.Count - 1; index >= 0; index--)
+            if (ids.Contains(claims[index]!["id"]!.GetValue<string>()))
+                claims.RemoveAt(index);
+        var cleaned = root.ToJsonString();
+        return validate(cleaned).Count == 0 ? new LlmSalvageResult(cleaned, dropped) : null;
+    }
+
     private static void RemoveReferences(JsonObject root, HashSet<string> ids)
     {
         foreach (var name in Sections)
@@ -126,6 +160,12 @@ public static class LlmSalvage
         if (bankIds.Count == 0)
             bankView["status"] = "not_found";
     }
+
+    private static IEnumerable<string> References(JsonObject root) =>
+        Sections.SelectMany(name => root[name]!.AsArray())
+            .Concat(root["consequences"]!.AsArray().SelectMany(item => item!["claim_ids"]!.AsArray()))
+            .Concat(root["bank_view"]!["claim_ids"]!.AsArray())
+            .Select(item => item!.GetValue<string>());
 
     private static void Filter(JsonArray array, HashSet<string> ids)
     {

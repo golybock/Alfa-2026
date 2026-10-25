@@ -89,7 +89,9 @@ public sealed class InsightAgent(AlfaNewsDbContext db, LlmGateway gateway, Agent
         catch (Exception exception)
         {
             var code = exception is LlmException llm ? llm.Code : "insight_failed";
-            logger.LogWarning("Карточка {InsightId}, задание {JobId}: {ErrorCode}, {ErrorType}.", insight.Id, job.Id, code, exception.GetType().Name);
+            // Ожидаемые отказы модели — только код; неожиданная ошибка кода — со стеком, иначе её не найти.
+            logger.LogWarning(exception is LlmException ? null : exception, "Карточка {InsightId}, задание {JobId}: {ErrorCode}, {ErrorType}.",
+                insight.Id, job.Id, code, exception.GetType().Name);
             insight.Status = "failed";
             insight.LastError = code;
             insight.UpdatedAt = clock.GetUtcNow();

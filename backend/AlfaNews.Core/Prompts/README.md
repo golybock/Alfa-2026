@@ -11,11 +11,11 @@ Copy this directory into `backend/AlfaNews.Core/Prompts/` in the application rep
 | NewsExtract | news-extract | NewsExtraction | DeepSeek v4.1 Flash | 32000 |
 | Plan | agent-plan | AgentPlan | DeepSeek v4.1 Flash | 32000 |
 | Draft | agent-draft | InsightDraft | DeepSeek v4.1 Flash | 32000 |
-| Repair | repair | Original task schema | DeepSeek v4.1 Flash | 32000; 8000 when repairing chat |
+| Repair | repair | Original task schema | DeepSeek v4.1 Flash | 32000; 16000 when repairing chat |
 | PdfOcr | pdf-ocr | PdfPageExtraction | GLM 5.3 Flash, reasoning low | 32000 |
 | Critic | critic | CriticResult | GLM 5.3 Flash, reasoning low | 32000 |
-| Chat | chat | ChatDraft | DeepSeek v4.1 Flash | 8000 |
-| ScopeGate | scope-gate | ScopeGateResult | DeepSeek v4.1 Flash | 8000 |
+| Chat | chat | ChatDraft | DeepSeek v4.1 Flash | 16000 |
+| ScopeGate | scope-gate | ScopeGateResult | DeepSeek v4.1 Flash | 16000 |
 
 These are ceilings including reasoning where the provider counts it, not target lengths. Use exact provider model IDs, endpoint, key, reasoning settings, and price configuration from server configuration. Do not include secrets in prompts. Repair is bounded and is never a route for repeating Critic. Lower runtime limits may apply when the remaining budget is insufficient.
 
@@ -57,7 +57,7 @@ For Repair, choose the target schema in code; it is not a union selected by the 
 - PDF blocks have four non-null kinds. The old test application's heading/block_type/order/needs_review/warnings fields are absent from the current contract. Preserve headings with substantive blocks. Code must flag localized `[неразборчиво]`, suspicious omissions, material coverage issues, and blank/failed-page ambiguity. This contract cannot by itself distinguish a blank page from an unreadable one. Do not mark an empty response ready without an independent blank-page check. Graph extraction includes descriptions and conservative axis estimates; all graph numbers remain blocked from quantitative downstream use until manually reviewed.
 - Code checks all C*/E* references, section membership, permitted origins, source dates, numbers, and forecast units/arithmetic. Only supplied evidence keys are allowed. The model never assigns verification status. After one shared repair, unresolved semantic claims go to visibly unconfirmed limitations and cannot remain in headline, actions, or ranking reasons. Structural errors still mean failure. A repaired card is not automatically critic_passed.
 - Critic is one HTTP request per card version, even after timeout/429/5xx. Run code checks first. The single shared card repair may already have been consumed by a code error. Never repair CriticResult by calling a model again. The server applies critic skip/error labels; short feed items and chat do not invoke Critic.
-- ChatDraft has no refusal/status/limitations field. ScopeGate refusal is assembled by code. A missing-data statement can cite an existing evidence entry that explicitly records the gap; never manufacture an evidence ID. If there is no evidence for an answer, the model returns an empty claims list, optionally with a question identifying the needed input. Code must show a safe missing-data/refusal fallback, never an apparently successful blank answer. No global exception to evidence validation is introduced.
+- ChatDraft has no refusal/status/limitations field. ScopeGate refusal is assembled by code; the gate defaults to in_scope for any business question about the event. `answer` is the readable reply; every number in it must appear in the claims or their cited evidence. Claims carry the evidence; a general explanation of a term or a greeting needs no claim. `missing` names data needed for a more precise answer. Never manufacture an evidence ID. An empty answer with no claims becomes a code-side missing-data refusal, never an apparently successful blank answer. Invalid claims are dropped by code; repair remains for errors in the answer text.
 - ForecastDto's actual wire status is estimated, not the older prose name available. This pack follows the generated schema. Forecast remains optional and disabled by default. Assumptions must be explicit scenario assumptions rather than invented observed facts. There are no ruble business-impact estimates or external market-data calls.
 - The model cannot prove completeness of a scanned page, source truth, company authorization, SSRF safety, or critic budget compliance. Implement these checks in application code.
 

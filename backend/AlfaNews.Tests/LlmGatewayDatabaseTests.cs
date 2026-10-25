@@ -159,11 +159,11 @@ public sealed class LlmGatewayDatabaseTests(PostgresFixture fixture) : IClassFix
     {
         await ResetAsync();
         var client = new ScriptedClient(new LlmClientResponse("malformed", ActualCostRub: 0.1m),
-            new LlmClientResponse("""{"claims":[],"suggested_questions":[]}""", ActualCostRub: 0.2m));
+            new LlmClientResponse("""{"answer":"","claims":[],"missing":[],"suggested_questions":[]}""", ActualCostRub: 0.2m));
         await using var services = Services(client);
         var request = LlmPromptTests.Request(LlmTask.Chat, fixture.JobId);
         await GenerateAsync<ChatDraft>(services, request);
-        Assert.Equal(new[] { 8000, 8000 }, client.Limits);
+        Assert.Equal(new[] { 16000, 16000 }, client.Limits);
         await using var scope = services.CreateAsyncScope();
         var error = await Assert.ThrowsAsync<LlmException>(() => scope.ServiceProvider.GetRequiredService<LlmGateway>()
             .RepairAsync<ChatDraft>(request, "different", ["semantic"], CancellationToken.None));

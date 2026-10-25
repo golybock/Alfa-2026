@@ -9,6 +9,8 @@ public sealed class PdfOptions
     public string PdfToPpmPath { get; set; } = "pdftoppm";
     public int ProcessTimeoutSeconds { get; set; } = 120;
     public const long MaxFileBytes = 50L * 1024 * 1024;
+    // Каждая страница — отдельный платный запрос распознавания; стартовые обзоры длиннее приходят готовыми из миграции.
+    public const int MaxPages = 10;
     public string InputDirectory => Path.GetFullPath(InputPath, baseDirectory);
 
     public string Resolve(string relativePath)

@@ -69,9 +69,11 @@ export interface ChatAnswerDto {
   readonly refusal_reason: string | null;
   readonly suggested_questions: ReadonlyArray<string>;
   readonly questions_remaining: number;
+  readonly answer?: string | null;
+  readonly missing?: ReadonlyArray<string> | null;
 }
 
-export type ChatAnswerStatus = "answer" | "refusal";
+export type ChatAnswerStatus = "answer" | "refusal" | "failed";
 
 export interface ChatHistoryResponse {
   readonly items: ReadonlyArray<ChatTurnDto>;

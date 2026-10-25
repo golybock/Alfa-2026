@@ -128,7 +128,7 @@ public sealed class PdfProcessingTests(PostgresFixture fixture) : IClassFixture<
             await using var scope = services.CreateAsyncScope();
             var registration = scope.ServiceProvider.GetRequiredService<PdfRegistration>();
             Assert.Equal(415, (await Assert.ThrowsAsync<AccessException>(() => registration.RegisterAsync(new MemoryStream("bad"u8.ToArray()), "Тест", null, null, null, CancellationToken.None))).StatusCode);
-            Assert.Equal(400, (await Assert.ThrowsAsync<AccessException>(() => registration.RegisterAsync(new MemoryStream(CreatePdf(51)), "Тест", null, null, null, CancellationToken.None))).StatusCode);
+            Assert.Equal(400, (await Assert.ThrowsAsync<AccessException>(() => registration.RegisterAsync(new MemoryStream(CreatePdf(PdfOptions.MaxPages + 1)), "Тест", null, null, null, CancellationToken.None))).StatusCode);
             Assert.Empty(Directory.GetFiles(Path.Combine(root, "files")));
         }
         finally

@@ -71,7 +71,7 @@ export function useJob(jobId: string | null, invalidateOnDone: QueryKey) {
     enabled: jobId !== null,
     queryFn: async () => {
       const job = await api.getJob(jobId ?? "");
-      if (job.status === "done") {
+      if (job.status === "done" || job.status === "failed") {
         await queryClient.invalidateQueries({ queryKey: invalidateOnDone });
       }
       return job;

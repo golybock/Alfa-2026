@@ -64,14 +64,16 @@ export interface ChatAnswerDto {
   readonly id: string;
   readonly insight_id: string;
   readonly status: ChatAnswerStatus;
+  readonly answer: string | null;
   readonly claims: ReadonlyArray<ClaimDto>;
   readonly evidence: Readonly<Record<string, EvidenceDto>>;
+  readonly missing: ReadonlyArray<string>;
   readonly refusal_reason: string | null;
   readonly suggested_questions: ReadonlyArray<string>;
   readonly questions_remaining: number;
 }
 
-export type ChatAnswerStatus = "answer" | "refusal";
+export type ChatAnswerStatus = "answer" | "refusal" | "failed";
 
 export interface ChatHistoryResponse {
   readonly items: ReadonlyArray<ChatTurnDto>;
