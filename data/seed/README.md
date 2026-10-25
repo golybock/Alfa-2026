@@ -1,0 +1,1 @@
+Снимок базы для запуска без ключа модели: `demo.sql.gz` (экспорт — `python -I tools/export-demo-seed.py --database alfanews`). PostgreSQL загружает `*.sql.gz` из этой папки только при первом создании пустой базы.

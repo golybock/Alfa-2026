@@ -10,7 +10,7 @@ x-backend-env: &backend-env
 
 services:
     postgres:
-        image: pgvector/pgvector:pg17
+        image: pgvector/pgvector:0.8.7-pg17
         restart: unless-stopped
         ports:
             - "127.0.0.1:15432:5432"
@@ -20,6 +20,7 @@ services:
             POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
         volumes:
             - postgres-data:/var/lib/postgresql/data
+            - ./data/seed:/docker-entrypoint-initdb.d:ro
         healthcheck:
             test: [ CMD-SHELL, 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"' ]
             interval: 5s
@@ -28,7 +29,7 @@ services:
             start_period: 10s
     
     tei:
-        image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.9
+        image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.9.4
         restart: unless-stopped
         ports:
             - "127.0.0.1:18081:80"
@@ -164,7 +165,7 @@ services:
             start_period: 15s
     
     gateway:
-        image: nginx:stable-alpine
+        image: nginx:1.30.6-alpine
         restart: unless-stopped
         ports:
             - "127.0.0.1:${HTTP_PORT:-8080}:80"

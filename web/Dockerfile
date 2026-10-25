@@ -1,4 +1,4 @@
-FROM node:24-bookworm-slim AS build
+FROM node:24.22.1-bookworm-slim AS build
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NEXT_PUBLIC_USE_MOCKS=false
@@ -7,7 +7,7 @@ RUN npm ci
 COPY . .
 RUN npm run lint && npm run build
 
-FROM node:24-bookworm-slim AS final
+FROM node:24.22.1-bookworm-slim AS final
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1

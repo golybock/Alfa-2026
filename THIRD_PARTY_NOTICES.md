@@ -57,7 +57,7 @@
 | Poppler: pdfinfo, pdftoppm (poppler-utils) | пакет Ubuntu в базовом образе; проверен 24.02.0-1ubuntu9.11 | GPL-2 или GPL-3; подробности в /usr/share/doc/poppler-utils/copyright | Проверка PDF и рендер страниц в API/Worker (запускается как отдельный процесс) |
 | curl | пакет Ubuntu в базовом образе API | curl (MIT-подобная) | Healthcheck контейнера API |
 
-Базовые образы: `mcr.microsoft.com/dotnet/aspnet:10.0`, `dotnet/runtime:10.0`, `dotnet/sdk:10.0` (MIT), `node:24-bookworm-slim` (MIT; Node.js), `pgvector/pgvector:pg17` (PostgreSQL; расширение pgvector — PostgreSQL License), `nginx:stable-alpine` (BSD-2-Clause).
+Базовые образы (точные теги): `mcr.microsoft.com/dotnet/aspnet:10.0.13`, `dotnet/runtime:10.0.13`, `dotnet/sdk:10.0.402` (MIT), `node:24.22.1-bookworm-slim` (MIT; Node.js), `pgvector/pgvector:0.8.7-pg17` (PostgreSQL 17; расширение pgvector 0.8.7 — PostgreSQL License), `nginx:1.30.6-alpine` (BSD-2-Clause), `ghcr.io/huggingface/text-embeddings-inference:cpu-1.9.4` (Apache-2.0).
 
 ## web (npm)
 
@@ -92,5 +92,46 @@
 
 | Компонент | Версия | Лицензия | Зачем |
 |---|---|---|---|
-| [Text Embeddings Inference](https://github.com/huggingface/text-embeddings-inference/blob/main/LICENSE) | существующий Docker-образ cpu-1.9 | Apache-2.0 | Локальный HTTP-сервис e5; фильтр новостей и поиск похожих публикаций A07 |
+| [Text Embeddings Inference](https://github.com/huggingface/text-embeddings-inference/blob/main/LICENSE) | Docker-образ cpu-1.9.4 | Apache-2.0 | Локальный HTTP-сервис e5; фильтр новостей и поиск похожих публикаций A07 |
 | [intfloat/multilingual-e5-base](https://huggingface.co/intfloat/multilingual-e5-base) | revision d128750597153bb5987e10b1c3493a34e5a4502a, существующий ONNX int8 | MIT | Локальные векторы размерности 768 для новостей; веса в Docker volume, не в Git |
+
+## Генеративные модели
+
+Используются только модели из разрешённого списка кейса, через шлюз организаторов хакатона (OpenAI-совместимый API). Веса моделей в проект не входят и не распространяются; условия использования — условия шлюза кейса.
+
+| Модель | Имя в шлюзе | Задачи |
+|---|---|---|
+| DeepSeek-V4.1-Flash | `deepseek/deepseek-v4.1-flash` | фильтр заголовков, разбор новости, агент, починка, чат, проверка темы вопроса |
+| GLM-5.3-Flash | `z-ai/glm-5.3-flash` | критик карточки, OCR страниц PDF |
+
+Остальные модели списка (`google/gemma-4-26b-a4b-it`, `qwen/qwen3.6-35b-a3b`, `qwen/qwen3-vl-30b-a3b-instruct`, `moonshotai/kimi-k2.6`) разрешены настройкой, но по умолчанию не используются. Эмбеддинг-модель e5 — локальная, см. выше.
+
+## Данные кейса
+
+| Данные | Источник | Как используются |
+|---|---|---|
+| `data/df_Uid_data_hack.csv`, `data/df_Uid_payment_hack.csv`, `data/df_Fid_Uid_link_hack.csv` | организаторы хакатона Альфа-Банка, обезличенные данные | компании, платежи, профили и учётки демо-компаний; связи физлиц (`df_Fid_Uid_link_hack.csv`) не импортируются. Деанонимизация не выполняется, данные передаются только в шлюз модели кейса |
+| девять PDF аналитики Альфа-Банка в `data/` | материалы кейса, © АО «Альфа-Банк» | распознаны GLM-5.3-Flash, текст и страницы показываются как «Позиция Альфа-Банка» с датой обзора |
+
+## Источники новостей
+
+Новости собираются из публичных RSS-лент; в интерфейсе показываются короткие цитаты со ссылкой на первоисточник, права на тексты принадлежат издателям. Полные тексты хранятся только в локальной базе стенда для разбора. Каталоги — `data/sources.json`, `data/sources-specialized.json`.
+
+| Источник | Лента | Статус |
+|---|---|---|
+| РБК | rssexport.rbc.ru | включён |
+| Минфин России | minfin.gov.ru | включён |
+| Правительство РФ | government.ru | включён |
+| Банк России, пресс-релизы | cbr.ru | включён |
+| ФНС России | nalog.gov.ru | выключен |
+| Коммерсантъ: экономика, финансы | kommersant.ru | включён |
+| Ведомости: экономика, финансы, бизнес | vedomosti.ru | включён |
+
+## Смоделированные интеграции
+
+Эти части имитируют окружение банка для демонстрации и не подключены к реальным системам Альфа-Банка:
+
+- **Интерфейс Альфа-Бизнеса** — главная страница, меню и разделы-заглушки (`web/src/components/bank/`, `web/fixtures/bank-home.json`); логотип `web/public/alfa-logo.jpg` и фирменные цвета используются только в демонстрационном макете для хакатона.
+- **Вход** — собственные демо-учётки с паролем `password` (`UserSeedService`), не Alfa ID и не банковская авторизация.
+- **«Связаться с менеджером»** — записывает действие в журнал `user_activity`; заявка менеджеру не отправляется, интерфейс сообщает об этом.
+- **Банковские продукты и данные клиента** — берутся из CSV кейса, а не из систем банка.
